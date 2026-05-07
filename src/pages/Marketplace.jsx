@@ -4,11 +4,13 @@ import { useSelector, useDispatch } from 'react-redux';
 import {
   Box, Container, Typography, Grid, Card, CardContent,
   TextField, Button, Chip, Avatar, Divider, Stack,
-  Paper, IconButton, Drawer, Alert, FormGroup, FormControlLabel, Checkbox
+  Paper, IconButton, Drawer, FormGroup, FormControlLabel, Checkbox,
+  InputAdornment, Skeleton, Badge
 } from '@mui/material';
 import { 
   Search, FilterList, Verified, 
-  VideoCameraFront, LocationOn, Star
+  VideoCameraFront, LocationOn, Star, 
+  Close, RestartAlt, CalendarMonth, Info
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setFilters, resetFilters } from '../store/slices/practitionerSlice';
@@ -22,8 +24,13 @@ const Marketplace = () => {
   const { user } = useAuth();
   const { filteredPractitioners, filters } = useSelector(state => state.practitioners);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Role-Based Access: Only 'client' can access
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (user && user.role !== 'client') {
       navigate('/dashboard');
@@ -32,6 +39,10 @@ const Marketplace = () => {
 
   const handleSearchChange = (e) => {
     dispatch(setFilters({ searchTerm: e.target.value }));
+  };
+
+  const clearSearch = () => {
+    dispatch(setFilters({ searchTerm: '' }));
   };
 
   const handleDisciplineChange = (discipline) => {
@@ -49,30 +60,58 @@ const Marketplace = () => {
     dispatch(setFilters({ availability: newAvailability }));
   };
 
-  const FilterSidebar = () => (
+  const FilterSidebarContent = () => (
     <Stack spacing={4}>
       <Box>
-        <Typography variant="subtitle1" fontWeight={700} gutterBottom aria-label="Filter by Discipline">
-          Discipline
+        <Typography variant="subtitle2" fontWeight={800} color="primary" gutterBottom>
+          DISCIPLINE
         </Typography>
-        <Stack direction="row" flexWrap="wrap" gap={1}>
+        <Stack spacing={1} sx={{ mt: 1 }}>
           {['All', 'Physiotherapy', 'Occupational Therapy', 'Psychology', 'Speech Pathology'].map(d => (
-            <Chip 
-              key={d} label={d} 
-              onClick={() => handleDisciplineChange(d)}
-              color={filters.discipline === d ? 'primary' : 'default'}
-              variant={filters.discipline === d ? 'filled' : 'outlined'}
+            <Button
+              key={d}
+              variant={filters.discipline === d ? 'contained' : 'text'}
               size="small"
-            />
+              fullWidth
+              onClick={() => handleDisciplineChange(d)}
+              sx={{ 
+                justifyContent: 'flex-start', 
+                textAlign: 'left',
+                fontWeight: 600,
+                color: filters.discipline === d ? '#fff' : 'text.secondary'
+              }}
+            >
+              {d}
+            </Button>
           ))}
         </Stack>
       </Box>
 
+      <Divider />
+
       <Box>
-        <Typography variant="subtitle1" fontWeight={700} gutterBottom aria-label="Filter by Delivery Mode">
-          Delivery Mode
+        <Typography variant="subtitle2" fontWeight={800} color="primary" gutterBottom>
+          AVAILABILITY
         </Typography>
-        <Stack direction="row" spacing={1}>
+        <FormGroup sx={{ mt: 1 }}>
+          <FormControlLabel 
+            control={<Checkbox size="small" checked={filters.availability.includes('After-Hours')} onChange={() => handleAvailabilityToggle('After-Hours')} />} 
+            label={<Typography variant="body2" fontWeight={600}>After-Hours</Typography>} 
+          />
+          <FormControlLabel 
+            control={<Checkbox size="small" checked={filters.availability.includes('Weekends')} onChange={() => handleAvailabilityToggle('Weekends')} />} 
+            label={<Typography variant="body2" fontWeight={600}>Weekends</Typography>} 
+          />
+        </FormGroup>
+      </Box>
+
+      <Divider />
+
+      <Box>
+        <Typography variant="subtitle2" fontWeight={800} color="primary" gutterBottom>
+          SERVICE TYPE
+        </Typography>
+        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
           {['All', 'Telehealth', 'In-person'].map(m => (
             <Chip 
               key={m} label={m} 
@@ -80,154 +119,157 @@ const Marketplace = () => {
               color={filters.deliveryMode === m ? 'primary' : 'default'}
               variant={filters.deliveryMode === m ? 'filled' : 'outlined'}
               size="small"
+              sx={{ fontWeight: 700 }}
             />
           ))}
         </Stack>
       </Box>
 
-      <Box>
-        <Typography variant="subtitle1" fontWeight={700} gutterBottom aria-label="Filter by Availability">
-          Availability
-        </Typography>
-        <FormGroup>
-          <FormControlLabel 
-            control={<Checkbox checked={filters.availability.includes('After-Hours')} onChange={() => handleAvailabilityToggle('After-Hours')} />} 
-            label="After-Hours" 
-          />
-          <FormControlLabel 
-            control={<Checkbox checked={filters.availability.includes('Weekends')} onChange={() => handleAvailabilityToggle('Weekends')} />} 
-            label="Weekends" 
-          />
-        </FormGroup>
-      </Box>
-
-      <Button variant="outlined" onClick={() => dispatch(resetFilters())} fullWidth>
+      <Button 
+        variant="outlined" 
+        size="small"
+        startIcon={<RestartAlt />} 
+        onClick={() => dispatch(resetFilters())} 
+        fullWidth
+        sx={{ mt: 2, borderRadius: 2, fontWeight: 700 }}
+      >
         Reset Filters
       </Button>
     </Stack>
   );
 
   return (
-    <Box sx={{ bgcolor: '#f1f5f9', minHeight: '100vh', py: { xs: 4, md: 8 } }}>
+    <Box sx={{ bgcolor: '#f1f5f9', minHeight: '100vh', py: 4 }}>
       <Container maxWidth="lg">
-        <Grid container spacing={4}>
-          {/* Desktop Filter Sidebar */}
+        <Grid container spacing={3}>
+          {/* LEFT SIDEBAR: FILTERS */}
           <Grid item xs={12} md={3} sx={{ display: { xs: 'none', md: 'block' } }}>
-            <Paper sx={{ p: 3, borderRadius: 4, position: 'sticky', top: 100 }}>
-              <Typography variant="h6" fontWeight={800} gutterBottom>Filters</Typography>
-              <Divider sx={{ my: 2 }} />
-              <FilterSidebar />
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', position: 'sticky', top: 100 }}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 3 }}>Refine Results</Typography>
+              <FilterSidebarContent />
             </Paper>
           </Grid>
 
-          {/* Practitioner List */}
+          {/* MAIN PAGE: SEARCH & PRACTITIONERS */}
           <Grid item xs={12} md={9}>
-            <Box sx={{ mb: 4, display: 'flex', gap: 2 }}>
-              <Paper sx={{ p: 1, flexGrow: 1, display: 'flex', alignItems: 'center', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                <Search sx={{ ml: 2, mr: 1, color: 'text.secondary' }} />
-                <TextField 
-                  fullWidth placeholder="Search by name or specialty..." 
-                  variant="standard" 
-                  InputProps={{ disableUnderline: true }}
-                  value={filters.searchTerm}
-                  onChange={handleSearchChange}
-                  aria-label="Search Practitioners"
-                />
-              </Paper>
-              <IconButton 
-                sx={{ display: { md: 'none' }, bgcolor: '#fff', borderRadius: 2 }} 
+            {/* Search Bar at Top of Results */}
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: 1.5, mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider',
+                display: 'flex', alignItems: 'center', bgcolor: '#fff'
+              }}
+            >
+              <Search sx={{ ml: 1.5, mr: 1, color: 'text.disabled' }} />
+              <TextField 
+                fullWidth placeholder="Search by name, specialty, or condition..." 
+                variant="standard" 
+                InputProps={{ 
+                  disableUnderline: true,
+                  endAdornment: filters.searchTerm && (
+                    <IconButton size="small" onClick={clearSearch} sx={{ mr: 1 }}><Close fontSize="small" /></IconButton>
+                  ),
+                  sx: { height: 48, px: 1, fontWeight: 500 }
+                }}
+                value={filters.searchTerm}
+                onChange={handleSearchChange}
+              />
+              <Divider orientation="vertical" flexItem sx={{ mx: 1, height: 24, alignSelf: 'center' }} />
+              <Button 
+                variant="text" 
+                startIcon={<FilterList />} 
                 onClick={() => setMobileFilterOpen(true)}
-                aria-label="Open Filters"
+                sx={{ display: { md: 'none' }, ml: 1, fontWeight: 700 }}
               >
-                <FilterList />
-              </IconButton>
-            </Box>
+                Filters
+              </Button>
+              <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' }, ml: 2, mr: 2, whiteSpace: 'nowrap' }}>
+                {filteredPractitioners.length} results
+              </Typography>
+            </Paper>
 
             <AnimatePresence mode="popLayout">
-              <Grid container spacing={3}>
-                {filteredPractitioners.map((p) => (
-                  <Grid item xs={12} key={p.id}>
+              {isLoading ? (
+                <Stack spacing={2}>
+                  {[1, 2, 3].map(i => <Skeleton key={i} variant="rounded" height={160} sx={{ borderRadius: 3 }} />)}
+                </Stack>
+              ) : filteredPractitioners.length > 0 ? (
+                <Stack spacing={2}>
+                  {filteredPractitioners.map((p) => (
                     <MotionCard 
+                      key={p.id}
                       layout
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      sx={{ borderRadius: 4, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
+                      sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}
                     >
-                      <CardContent sx={{ p: 0 }}>
-                        <Grid container>
-                          <Grid item xs={12} sm={3} sx={{ bgcolor: '#f8fafc', p: 3, textAlign: 'center' }}>
-                            <Avatar 
-                              src={p.image} 
-                              sx={{ width: 80, height: 80, mx: 'auto', mb: 2, border: '4px solid #fff', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} 
-                            />
-                            <Typography variant="subtitle2" fontWeight={800} color="primary">{p.discipline}</Typography>
+                      <CardContent sx={{ p: 2 }}>
+                        <Grid container spacing={2} alignItems="center">
+                          <Grid item xs={12} sm="auto">
+                            <Badge
+                              overlap="circular"
+                              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                              badgeContent={p.verified && <Verified color="secondary" sx={{ bgcolor: '#fff', borderRadius: '50%', fontSize: 20 }} />}
+                            >
+                              <Avatar 
+                                src={p.image} 
+                                sx={{ width: 80, height: 80, border: '2px solid #fff', boxShadow: '0 4px 8px rgba(0,0,0,0.05)' }} 
+                              />
+                            </Badge>
                           </Grid>
-                          <Grid item xs={12} sm={9} sx={{ p: 3 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography variant="h6" fontWeight={800}>{p.name}</Typography>
-                                {p.verified && (
-                                  <Chip 
-                                    icon={<Verified sx={{ fontSize: '14px !important' }} />} 
-                                    label="Verified" size="small" color="secondary" variant="outlined" 
-                                    sx={{ fontWeight: 700 }}
-                                    aria-label="Verified Practitioner"
-                                  />
-                                )}
-                              </Box>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Star sx={{ color: '#fbbf24', fontSize: 18 }} />
-                                <Typography variant="body2" fontWeight={700}>4.9</Typography>
-                              </Box>
+                          
+                          <Grid item xs={12} sm>
+                            <Box sx={{ mb: 0.5 }}>
+                              <Typography variant="h6" fontWeight={800}>{p.name}</Typography>
+                              <Typography variant="body2" color="primary" fontWeight={700}>{p.discipline}</Typography>
                             </Box>
-                            
-                            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <LocationOn sx={{ fontSize: 16 }} /> {p.location}
+                            <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <LocationOn sx={{ fontSize: 14 }} /> {p.location}
                               </Typography>
-                              {p.telehealth && (
-                                <Typography variant="body2" color="secondary.dark" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <VideoCameraFront sx={{ fontSize: 16 }} /> Telehealth Available
-                                </Typography>
-                              )}
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <CalendarMonth sx={{ fontSize: 14 }} /> {p.afterHours ? 'After-Hours' : 'Normal Hours'}
+                              </Typography>
                             </Stack>
+                            <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {p.bio}
+                            </Typography>
+                          </Grid>
 
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>{p.bio}</Typography>
-
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Typography variant="h6" fontWeight={800}>${p.fee}<Typography component="span" variant="caption" color="text.secondary"> / session</Typography></Typography>
-                              <Button 
-                                variant="contained" color="secondary" 
-                                onClick={() => navigate(`/booking?practitioner=${p.id}`)}
-                                sx={{ borderRadius: '50px', px: 4, fontWeight: 800 }}
-                                aria-label={`Book appointment with ${p.name}`}
-                              >
-                                Book Session
-                              </Button>
-                            </Box>
+                          <Grid item xs={12} sm="auto" sx={{ textAlign: { sm: 'right' }, borderLeft: { sm: '1px solid' }, borderColor: 'divider', pl: { sm: 3 } }}>
+                            <Typography variant="h6" fontWeight={800} color="primary.main">${p.fee}</Typography>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>per session</Typography>
+                            <Button 
+                              variant="contained" color="secondary" size="small"
+                              onClick={() => navigate(`/booking?practitioner=${p.id}`)}
+                              sx={{ borderRadius: '50px', px: 3, fontWeight: 800 }}
+                            >
+                              Book Now
+                            </Button>
                           </Grid>
                         </Grid>
                       </CardContent>
                     </MotionCard>
-                  </Grid>
-                ))}
-              </Grid>
+                  ))}
+                </Stack>
+              ) : (
+                <Paper sx={{ p: 8, textAlign: 'center', borderRadius: 4, bgcolor: '#fff', border: '1px solid', borderColor: 'divider' }}>
+                  <Info sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+                  <Typography variant="h6" fontWeight={800}>No specialists found</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Try adjusting your filters or search terms.</Typography>
+                  <Button variant="outlined" onClick={() => dispatch(resetFilters())}>Reset All</Button>
+                </Paper>
+              )}
             </AnimatePresence>
           </Grid>
         </Grid>
       </Container>
 
-      {/* Mobile Filter Drawer */}
-      <Drawer anchor="bottom" open={mobileFilterOpen} onClose={() => setMobileFilterOpen(false)}>
-        <Box sx={{ p: 4 }}>
-          <Typography variant="h6" fontWeight={800} gutterBottom>Filter Options</Typography>
-          <Divider sx={{ mb: 4 }} />
-          <FilterSidebar />
-          <Button variant="contained" fullWidth sx={{ mt: 4, py: 2 }} onClick={() => setMobileFilterOpen(false)}>
-            Show Results
-          </Button>
-        </Box>
+      {/* Mobile Drawer */}
+      <Drawer anchor="bottom" open={mobileFilterOpen} onClose={() => setMobileFilterOpen(false)} PaperProps={{ sx: { borderRadius: '20px 20px 0 0', p: 4 } }}>
+        <Typography variant="h6" fontWeight={800} sx={{ mb: 4 }}>Filter Specialists</Typography>
+        <FilterSidebarContent />
+        <Button variant="contained" fullWidth sx={{ mt: 4, py: 1.5, borderRadius: 3 }} onClick={() => setMobileFilterOpen(false)}>Show Results</Button>
       </Drawer>
     </Box>
   );
