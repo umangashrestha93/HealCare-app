@@ -1,19 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { 
-  Box, Container, Typography, Grid, Card, CardContent, 
-  Avatar, Chip, Stack, Divider, Button, List, ListItem, 
+import {
+  Box, Container, Typography, Grid, Card, CardContent,
+  Avatar, Chip, Stack, Divider, Button, List, ListItem,
   ListItemText, ListItemAvatar, Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
-import { 
-  CalendarMonth, Person, History, Verified, 
-  Notifications, Settings, VideoCameraFront, 
+import {
+  CalendarMonth, Person, History, Verified,
+  Notifications, Settings, VideoCameraFront,
   Cancel, Replay, MoreVert
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { cancelAppointment } from '../store/slices/bookingSlice';
+import PractitionerDashboard from './PractitionerDashboard';
 
 const MotionCard = motion(Card);
 
@@ -24,12 +25,20 @@ const Dashboard = () => {
   const { appointments } = useSelector(state => state.booking);
   const [cancelId, setCancelId] = useState(null);
 
-  if (!user) {
-    navigate('/login');
-    return null;
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
+  if (!user) return null;
+
+  // Delegate to PractitionerDashboard if role matches
+  if (user.role === 'practitioner') {
+    return <PractitionerDashboard />;
   }
 
-  const isPractitioner = user.role === 'practitioner';
+  const isPractitioner = false; // Always false here as practitioners are handled above
 
   const stats = isPractitioner ? [
     { label: 'Upcoming sessions', value: '4', icon: <CalendarMonth />, color: '#004a99' },
@@ -52,9 +61,9 @@ const Dashboard = () => {
         {/* Header */}
         <Box sx={{ mb: 6 }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems="center">
-            <Avatar 
-              sx={{ 
-                width: 80, height: 80, 
+            <Avatar
+              sx={{
+                width: 80, height: 80,
                 bgcolor: isPractitioner ? 'secondary.main' : 'primary.main',
                 fontSize: '2rem', fontWeight: 800
               }}
@@ -79,15 +88,15 @@ const Dashboard = () => {
         <Grid container spacing={3} sx={{ mb: 6 }}>
           {stats.map((s, i) => (
             <Grid item xs={12} sm={4} key={s.label}>
-              <MotionCard 
+              <MotionCard
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 sx={{ borderRadius: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
               >
                 <CardContent sx={{ display: 'flex', alignItems: 'center', p: 3 }}>
-                  <Box sx={{ 
-                    width: 56, height: 56, borderRadius: 2, 
+                  <Box sx={{
+                    width: 56, height: 56, borderRadius: 2,
                     bgcolor: `${s.color}1a`, color: s.color,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 2.5
                   }}>
@@ -124,14 +133,14 @@ const Dashboard = () => {
                     </Grid>
                     <Grid item xs={12} sm={4} sx={{ textAlign: { sm: 'right' }, mt: { xs: 2, sm: 0 } }}>
                       <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
-                        <Button 
+                        <Button
                           size="small" variant="outlined" startIcon={<Replay />}
                           onClick={() => navigate(`/booking?practitioner=1`)}
                           aria-label="Reschedule Appointment"
                         >
                           Reschedule
                         </Button>
-                        <Button 
+                        <Button
                           size="small" variant="text" color="error" startIcon={<Cancel />}
                           onClick={() => setCancelId(app.id)}
                           aria-label="Cancel Appointment"
@@ -151,7 +160,7 @@ const Dashboard = () => {
               )}
             </Stack>
           </Grid>
-          
+
           <Grid item xs={12} md={4}>
             <Typography variant="h5" fontWeight={800} sx={{ mb: 3 }}>Notifications</Typography>
             <Paper variant="outlined" sx={{ borderRadius: 4, p: 2 }}>
