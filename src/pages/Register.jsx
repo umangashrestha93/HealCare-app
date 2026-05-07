@@ -12,6 +12,7 @@ import {
   AssignmentTurnedIn, Person, MedicalServices, ArrowBack, ArrowForward,
   Info, Language, AccessTime, Close
 } from '@mui/icons-material';
+import { useAuth } from '../context/AuthContext';
 
 const DOCUMENTS = [
   { id: 'ahpra', label: 'AHPRA Registration', required: true },
@@ -57,11 +58,30 @@ const Register = () => {
   const nextStep = () => setActiveStep((s) => s + 1);
   const prevStep = () => setActiveStep((s) => s - 1);
 
-  const handleSubmit = (e) => {
+  const { register } = useAuth();
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Simulate API call
-    localStorage.setItem('beyond5_user', JSON.stringify({ ...formData, role }));
-    setSubmitted(true);
+    setError('');
+    
+    try {
+      // Prepare data for registration
+      const registrationData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        role: role,
+        // Practitioner specific fields would be handled in a profile update 
+        // after basic account creation if needed
+      };
+
+      await register(registrationData);
+      setSubmitted(true);
+    } catch (err) {
+      setError(err || 'Registration failed. Please check your information.');
+    }
   };
 
   if (submitted) {

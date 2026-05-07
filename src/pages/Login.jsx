@@ -27,16 +27,18 @@ const Login = ({ role: initialRole }) => {
     if (user) navigate('/dashboard');
   }, [user, navigate]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
+    console.log('------------------', e)
     e.preventDefault();
+    setError('');
+    
     if (email && password) {
-      login({ 
-        firstName: email.split('@')[0], 
-        lastName: '', 
-        email, 
-        role: role || 'client' 
-      });
-      navigate('/dashboard');
+      try {
+        await login({ email, password });
+        navigate('/dashboard');
+      } catch (err) {
+        setError(err || 'Failed to login. Please check your credentials.');
+      }
     } else {
       setError('Please fill in all fields');
     }

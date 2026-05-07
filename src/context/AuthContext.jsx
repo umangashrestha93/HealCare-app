@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 
+import { authService } from '../services/api';
+
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
@@ -8,24 +10,49 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('beyond5_user');
-    if (savedUser) {
+    const token = localStorage.getItem('beyond5_access_token');
+    if (savedUser && token) {
       setUser(JSON.parse(savedUser));
     }
     setLoading(false);
   }, []);
 
-  const login = (userData) => {
-    localStorage.setItem('beyond5_user', JSON.stringify(userData));
-    setUser(userData);
+  const login = async (credentials) => {
+    try {
+      const response = await authService.login(credentials);
+      const { access_token, user } = response;
+      
+      localStorage.setItem('beyond5_access_token', access_token);
+      localStorage.setItem('beyond5_user', JSON.stringify(user));
+      setUser(user);
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await authService.register(userData);
+      const { access_token, user } = response;
+      
+      localStorage.setItem('beyond5_access_token', access_token);
+      localStorage.setItem('beyond5_user', JSON.stringify(user));
+      setUser(user);
+      return user;
+    } catch (error) {
+      throw error;
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('beyond5_user');
+    localStorage.removeItem('beyond5_access_token');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );
