@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Container, Grid, Card, CardContent,
   Avatar, Chip, Stack,
-  TextField
+  TextField,
+  Divider,
+  Paper
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
@@ -11,7 +13,8 @@ import {
   PersonSearch, MedicalServices, Star, Schedule, VideoCameraFront,
   Search,
   CalendarMonth,
-  CheckCircle
+  CheckCircle,
+  LocationOn
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,6 +38,46 @@ const TESTIMONIALS = [
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const renderServices = () => {
+    return (
+      <>
+        {user?.role !== 'practitioner' && (
+          <Container maxWidth="lg" sx={{ mt: -6, position: 'relative', zIndex: 10, alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
+            <Box style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '20px', color: 'primary.dark' }}>Our Services</Box>
+            <Grid container spacing={3}>
+              {[
+                { label: 'Book Appointment', icon: <CalendarMonth />, color: '#004a99' },
+                { label: 'Telehealth Call', icon: <VideoCameraFront />, color: '#16a34a' },
+                { label: 'Find Services', icon: <MedicalServices />, color: '#ea580c' },
+                { label: '24/7 Support', icon: <Schedule />, color: '#7c3aed' },
+              ].map((service, i) => (
+                <Grid item xs={6} md={3} key={service.label}>
+                  <MotionCard
+                    whileHover={{ y: -8 }}
+                    sx={{
+                      textAlign: 'center', py: 4, px: 2, cursor: 'pointer',
+                      border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    <Box sx={{
+                      width: 64, height: 64, borderRadius: '50%',
+                      bgcolor: `${service.color}1a`, color: service.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      mx: 'auto', mb: 2
+                    }}>
+                      {cloneElement(service.icon, { fontSize: 'large' })}
+                    </Box>
+                    <Typography variant="subtitle1" fontWeight={700}>{service.label}</Typography>
+                  </MotionCard>
+                </Grid>
+              ))}
+            </Grid>
+          </Container>
+        )}
+      </>
+    )
+  }
 
   return (
     <Box sx={{ bgcolor: 'background.default' }}>
@@ -61,7 +104,7 @@ const Home = () => {
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Grid container spacing={4} alignItems="center" justifyContent={user?.role === 'practitioner' ? 'center' : 'flex-start'}>
             <Grid item xs={12} md={user?.role === 'practitioner' ? 10 : 7}>
-              <MotionBox 
+              <MotionBox
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
                 sx={{ textAlign: user?.role === 'practitioner' ? 'center' : 'left', width: '100%' }}
               >
@@ -73,15 +116,15 @@ const Home = () => {
                   World-Class Care,<br />
                   <Box component="span" sx={{ color: 'secondary.light' }}>Beyond the 9 to 5</Box>
                 </Typography>
-                <Typography variant="h6" sx={{ 
-                  color: 'rgba(255,255,255,0.8)', mb: user?.role === 'practitioner' ? 4 : 6, 
+                <Typography variant="h6" sx={{
+                  color: 'rgba(255,255,255,0.8)', mb: user?.role === 'practitioner' ? 4 : 6,
                   fontWeight: 400, maxWidth: user?.role === 'practitioner' ? 800 : 600,
                   mx: user?.role === 'practitioner' ? 'auto' : 0
                 }}>
                   Access Australia's leading allied health professionals after hours and on weekends.
                   AHPRA-verified care that fits your schedule.
                 </Typography>
-                
+
                 {user?.role === 'practitioner' && (
                   <Button
                     variant="contained"
@@ -95,41 +138,71 @@ const Home = () => {
                 )}
               </MotionBox>
 
-              {/* Search Widget - Hidden for Practitioners */}
+              {/* Premium Multi-Field Search Widget - Hidden for Practitioners */}
               {user?.role !== 'practitioner' && (
                 <MotionBox
                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
                   sx={{
-                    p: 1, bgcolor: '#ffffff', borderRadius: 4,
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                    maxWidth: 600
+                    p: 0.5, bgcolor: 'rgba(255,255,255,0.95)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '24px',
+                    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+                    maxWidth: 800,
+                    width: '100%',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', md: 'row' },
+                    alignItems: 'center',
+                    gap: 0.5
                   }}
                 >
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <Box sx={{ flex: 1.5, display: 'flex', alignItems: 'center', px: 2, width: '100%' }}>
+                    <Search color="primary" sx={{ mr: 1.5, opacity: 0.7 }} />
                     <TextField
                       fullWidth
-                      placeholder="Search Doctors, Specialists..."
+                      placeholder="Doctor, Specialty or Condition"
                       variant="standard"
                       InputProps={{
                         disableUnderline: true,
-                        startAdornment: <Search color="action" sx={{ ml: 2, mr: 1 }} />,
-                        sx: { height: 60, fontSize: '1.1rem' }
+                        sx: { height: 64, fontSize: '1rem', fontWeight: 500 }
                       }}
                     />
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      size="large"
-                      onClick={() => navigate('/marketplace')}
-                      sx={{
-                        px: 4, height: { sm: 60 },
-                        borderRadius: 3, fontSize: '1.1rem',
-                        whiteSpace: 'nowrap'
+                  </Box>
+
+                  <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' }, mx: 1, my: 2, borderRightWidth: 2 }} />
+                  <Divider sx={{ display: { xs: 'block', md: 'none' }, width: '100%' }} />
+
+                  <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', px: 2, width: '100%' }}>
+                    <LocationOn color="primary" sx={{ mr: 1.5, opacity: 0.7 }} />
+                    <TextField
+                      fullWidth
+                      placeholder="Location"
+                      variant="standard"
+                      InputProps={{
+                        disableUnderline: true,
+                        sx: { height: 64, fontSize: '1rem', fontWeight: 500 }
                       }}
-                    >
-                      Find a Doctor
-                    </Button>
-                  </Stack>
+                    />
+                  </Box>
+
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={() => navigate('/marketplace')}
+                    sx={{
+                      px: 6, height: { xs: 60, md: 60 },
+                      borderRadius: '20px', fontSize: '1.05rem',
+                      fontWeight: 800,
+                      textTransform: 'none',
+                      whiteSpace: 'nowrap',
+                      m: 0.5,
+                      width: { xs: 'calc(100% - 8px)', md: 'auto' },
+                      boxShadow: '0 10px 20px rgba(234, 88, 12, 0.2)',
+                      '&:hover': { boxShadow: '0 15px 30px rgba(234, 88, 12, 0.3)' }
+                    }}
+                  >
+                    Search Now
+                  </Button>
                 </MotionBox>
               )}
             </Grid>
@@ -137,107 +210,10 @@ const Home = () => {
         </Container>
       </Box>
 
-      {/* ─── QUICK SERVICES - Hidden for Practitioners ──────────────────────── */}
-      {user?.role !== 'practitioner' && (
-        <Container maxWidth="lg" sx={{ mt: -6, position: 'relative', zIndex: 10 }}>
-          <Grid container spacing={3}>
-            {[
-              { label: 'Book Appointment', icon: <CalendarMonth />, color: '#004a99' },
-              { label: 'Telehealth Call', icon: <VideoCameraFront />, color: '#16a34a' },
-              { label: 'Find Services', icon: <MedicalServices />, color: '#ea580c' },
-              { label: '24/7 Support', icon: <Schedule />, color: '#7c3aed' },
-            ].map((service, i) => (
-              <Grid item xs={6} md={3} key={service.label}>
-                <MotionCard
-                  whileHover={{ y: -8 }}
-                  sx={{
-                    textAlign: 'center', py: 4, px: 2, cursor: 'pointer',
-                    border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
-                  }}
-                >
-                  <Box sx={{
-                    width: 64, height: 64, borderRadius: '50%',
-                    bgcolor: `${service.color}1a`, color: service.color,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    mx: 'auto', mb: 2
-                  }}>
-                    {cloneElement(service.icon, { fontSize: 'large' })}
-                  </Box>
-                  <Typography variant="subtitle1" fontWeight={700}>{service.label}</Typography>
-                </MotionCard>
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
-      )}
-
       {/* ─── FEATURES SECTION ───────────────────────────────────────────── */}
       <Box sx={{ py: 12 }}>
         <Container maxWidth="lg">
-          <Grid container spacing={8} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <Box sx={{ position: 'relative' }}>
-                <Box sx={{
-                  position: 'absolute', top: -20, left: -20, right: 20, bottom: 20,
-                  bgcolor: 'secondary.light', borderRadius: 6, opacity: 0.1, zIndex: 0
-                }} />
-                <Box
-                  component="img"
-                  src="https://images.unsplash.com/photo-1584982324674-9dc4bb22340c?auto=format&fit=crop&q=80&w=1000"
-                  alt="Healthcare professional providing care"
-                  sx={{ 
-                    width: '100%', 
-                    height: { xs: 300, md: 500 },
-                    objectFit: 'cover',
-                    borderRadius: 4, 
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.1)', 
-                    position: 'relative', 
-                    zIndex: 1 
-                  }}
-                />
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="overline" color="secondary.main" fontWeight={800} letterSpacing={2}>
-                ABOUT BEYOND5
-              </Typography>
-              <Typography variant="h3" sx={{ mt: 1, mb: 3 }}>
-                The Future of Healthcare Access in Australia
-              </Typography>
-              <Typography color="text.secondary" paragraph sx={{ fontSize: '1.1rem', mb: 4 }}>
-                We bridge the gap between traditional healthcare hours and your actual life.
-                Our platform connects you with verified practitioners who specialize in after-hours
-                care, weekend support, and telehealth services.
-              </Typography>
-
-              <Stack spacing={3}>
-                {[
-                  { title: 'AHPRA Verified Professionals', desc: 'Every practitioner undergoes rigorous compliance checks.' },
-                  { title: 'Nationwide Telehealth', desc: 'Access specialists from any corner of Australia.' },
-                  { title: 'Transparent Booking', desc: 'No hidden fees, instant confirmations, and clear pricing.' },
-                ].map((item) => (
-                  <Stack key={item.title} direction="row" spacing={2} alignItems="flex-start">
-                    <Box sx={{ color: 'secondary.main', mt: 0.5 }}>
-                      <CheckCircle />
-                    </Box>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight={700}>{item.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">{item.desc}</Typography>
-                    </Box>
-                  </Stack>
-                ))}
-              </Stack>
-
-              <Button
-                variant="contained"
-                size="large"
-                sx={{ mt: 6, py: 2, px: 6, borderRadius: '50px' }}
-                onClick={() => navigate('/marketplace')}
-              >
-                Learn More About Us
-              </Button>
-            </Grid>
-          </Grid>
+          {renderServices()}
         </Container>
       </Box>
 
@@ -260,41 +236,90 @@ const Home = () => {
         </Container>
       </Box>
 
-      {/* ─── CALL TO ACTION ─────────────────────────────────────────────── */}
-      <Box sx={{ py: 15, textAlign: 'center' }}>
-        <Container maxWidth="md">
-          <Typography variant="h3" sx={{ mb: 3 }}>Ready to experience better care?</Typography>
-          <Typography variant="h6" color="text.secondary" sx={{ mb: 6, fontWeight: 400 }}>
-            Join Beyond5 today and get access to top-tier medical professionals on your terms.
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
-            {!user ? (
-              <>
-                <Button 
-                  variant="contained" color="secondary" size="large" 
-                  sx={{ borderRadius: '50px', px: 6, py: 2 }}
-                  onClick={() => navigate('/register')}
+      {/* ─── MEDIUM HORIZONTAL CTA BANNER ───────────────────────────── */}
+      <Box sx={{
+        py: { xs: 6, md: 10 },
+        bgcolor: '#ffffff',
+        borderTop: '1px solid',
+        borderColor: 'divider'
+      }}>
+        <Container maxWidth="lg">
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 4, md: 6 },
+              borderRadius: 8,
+              bgcolor: '#f8fafc',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <Grid container spacing={6} alignItems="center">
+              {/* Content Side */}
+              <Grid item xs={12} md={7}>
+                <MotionBox
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6 }}
                 >
-                  Book an Appointment
-                </Button>
-                <Button 
-                  variant="outlined" color="primary" size="large"
-                  sx={{ borderRadius: '50px', px: 6, py: 2 }}
-                  onClick={() => navigate('/register?role=practitioner')}
-                >
-                  Join as a Practitioner
-                </Button>
-              </>
-            ) : (
-              <Button 
-                variant="contained" color="primary" size="large" 
-                sx={{ borderRadius: '50px', px: 6, py: 2 }}
-                onClick={() => navigate('/dashboard')}
-              >
-                Go to My Dashboard
-              </Button>
-            )}
-          </Stack>
+                  <Typography variant="overline" color="secondary.main" fontWeight={800} letterSpacing={2}>
+                    START YOUR JOURNEY
+                  </Typography>
+                  <Typography variant="h3" sx={{
+                    mt: 1, mb: 2, fontWeight: 900,
+                    fontSize: { xs: '2rem', md: '2.75rem' },
+                    lineHeight: 1.2, color: '#003366'
+                  }}>
+                    Quality care that fits<br />your life.
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'text.secondary', mb: 4, fontWeight: 400, maxWidth: 500 }}>
+                    Access Australia's leading allied health professionals after hours and on weekends.
+                    Simple, secure, and AHPRA-verified.
+                  </Typography>
+
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    {!user ? (
+                      <>
+                        <Button
+                          variant="contained" color="secondary"
+                          onClick={() => navigate('/register')}
+                          sx={{
+                            borderRadius: '12px', px: 5, py: 2,
+                            fontWeight: 800, textTransform: 'none', fontSize: '1.05rem'
+                          }}
+                        >
+                          Book Appointment
+                        </Button>
+                        <Button
+                          variant="outlined" color="primary"
+                          onClick={() => navigate('/register?role=practitioner')}
+                          sx={{
+                            borderRadius: '12px', px: 5, py: 2,
+                            fontWeight: 800, textTransform: 'none', fontSize: '1.05rem',
+                            borderWidth: 2, '&:hover': { borderWidth: 2 }
+                          }}
+                        >
+                          Join as Provider
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="contained" color="primary"
+                        onClick={() => navigate('/dashboard')}
+                        sx={{
+                          borderRadius: '12px', px: 8, py: 2,
+                          fontWeight: 800, textTransform: 'none', fontSize: '1.05rem'
+                        }}
+                      >
+                        Go to My Dashboard
+                      </Button>
+                    )}
+                  </Stack>
+                </MotionBox>
+              </Grid>
+            </Grid>
+          </Paper>
         </Container>
       </Box>
     </Box>
