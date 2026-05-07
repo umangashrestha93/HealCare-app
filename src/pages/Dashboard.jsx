@@ -15,6 +15,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { cancelAppointment } from '../store/slices/bookingSlice';
 import PractitionerDashboard from './PractitionerDashboard';
+import AdminDashboard from './AdminDashboard';
 
 const MotionCard = motion(Card);
 
@@ -33,9 +34,13 @@ const Dashboard = () => {
 
   if (!user) return null;
 
-  // Delegate to PractitionerDashboard if role matches
+  // Role-based Dashboard Delegation
   if (user.role === 'practitioner') {
     return <PractitionerDashboard />;
+  }
+
+  if (user.role === 'admin') {
+    return <AdminDashboard />;
   }
 
   const isPractitioner = false; // Always false here as practitioners are handled above

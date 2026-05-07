@@ -73,19 +73,6 @@ const Login = ({ role: initialRole }) => {
           </Box>
         </Stack>
       </Paper>
-      <Paper 
-        variant="outlined" 
-        sx={{ p: 3, cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc', borderColor: 'error.main' } }}
-        onClick={() => setRole('admin')}
-      >
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Avatar sx={{ bgcolor: 'text.secondary' }}><AdminPanelSettings /></Avatar>
-          <Box>
-            <Typography fontWeight={700}>Administrator</Typography>
-            <Typography variant="caption" color="text.secondary">System management</Typography>
-          </Box>
-        </Stack>
-      </Paper>
     </Stack>
   );
 
