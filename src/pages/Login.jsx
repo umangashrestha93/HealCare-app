@@ -1,18 +1,85 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { 
-  Box, Container, Typography, TextField, Button, 
-  Card, CardContent, Paper, Stack, Divider, 
-  Link, IconButton, Alert, Avatar
+import {
+  Box,
+  Container,
+  Typography,
+  TextField,
+  Button,
+  Card,
+  CardContent,
+  Paper,
+  Stack,
+  Divider,
+  Link,
+  IconButton,
+  Alert,
+  Avatar,
+  Chip,
+  CircularProgress,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import { 
-  LocalHospital, ArrowBack, Person, 
-  MedicalServices, AdminPanelSettings, Lock
+import {
+  ArrowBack,
+  Person,
+  MedicalServices,
+  Lock,
+  VerifiedUser,
+  AccessTime,
+  ShieldOutlined,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 const MotionCard = motion(Card);
+
+const roleOptions = [
+  {
+    id: 'client',
+    title: 'Client',
+    subtitle: 'Find and book flexible allied health support.',
+    icon: <Person />,
+    color: 'primary.main',
+  },
+  {
+    id: 'practitioner',
+    title: 'Practitioner',
+    subtitle: 'Manage onboarding, availability, and referrals.',
+    icon: <MedicalServices />,
+    color: 'secondary.main',
+  },
+];
+
+const RoleOption = ({ option, selected, onSelect }) => (
+  <Paper
+    component="button"
+    type="button"
+    onClick={() => onSelect(option.id)}
+    sx={{
+      width: '100%',
+      p: 2.5,
+      textAlign: 'left',
+      cursor: 'pointer',
+      border: '1px solid',
+      borderColor: selected ? option.color : 'divider',
+      bgcolor: selected ? 'rgba(0, 74, 153, 0.04)' : 'background.paper',
+      transition: '160ms ease',
+      '&:hover': {
+        borderColor: option.color,
+        transform: 'translateY(-2px)',
+      },
+    }}
+  >
+    <Stack direction="row" spacing={2} alignItems="center">
+      <Avatar sx={{ bgcolor: option.color }}>{option.icon}</Avatar>
+      <Box>
+        <Typography fontWeight={800}>{option.title}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {option.subtitle}
+        </Typography>
+      </Box>
+    </Stack>
+  </Paper>
+);
 
 const Login = ({ role: initialRole }) => {
   const navigate = useNavigate();
@@ -21,148 +88,215 @@ const Login = ({ role: initialRole }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // If already logged in, redirect to dashboard
   useEffect(() => {
     if (user) navigate('/dashboard');
   }, [user, navigate]);
 
   const handleLogin = async (e) => {
-    console.log('------------------', e)
     e.preventDefault();
     setError('');
-    
-    if (email && password) {
-      try {
-        await login({ email, password });
-        navigate('/dashboard');
-      } catch (err) {
-        setError(err || 'Failed to login. Please check your credentials.');
+
+    if (!email || !password) {
+      setError('Please enter your email and password.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const loggedInUser = await login({ email, password });
+
+      if (role && loggedInUser.role !== role && loggedInUser.role !== 'admin') {
+        setError(`This account is registered as ${loggedInUser.role}. Select the matching role to continue.`);
+        setSubmitting(false);
+        return;
       }
-    } else {
-      setError('Please fill in all fields');
+
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err || 'Failed to login. Please check your credentials.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const RoleSelection = () => (
-    <Stack spacing={2}>
-      <Typography variant="h5" fontWeight={800} textAlign="center" gutterBottom>
-        Select Your Role
-      </Typography>
-      <Paper 
-        variant="outlined" 
-        sx={{ p: 3, cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc', borderColor: 'primary.main' } }}
-        onClick={() => setRole('client')}
-      >
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Avatar sx={{ bgcolor: 'primary.main' }}><Person /></Avatar>
-          <Box>
-            <Typography fontWeight={700}>I am a Client</Typography>
-            <Typography variant="caption" color="text.secondary">Looking for health services</Typography>
-          </Box>
-        </Stack>
-      </Paper>
-      <Paper 
-        variant="outlined" 
-        sx={{ p: 3, cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc', borderColor: 'secondary.main' } }}
-        onClick={() => setRole('practitioner')}
-      >
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Avatar sx={{ bgcolor: 'secondary.main' }}><MedicalServices /></Avatar>
-          <Box>
-            <Typography fontWeight={700}>I am a Practitioner</Typography>
-            <Typography variant="caption" color="text.secondary">Providing health services</Typography>
-          </Box>
-        </Stack>
-      </Paper>
-    </Stack>
-  );
-
   return (
-    <Box sx={{ bgcolor: '#f1f5f9', minHeight: '100vh', display: 'flex', alignItems: 'center', py: 8 }}>
-      <Container maxWidth="sm">
-        <MotionCard 
-          initial={{ opacity: 0, y: 20 }}
+    <Box sx={{ bgcolor: '#f3faf7', minHeight: '100vh', py: { xs: 4, md: 8 } }}>
+      <Container maxWidth="lg">
+        <MotionCard
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          sx={{ borderRadius: 4, boxShadow: '0 20px 40px rgba(0,0,0,0.05)' }}
+          sx={{ overflow: 'hidden', borderRadius: 2 }}
         >
-          <CardContent sx={{ p: { xs: 3, md: 6 } }}>
-            {!role ? (
-              <RoleSelection />
-            ) : (
-              <>
-                <Box sx={{ mb: 4 }}>
-                  <IconButton onClick={() => setRole(null)} sx={{ mb: 2, ml: -1 }}>
-                    <ArrowBack />
-                  </IconButton>
-                  <Typography variant="h4" fontWeight={800} gutterBottom>
-                    {role.charAt(0).toUpperCase() + role.slice(1)} Login
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '0.9fr 1.1fr' },
+              minHeight: { md: 640 },
+            }}
+          >
+            <Box
+              sx={{
+                p: { xs: 4, md: 6 },
+                bgcolor: '#0f3f3c',
+                color: '#fff',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Stack spacing={4}>
+                <Box>
+                  <Chip
+                    icon={<VerifiedUser />}
+                    label="Verified allied health access"
+                    sx={{ bgcolor: 'rgba(255,255,255,0.16)', color: '#fff', mb: 3 }}
+                  />
+                  <Typography variant="h3" fontWeight={900} gutterBottom sx={{ color: '#fff' }}>
+                    Welcome back to Beyond5
                   </Typography>
-                  <Typography color="text.secondary">
-                    Welcome back! Please enter your credentials.
+                  <Typography sx={{ color: 'rgba(255,255,255,0.78)', maxWidth: 420 }}>
+                    Continue to bookings, onboarding, compliance reviews, and after-hours care access.
                   </Typography>
                 </Box>
 
-                {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+                <Stack spacing={2}>
+                  {[
+                    { icon: <AccessTime />, text: 'After-hours and weekend access' },
+                    { icon: <ShieldOutlined />, text: 'Role-based dashboards and verified profiles' },
+                    { icon: <MedicalServices />, text: 'Practitioner onboarding and approval workflow' },
+                  ].map((item) => (
+                    <Stack key={item.text} direction="row" spacing={1.5} alignItems="center">
+                      <Avatar sx={{ width: 34, height: 34, bgcolor: 'rgba(255,255,255,0.14)' }}>
+                        {item.icon}
+                      </Avatar>
+                      <Typography variant="body2">{item.text}</Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Stack>
 
-                <form onSubmit={handleLogin}>
-                  <TextField
-                    label="Email Address"
-                    type="email"
-                    fullWidth
-                    required
-                    margin="normal"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  <TextField
-                    label="Password"
-                    type="password"
-                    fullWidth
-                    required
-                    margin="normal"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                    <Link component={RouterLink} to="#" variant="body2" color="primary" sx={{ fontWeight: 600 }}>
-                      Forgot password?
-                    </Link>
+              <Box sx={{ display: { xs: 'none', md: 'block' }, mt: 6 }}>
+                <Typography variant="h4" fontWeight={900}>24/7</Typography>
+                <Typography sx={{ color: 'rgba(255,255,255,0.72)' }}>Flexible access model for real life.</Typography>
+              </Box>
+            </Box>
+
+            <CardContent sx={{ p: { xs: 3, md: 6 } }}>
+              {!role ? (
+                <Stack spacing={3}>
+                  <Box>
+                    <Typography variant="h4" fontWeight={900} gutterBottom>
+                      Sign in
+                    </Typography>
+                    <Typography color="text.secondary">
+                      Choose your account type to continue.
+                    </Typography>
                   </Box>
 
-                  <Button 
-                    type="submit" 
-                    variant="contained" 
-                    fullWidth 
-                    size="large"
-                    startIcon={<Lock />}
-                    sx={{ mt: 4, py: 2, borderRadius: '50px', fontWeight: 800 }}
-                  >
-                    Sign In
-                  </Button>
-                </form>
+                  <Stack spacing={2}>
+                    {roleOptions.map((option) => (
+                      <RoleOption
+                        key={option.id}
+                        option={option}
+                        selected={role === option.id}
+                        onSelect={setRole}
+                      />
+                    ))}
+                  </Stack>
+                </Stack>
+              ) : (
+                <>
+                  <Box sx={{ mb: 4 }}>
+                    <IconButton onClick={() => setRole(null)} sx={{ mb: 2, ml: -1 }} aria-label="Change role">
+                      <ArrowBack />
+                    </IconButton>
+                    <Typography variant="h4" fontWeight={900} gutterBottom>
+                      {role === 'client' ? 'Client Login' : 'Practitioner Login'}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      Access your dashboard with your registered email and password.
+                    </Typography>
+                  </Box>
 
-                <Divider sx={{ my: 4 }}>
-                  <Typography variant="caption" color="text.disabled">OR</Typography>
-                </Divider>
+                  <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+                    {roleOptions.map((option) => (
+                      <Chip
+                        key={option.id}
+                        label={option.title}
+                        color={role === option.id ? 'primary' : 'default'}
+                        variant={role === option.id ? 'filled' : 'outlined'}
+                        onClick={() => setRole(option.id)}
+                      />
+                    ))}
+                  </Stack>
 
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Don't have an account?{' '}
-                    <Link 
-                      component={RouterLink} 
-                      to={role === 'practitioner' ? '/register?role=practitioner' : '/register'} 
-                      color="primary" 
-                      sx={{ fontWeight: 700 }}
+                  {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+
+                  <Box component="form" onSubmit={handleLogin}>
+                    <TextField
+                      label="Email Address"
+                      type="email"
+                      fullWidth
+                      required
+                      margin="normal"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <TextField
+                      label="Password"
+                      type="password"
+                      fullWidth
+                      required
+                      margin="normal"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Secure JWT session
+                      </Typography>
+                      <Link component={RouterLink} to="#" variant="body2" color="primary" sx={{ fontWeight: 700 }}>
+                        Forgot password?
+                      </Link>
+                    </Box>
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      fullWidth
+                      size="large"
+                      startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : <Lock />}
+                      disabled={submitting}
+                      sx={{ mt: 4, py: 1.6, fontWeight: 900 }}
                     >
-                      Create Account
-                    </Link>
-                  </Typography>
-                </Box>
-              </>
-            )}
-          </CardContent>
+                      {submitting ? 'Signing in...' : 'Sign In'}
+                    </Button>
+                  </Box>
+
+                  <Divider sx={{ my: 4 }}>
+                    <Typography variant="caption" color="text.disabled">OR</Typography>
+                  </Divider>
+
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Don't have an account?{' '}
+                      <Link
+                        component={RouterLink}
+                        to={role === 'practitioner' ? '/register?role=practitioner' : '/register'}
+                        color="primary"
+                        sx={{ fontWeight: 800 }}
+                      >
+                        Create Account
+                      </Link>
+                    </Typography>
+                  </Box>
+                </>
+              )}
+            </CardContent>
+          </Box>
         </MotionCard>
       </Container>
     </Box>

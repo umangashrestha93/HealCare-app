@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "client": "vite",
-    "server": "npm start --prefix server",
-    "dev": "concurrently \"npm run client\" \"npm run server\"",
+    "server": "yarn --cwd server start",
+    "dev": "concurrently \"yarn client\" \"yarn server\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

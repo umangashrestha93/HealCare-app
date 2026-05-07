@@ -12,7 +12,7 @@ const connectDB = async () => {
     return true;
   } catch (err) {
     console.warn(`MongoDB not connected: ${err.message}`);
-    console.warn('Auth will use in-memory storage for this dev session.');
+    console.warn('Auth will use server/data/dev-users.json for local development.');
     return false;
   }
 };

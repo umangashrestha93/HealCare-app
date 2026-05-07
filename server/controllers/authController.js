@@ -3,8 +3,8 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const User = require('../models/User');
-
-const devUsers = new Map();
+const Practitioner = require('../models/Practitioner');
+const devUserStore = require('../utils/devUserStore');
 
 const isMongoConnected = () => mongoose.connection.readyState === 1;
 const normalizeEmail = (email) => email.trim().toLowerCase();
@@ -13,7 +13,16 @@ const normalizeEmail = (email) => email.trim().toLowerCase();
 // @route   POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, role } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      location,
+      password,
+      role,
+      practitionerProfile
+    } = req.body;
 
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({ message: 'Please provide first name, last name, email and password' });
@@ -22,7 +31,8 @@ exports.register = async (req, res) => {
     const normalizedEmail = normalizeEmail(email);
 
     if (!isMongoConnected()) {
-      if (devUsers.has(normalizedEmail)) {
+      const existingDevUser = await devUserStore.findByEmail(normalizedEmail);
+      if (existingDevUser) {
         return res.status(400).json({ message: 'User already exists' });
       }
 
@@ -31,10 +41,13 @@ exports.register = async (req, res) => {
         firstName,
         lastName,
         email: normalizedEmail,
+        phone,
+        location,
         password: await bcrypt.hash(password, 10),
-        role: role || 'client'
+        role: role || 'client',
+        practitionerProfile: role === 'practitioner' ? practitionerProfile : undefined
       };
-      devUsers.set(normalizedEmail, user);
+      await devUserStore.upsertUser(user);
       return sendTokenResponse(user, 201, res);
     }
 
@@ -49,13 +62,176 @@ exports.register = async (req, res) => {
       firstName,
       lastName,
       email: normalizedEmail,
+      phone,
+      location,
       password,
       role: role || 'client'
     });
 
+    if (user.role === 'practitioner') {
+      await upsertPractitionerProfile(user._id, practitionerProfile || {});
+    }
+
     sendTokenResponse(user, 201, res);
   } catch (err) {
     res.status(500).json({ message: 'Registration failed', error: err.message });
+  }
+};
+
+// @desc    Get current user
+// @route   GET /api/auth/me
+exports.getMe = async (req, res) => {
+  try {
+    if (!isMongoConnected()) {
+      const user = await devUserStore.findById(req.user.id);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      return res.status(200).json({
+        success: true,
+        user: sanitizeUser(user),
+        practitionerProfile: user.practitionerProfile || null
+      });
+    }
+
+    const user = await User.findById(req.user.id).lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const practitionerProfile = user.role === 'practitioner'
+      ? await Practitioner.findOne({ userId: user._id }).lean()
+      : null;
+
+    res.status(200).json({
+      success: true,
+      user: sanitizeUser(user),
+      practitionerProfile
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load profile', error: err.message });
+  }
+};
+
+// @desc    Update current user profile
+// @route   PUT /api/auth/profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const allowedUserFields = ['firstName', 'lastName', 'phone', 'location'];
+    const userUpdates = {};
+    allowedUserFields.forEach((field) => {
+      if (req.body[field] !== undefined) userUpdates[field] = req.body[field];
+    });
+
+    if (!isMongoConnected()) {
+      const user = await devUserStore.findById(req.user.id);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      const updatedUser = {
+        ...user,
+        ...userUpdates,
+        practitionerProfile: req.body.practitionerProfile || user.practitionerProfile
+      };
+      await devUserStore.upsertUser(updatedUser);
+      return res.status(200).json({
+        success: true,
+        user: sanitizeUser(updatedUser),
+        practitionerProfile: updatedUser.practitionerProfile || null
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(req.user.id, userUpdates, {
+      new: true,
+      runValidators: true
+    });
+
+    let practitionerProfile = null;
+    if (user.role === 'practitioner' && req.body.practitionerProfile) {
+      practitionerProfile = await upsertPractitionerProfile(user._id, req.body.practitionerProfile);
+    }
+
+    res.status(200).json({
+      success: true,
+      user: sanitizeUser(user),
+      practitionerProfile
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Profile update failed', error: err.message });
+  }
+};
+
+// @desc    Create password reset token
+// @route   POST /api/auth/forgot-password
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Please provide an email address' });
+
+    const normalizedEmail = normalizeEmail(email);
+    const resetToken = crypto.randomBytes(24).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    if (!isMongoConnected()) {
+      const devUser = await devUserStore.findByEmail(normalizedEmail);
+      if (devUser) {
+        devUser.resetPasswordToken = hashedToken;
+        devUser.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+        await devUserStore.upsertUser(devUser);
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'If that email exists, a password reset link has been prepared.',
+        devResetToken: devUser ? resetToken : undefined
+      });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    if (user) {
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+      await user.save({ validateBeforeSave: false });
+      console.log(`Password reset token for ${normalizedEmail}: ${resetToken}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'If that email exists, a password reset link has been prepared.'
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Password reset request failed', error: err.message });
+  }
+};
+
+// @desc    Reset password
+// @route   POST /api/auth/reset-password/:token
+exports.resetPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ message: 'Please provide a new password' });
+
+    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
+    if (!isMongoConnected()) {
+      const user = await devUserStore.findByResetToken(hashedToken);
+      if (!user) return res.status(400).json({ message: 'Invalid or expired reset token' });
+
+      user.password = await bcrypt.hash(password, 10);
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await devUserStore.upsertUser(user);
+      return sendTokenResponse(user, 200, res);
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    }).select('+password');
+
+    if (!user) return res.status(400).json({ message: 'Invalid or expired reset token' });
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    sendTokenResponse(user, 200, res);
+  } catch (err) {
+    res.status(500).json({ message: 'Password reset failed', error: err.message });
   }
 };
 
@@ -73,7 +249,7 @@ exports.login = async (req, res) => {
     const normalizedEmail = normalizeEmail(email);
 
     if (!isMongoConnected()) {
-      const user = devUsers.get(normalizedEmail);
+      const user = await devUserStore.findByEmail(normalizedEmail);
       if (!user) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
@@ -119,11 +295,45 @@ const sendTokenResponse = (user, statusCode, res) => {
     isPractitioner: user.role === 'practitioner',
     isAdmin: user.role === 'admin',
     user: {
-      id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role
+      ...sanitizeUser(user)
     }
   });
+};
+
+const sanitizeUser = (user) => ({
+  id: user._id || user.id,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  email: user.email,
+  phone: user.phone,
+  location: user.location,
+  role: user.role
+});
+
+const upsertPractitionerProfile = async (userId, profile) => {
+  const complianceDocs = Array.isArray(profile.complianceDocs)
+    ? profile.complianceDocs.map((doc) => ({
+      docType: doc.docType,
+      url: doc.url || 'submitted-during-registration',
+      status: 'pending',
+      expiryDate: doc.expiryDate
+    }))
+    : [];
+
+  return Practitioner.findOneAndUpdate(
+    { userId },
+    {
+      userId,
+      discipline: profile.discipline || 'Other',
+      specializations: profile.specializations || [],
+      bio: profile.bio,
+      yearsExp: profile.yearsExp,
+      abn: profile.abn,
+      telehealth: Boolean(profile.telehealth),
+      afterHours: Boolean(profile.afterHours),
+      weekends: Boolean(profile.weekends),
+      complianceDocs
+    },
+    { upsert: true, new: true, runValidators: true }
+  );
 };

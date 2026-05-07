@@ -53,6 +53,7 @@ export const clientService = {
 
 // --- PRACTITIONER SERVICES ---
 export const practitionerService = {
+  getProfile: () => api.get('/practitioners/profile'),
   uploadDocuments: (formData) => api.post('/practitioners/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' } // Secure multipart handling
   }),
@@ -70,6 +71,10 @@ export const adminService = {
 export const authService = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
+  getMe: () => api.get('/auth/me'),
+  updateProfile: (profileData) => api.put('/auth/profile', profileData),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
 };
 
 export default api;
