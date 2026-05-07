@@ -59,9 +59,12 @@ const Home = () => {
         }} />
 
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Grid container spacing={4} alignItems="center">
-            <Grid item xs={12} md={7}>
-              <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+          <Grid container spacing={4} alignItems="center" justifyContent={user?.role === 'practitioner' ? 'center' : 'flex-start'}>
+            <Grid item xs={12} md={user?.role === 'practitioner' ? 10 : 7}>
+              <MotionBox 
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+                sx={{ textAlign: user?.role === 'practitioner' ? 'center' : 'left', width: '100%' }}
+              >
                 <Typography variant="h2" sx={{
                   color: '#ffffff', mb: 2,
                   fontSize: { xs: '2.5rem', md: '3.75rem' },
@@ -70,83 +73,103 @@ const Home = () => {
                   World-Class Care,<br />
                   <Box component="span" sx={{ color: 'secondary.light' }}>Beyond the 9 to 5</Box>
                 </Typography>
-                <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.8)', mb: 6, fontWeight: 400, maxWidth: 600 }}>
+                <Typography variant="h6" sx={{ 
+                  color: 'rgba(255,255,255,0.8)', mb: user?.role === 'practitioner' ? 4 : 6, 
+                  fontWeight: 400, maxWidth: user?.role === 'practitioner' ? 800 : 600,
+                  mx: user?.role === 'practitioner' ? 'auto' : 0
+                }}>
                   Access Australia's leading allied health professionals after hours and on weekends.
                   AHPRA-verified care that fits your schedule.
                 </Typography>
-              </MotionBox>
-
-              {/* Search Widget */}
-              <MotionBox
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
-                sx={{
-                  p: 1, bgcolor: '#ffffff', borderRadius: 4,
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                  maxWidth: 600
-                }}
-              >
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <TextField
-                    fullWidth
-                    placeholder="Search Doctors, Specialists..."
-                    variant="standard"
-                    InputProps={{
-                      disableUnderline: true,
-                      startAdornment: <Search color="action" sx={{ ml: 2, mr: 1 }} />,
-                      sx: { height: 60, fontSize: '1.1rem' }
-                    }}
-                  />
+                
+                {user?.role === 'practitioner' && (
                   <Button
                     variant="contained"
                     color="secondary"
                     size="large"
-                    onClick={() => navigate('/marketplace')}
-                    sx={{
-                      px: 4, height: { sm: 60 },
-                      borderRadius: 3, fontSize: '1.1rem',
-                      whiteSpace: 'nowrap'
-                    }}
+                    onClick={() => navigate('/dashboard')}
+                    sx={{ borderRadius: '50px', px: 6, py: 2, fontWeight: 800, fontSize: '1.1rem' }}
                   >
-                    Find a Doctor
+                    Go to Practitioner Workspace
                   </Button>
-                </Stack>
+                )}
               </MotionBox>
+
+              {/* Search Widget - Hidden for Practitioners */}
+              {user?.role !== 'practitioner' && (
+                <MotionBox
+                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
+                  sx={{
+                    p: 1, bgcolor: '#ffffff', borderRadius: 4,
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                    maxWidth: 600
+                  }}
+                >
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    <TextField
+                      fullWidth
+                      placeholder="Search Doctors, Specialists..."
+                      variant="standard"
+                      InputProps={{
+                        disableUnderline: true,
+                        startAdornment: <Search color="action" sx={{ ml: 2, mr: 1 }} />,
+                        sx: { height: 60, fontSize: '1.1rem' }
+                      }}
+                    />
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      size="large"
+                      onClick={() => navigate('/marketplace')}
+                      sx={{
+                        px: 4, height: { sm: 60 },
+                        borderRadius: 3, fontSize: '1.1rem',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Find a Doctor
+                    </Button>
+                  </Stack>
+                </MotionBox>
+              )}
             </Grid>
           </Grid>
         </Container>
       </Box>
 
-      {/* ─── QUICK SERVICES ─────────────────────────────────────────────── */}
-      <Container maxWidth="lg" sx={{ mt: -6, position: 'relative', zIndex: 10 }}>
-        <Grid container spacing={3}>
-          {[
-            { label: 'Book Appointment', icon: <CalendarMonth />, color: '#004a99' },
-            { label: 'Telehealth Call', icon: <VideoCameraFront />, color: '#16a34a' },
-            { label: 'Find Services', icon: <MedicalServices />, color: '#ea580c' },
-            { label: '24/7 Support', icon: <Schedule />, color: '#7c3aed' },
-          ].map((service, i) => (
-            <Grid item xs={6} md={3} key={service.label}>
-              <MotionCard
-                whileHover={{ y: -8 }}
-                sx={{
-                  textAlign: 'center', py: 4, px: 2, cursor: 'pointer',
-                  border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
-                }}
-              >
-                <Box sx={{
-                  width: 64, height: 64, borderRadius: '50%',
-                  bgcolor: `${service.color}1a`, color: service.color,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  mx: 'auto', mb: 2
-                }}>
-                  {cloneElement(service.icon, { fontSize: 'large' })}
-                </Box>
-                <Typography variant="subtitle1" fontWeight={700}>{service.label}</Typography>
-              </MotionCard>
-            </Grid>
-          ))}
-        </Grid>
-      </Container>
+      {/* ─── QUICK SERVICES - Hidden for Practitioners ──────────────────────── */}
+      {user?.role !== 'practitioner' && (
+        <Container maxWidth="lg" sx={{ mt: -6, position: 'relative', zIndex: 10 }}>
+          <Grid container spacing={3}>
+            {[
+              { label: 'Book Appointment', icon: <CalendarMonth />, color: '#004a99' },
+              { label: 'Telehealth Call', icon: <VideoCameraFront />, color: '#16a34a' },
+              { label: 'Find Services', icon: <MedicalServices />, color: '#ea580c' },
+              { label: '24/7 Support', icon: <Schedule />, color: '#7c3aed' },
+            ].map((service, i) => (
+              <Grid item xs={6} md={3} key={service.label}>
+                <MotionCard
+                  whileHover={{ y: -8 }}
+                  sx={{
+                    textAlign: 'center', py: 4, px: 2, cursor: 'pointer',
+                    border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Box sx={{
+                    width: 64, height: 64, borderRadius: '50%',
+                    bgcolor: `${service.color}1a`, color: service.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    mx: 'auto', mb: 2
+                  }}>
+                    {cloneElement(service.icon, { fontSize: 'large' })}
+                  </Box>
+                  <Typography variant="subtitle1" fontWeight={700}>{service.label}</Typography>
+                </MotionCard>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      )}
 
       {/* ─── FEATURES SECTION ───────────────────────────────────────────── */}
       <Box sx={{ py: 12 }}>
@@ -156,12 +179,21 @@ const Home = () => {
               <Box sx={{ position: 'relative' }}>
                 <Box sx={{
                   position: 'absolute', top: -20, left: -20, right: 20, bottom: 20,
-                  bgcolor: 'secondary.light', borderRadius: 4, opacity: 0.1, zIndex: 0
+                  bgcolor: 'secondary.light', borderRadius: 6, opacity: 0.1, zIndex: 0
                 }} />
                 <Box
                   component="img"
-                  src="https://images.unsplash.com/photo-1576091160550-2173dad99901?auto=format&fit=crop&q=80&w=1000"
-                  sx={{ width: '100%', borderRadius: 4, boxShadow: '0 20px 40px rgba(0,0,0,0.1)', position: 'relative', zIndex: 1 }}
+                  src="https://images.unsplash.com/photo-1584982324674-9dc4bb22340c?auto=format&fit=crop&q=80&w=1000"
+                  alt="Healthcare professional providing care"
+                  sx={{ 
+                    width: '100%', 
+                    height: { xs: 300, md: 500 },
+                    objectFit: 'cover',
+                    borderRadius: 4, 
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.1)', 
+                    position: 'relative', 
+                    zIndex: 1 
+                  }}
                 />
               </Box>
             </Grid>

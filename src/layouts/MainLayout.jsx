@@ -62,10 +62,10 @@ const MainLayout = () => {
             {/* Nav Links */}
             <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
               {[
-                { label: 'Find a Doctor', path: '/marketplace' },
-                { label: 'Services', path: '#' },
+                { label: 'Home', path: '/' },
+                { label: 'Find a Doctor', path: '/marketplace', roles: ['client', null] },
                 { label: 'Dashboard', path: '/dashboard' },
-              ].map((link) => (
+              ].filter(link => !link.roles || link.roles.includes(user?.role || null)).map((link) => (
                 <Button
                   key={link.label}
                   sx={{

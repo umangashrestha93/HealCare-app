@@ -113,87 +113,153 @@ const PractitionerDashboard = () => {
 
   const Overview = () => (
     <Box>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: '-0.02em' }}>Practitioner Hub</Typography>
-        <Typography variant="body1" color="text.secondary">Welcome back, {user?.firstName}. You have 2 sessions today.</Typography>
-      </Box>
-      <Grid container spacing={3}>
-        <Grid item xs={12} lg={8}>
-          <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Practice Performance</Typography>
-          <Grid container spacing={2}>
-            {[
-              { label: 'Booking Rate', value: '92%', trend: '+4%', icon: <TrendingUp />, color: '#004a99' },
-              { label: 'Total Earnings', value: '$4,250', trend: 'This month', icon: <AttachMoney />, color: '#16a34a' },
-              { label: 'Avg. Rating', value: '4.9', trend: '48 reviews', icon: <Star />, color: '#ea580c' },
-            ].map((stat, i) => (
-              <Grid item xs={12} sm={4} key={i}>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: `${stat.color}1a`, color: stat.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {stat.icon}
-                    </Box>
-                    <Box>
-                      <Typography variant="h5" fontWeight={900}>{stat.value}</Typography>
-                      <Typography variant="caption" color="text.secondary">{stat.label}</Typography>
-                    </Box>
-                  </Stack>
-                </Paper>
-              </Grid>
-            ))}
+      {/* SECTION 1: Onboarding & Compliance Header */}
+      <MotionBox
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        elevation={0}
+        sx={{ p: 4, borderRadius: 6, border: '1px solid', borderColor: 'divider', mb: 4, bgcolor: '#ffffff' }}
+      >
+        <Grid container spacing={3} alignItems="center">
+          <Grid item xs={12} md={8}>
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+              <Typography variant="h5" fontWeight={900}>Verification Status</Typography>
+              <Chip
+                label={complianceProgress === 100 ? "Fully Verified" : "Action Required"}
+                color={complianceProgress === 100 ? "success" : "warning"}
+                size="small"
+                sx={{ fontWeight: 800, borderRadius: 1.5 }}
+              />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Your profile is {Math.round(complianceProgress)}% complete. Upload your remaining documents to unlock full marketplace features.
+            </Typography>
+            <Box sx={{ width: '100%', mb: 1 }}>
+              <LinearProgress
+                variant="determinate"
+                value={complianceProgress}
+                sx={{ height: 10, borderRadius: 5, bgcolor: '#f1f5f9' }}
+                aria-label="Onboarding progress"
+              />
+            </Box>
+            <Stack direction="row" spacing={3} sx={{ mt: 2 }}>
+              {documents.map(doc => (
+                <Stack key={doc.id} direction="row" spacing={1} alignItems="center">
+                  {doc.status === 'Approved' ? <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} /> :
+                    doc.status === 'Pending' ? <PendingActions sx={{ fontSize: 16, color: 'warning.main' }} /> :
+                      <Warning sx={{ fontSize: 16, color: 'error.main' }} />}
+                  <Typography variant="caption" fontWeight={600} color="text.secondary">{doc.name}</Typography>
+                </Stack>
+              ))}
+            </Stack>
           </Grid>
+          <Grid item xs={12} md={4} sx={{ textAlign: { md: 'right' } }}>
+            <Button variant="contained" size="large" sx={{ borderRadius: '50px', px: 4, py: 1.5, fontWeight: 800 }} onClick={() => setActiveTab(1)}>
+              Manage Documents
+            </Button>
+          </Grid>
+        </Grid>
+      </MotionBox>
 
-          <Typography variant="h6" fontWeight={800} sx={{ mt: 5, mb: 2 }}>Upcoming Sessions Today</Typography>
+      <Grid container spacing={4}>
+        <Grid item xs={12} lg={8}>
+          {/* Quick-Toggle Availability */}
+          <Paper variant="outlined" sx={{ p: 3, borderRadius: 6, mb: 4, bgcolor: '#f8fafc', borderStyle: 'dashed' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="space-between" alignItems="center">
+              <Box>
+                <Typography variant="subtitle1" fontWeight={800}>Practice Quick-Toggle</Typography>
+                <Typography variant="caption" color="text.secondary">Instantly open or close your clinic for after-hours bookings.</Typography>
+              </Box>
+              <Stack direction="row" spacing={3}>
+                <FormControlLabel
+                  control={<Switch checked={profile.telehealth} onChange={(e) => setProfile({ ...profile, telehealth: e.target.checked })} />}
+                  label={<Typography variant="body2" fontWeight={700}>Telehealth</Typography>}
+                />
+                <FormControlLabel
+                  control={<Switch checked={profile.inPerson} onChange={(e) => setProfile({ ...profile, inPerson: e.target.checked })} />}
+                  label={<Typography variant="body2" fontWeight={700}>In-Person</Typography>}
+                />
+              </Stack>
+            </Stack>
+          </Paper>
+
+          <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Schedule color="primary" /> Upcoming Sessions Today
+          </Typography>
           <Stack spacing={2}>
             {[
               { name: 'Alice Cooper', time: '6:00 PM', type: 'Telehealth' },
               { name: 'Tom Hardy', time: '7:30 PM', type: 'In-Person' },
             ].map((session, i) => (
-              <Paper key={i} elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', '&:hover': { borderColor: 'primary.main', bgcolor: '#f8fafc' }, transition: '0.2s' }}>
-                <Grid container alignItems="center" spacing={2}>
-                  <Grid item xs={12} sm={8}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Avatar src={`https://i.pravatar.cc/150?u=${session.name}`} />
-                      <Box>
-                        <Typography fontWeight={800}>{session.name}</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <AccessTime sx={{ fontSize: 14 }} /> {session.time} • {session.type}
-                        </Typography>
-                      </Box>
-                    </Stack>
+              <MotionBox key={i} whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, border: '1px solid', borderColor: 'divider', '&:hover': { borderColor: 'primary.main', bgcolor: '#f8fafc' }, transition: '0.2s' }}>
+                  <Grid container alignItems="center" spacing={2}>
+                    <Grid item xs={12} sm={8}>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Avatar src={`https://i.pravatar.cc/150?u=${session.name}`} sx={{ width: 52, height: 52 }} />
+                        <Box>
+                          <Typography fontWeight={800}>{session.name}</Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <AccessTime sx={{ fontSize: 14 }} /> {session.time} • {session.type}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Grid>
+                    <Grid item xs={12} sm={4} sx={{ textAlign: { sm: 'right' } }}>
+                      <Button variant="outlined" size="small" sx={{ mr: 1, borderRadius: 2 }}>Details</Button>
+                      <Button variant="contained" color="secondary" size="small" sx={{ borderRadius: 2 }}>Join Call</Button>
+                    </Grid>
                   </Grid>
-                  <Grid item xs={12} sm={4} sx={{ textAlign: { sm: 'right' } }}>
-                    <Button variant="outlined" size="small" sx={{ mr: 1 }}>Details</Button>
-                    <Button variant="contained" color="secondary" size="small">Join Call</Button>
-                  </Grid>
-                </Grid>
-              </Paper>
+                </Paper>
+              </MotionBox>
             ))}
           </Stack>
         </Grid>
 
         <Grid item xs={12} lg={4}>
-          <Card elevation={0} sx={{ borderRadius: 4, bgcolor: 'primary.main', color: '#fff', mb: 3 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={800} gutterBottom>Compliance Health</Typography>
-              <Typography variant="body2" sx={{ opacity: 0.8, mb: 3 }}>Maintain 100% verification to maximize your profile visibility.</Typography>
-              <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
-                <CircularProgress variant="determinate" value={complianceProgress} size={80} thickness={6} sx={{ color: 'secondary.main' }} />
-                <Box sx={{ top: 0, left: 0, bottom: 0, right: 0, position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Typography variant="caption" component="div" color="inherit" fontWeight={800}>{Math.round(complianceProgress)}%</Typography>
-                </Box>
+          <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TrendingUp color="primary" /> Performance Insights
+          </Typography>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 6, border: '1px solid', borderColor: 'divider', mb: 3 }}>
+            <Stack spacing={3}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>BOOKING UTILIZATION</Typography>
+                <Stack direction="row" spacing={2} alignItems="flex-end" sx={{ mt: 1 }}>
+                  <Typography variant="h4" fontWeight={900}>84%</Typography>
+                  <Typography variant="caption" color="success.main" fontWeight={800} sx={{ pb: 0.5 }}>+12% this week</Typography>
+                </Stack>
               </Box>
-              <Button variant="contained" color="secondary" fullWidth sx={{ fontWeight: 800, borderRadius: 2 }} onClick={() => setActiveTab(1)}>Fix Issues</Button>
-            </CardContent>
-          </Card>
-
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="subtitle2" fontWeight={800} gutterBottom>QUICK ACTIONS</Typography>
-            <Divider sx={{ mb: 2 }} />
-            <Stack spacing={1}>
-              <Button variant="text" fullWidth sx={{ justifyContent: 'flex-start', color: 'text.primary', fontWeight: 600 }} startIcon={<Schedule />}>Update Slots</Button>
-              <Button variant="text" fullWidth sx={{ justifyContent: 'flex-start', color: 'text.primary', fontWeight: 600 }} startIcon={<AttachMoney />}>View Invoices</Button>
-              <Button variant="text" fullWidth sx={{ justifyContent: 'flex-start', color: 'text.primary', fontWeight: 600 }} startIcon={<Verified />}>Profile Badge</Button>
+              <Divider />
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>WEEKLY REVENUE</Typography>
+                <Typography variant="h5" fontWeight={900} sx={{ mt: 1 }}>$1,420.50</Typography>
+              </Box>
             </Stack>
+          </Paper>
+
+          <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Notifications color="secondary" /> Communication Hub
+          </Typography>
+          <Paper elevation={0} sx={{ borderRadius: 6, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+            <List disablePadding>
+              {messages.map((msg, i) => (
+                <Box key={msg.id}>
+                  <ListItem sx={{ py: 2 }}>
+                    <ListItemAvatar>
+                      <Badge variant="dot" color="primary" invisible={!msg.active}>
+                        <Avatar src={`https://i.pravatar.cc/150?u=${msg.sender}`} />
+                      </Badge>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={<Typography variant="body2" fontWeight={msg.active ? 800 : 500}>{msg.sender}</Typography>}
+                      secondary={<Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{msg.text}</Typography>}
+                    />
+                  </ListItem>
+                  {i < messages.length - 1 && <Divider />}
+                </Box>
+              ))}
+            </List>
+            <Button fullWidth sx={{ py: 1.5, fontWeight: 700, bgcolor: '#f8fafc' }} onClick={() => setActiveTab(3)}>Open Messages</Button>
           </Paper>
         </Grid>
       </Grid>
@@ -345,17 +411,17 @@ const PractitionerDashboard = () => {
     <Box sx={{ maxWidth: '1000px' }}>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
         <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: '-0.02em' }}>Account Settings</Typography>
-        <Box sx={{ 
-          px: 3, py: 1, 
-          borderRadius: 2, 
-          bgcolor: user?.verified ? '#16a34a' : '#dc2626', 
+        <Box sx={{
+          px: 3, py: 1,
+          borderRadius: 2,
+          bgcolor: user?.verified ? '#16a34a' : '#dc2626',
           color: '#fff',
           fontWeight: 800,
           fontSize: '0.875rem',
           textTransform: 'uppercase',
           display: 'flex',
           alignItems: 'center',
-          height: 40 
+          height: 40
         }}>
           {user?.verified ? 'Verified' : 'Not Verified'}
         </Box>
@@ -367,7 +433,7 @@ const PractitionerDashboard = () => {
             <Typography variant="h6" fontWeight={800} sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1 }}>
               <Person color="primary" /> Personal Information
             </Typography>
-            
+
             <Grid container spacing={2.5}>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>FIRST NAME</Typography>
@@ -426,9 +492,9 @@ const PractitionerDashboard = () => {
                 />
               </Grid>
             </Grid>
-            
+
             <Divider sx={{ my: 4 }} />
-            
+
             <Typography variant="h6" fontWeight={800} sx={{ mb: 3 }}>Account Security</Typography>
             <Stack direction="row" spacing={2} sx={{ mb: 4 }}>
               <Button variant="outlined" sx={{ borderRadius: 3, px: 4, py: 1.2, fontWeight: 700 }}>Change Password</Button>
@@ -436,7 +502,7 @@ const PractitionerDashboard = () => {
             </Stack>
 
             <Divider sx={{ my: 4 }} />
-            
+
             <Button
               variant="contained"
               size="large"
