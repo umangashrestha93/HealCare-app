@@ -17,7 +17,7 @@ import { bookingService } from '../services/api';
 import PractitionerDashboard from './PractitionerDashboard';
 import AdminDashboard from './AdminDashboard';
 
-const MotionCard = motion(Card);
+const MotionCard = motion.create(Card);
 
 const Dashboard = () => {
   const navigate = useNavigate();

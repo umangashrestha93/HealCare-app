@@ -27,7 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
-const MotionBox = motion(Box);
+const MotionBox = motion.create(Box);
 
 const disciplines = [
   'Physiotherapy',

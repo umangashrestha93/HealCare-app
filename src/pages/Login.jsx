@@ -32,7 +32,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { validation } from '../utils/validation';
 
-const MotionCard = motion(Card);
+const MotionCard = motion.create(Card);
 
 const roleOptions = [
   {

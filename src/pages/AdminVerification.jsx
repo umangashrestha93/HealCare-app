@@ -12,7 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminService } from '../services/api';
 
-const MotionCard = motion(Card);
+const MotionCard = motion.create(Card);
 
 const STATUS_TABS = ['pending', 'approved', 'rejected'];
 const STATUS_COLORS = { pending: 'warning', approved: 'success', rejected: 'error' };

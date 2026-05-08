@@ -31,7 +31,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { practitionerService, bookingService } from '../services/api';
 
-const MotionBox = motion(Box);
+const MotionBox = motion.create(Box);
 
 const PractitionerDashboard = () => {
   const navigate = useNavigate();
@@ -45,7 +45,7 @@ const PractitionerDashboard = () => {
 
   const [practitionerData, setPractitionerData] = useState(null);
   const [bookings, setBookings] = useState([]);
-  
+
   const [profile, setProfile] = useState({
     discipline: '',
     specializations: '',
@@ -68,10 +68,10 @@ const PractitionerDashboard = () => {
         practitionerService.getProfile(),
         bookingService.getBookings()
       ]);
-      
+
       setPractitionerData(profRes.data);
       setBookings(bookRes.data);
-      
+
       if (profRes.data) {
         setProfile({
           discipline: profRes.data.discipline || '',
@@ -99,8 +99,8 @@ const PractitionerDashboard = () => {
   ]);
 
   const documents = practitionerData?.complianceDocs || [];
-  const complianceProgress = documents.length > 0 
-    ? (documents.filter((d) => d.status === 'approved').length / 3) * 100 
+  const complianceProgress = documents.length > 0
+    ? (documents.filter((d) => d.status === 'approved').length / 3) * 100
     : 0;
 
   const summaryCards = [
@@ -412,26 +412,26 @@ const PractitionerDashboard = () => {
           <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
             <Typography variant="h6" fontWeight={800} gutterBottom>Practice Hours</Typography>
             <Stack spacing={3} sx={{ mt: 2 }}>
-              <FormControlLabel 
-                control={<Switch checked={profile.telehealth} onChange={(e) => setProfile(prev => ({ ...prev, telehealth: e.target.checked }))} />} 
-                label={<Box><Typography fontWeight={700}>Telehealth</Typography><Typography variant="caption" color="text.secondary">Accept video consultations</Typography></Box>} 
+              <FormControlLabel
+                control={<Switch checked={profile.telehealth} onChange={(e) => setProfile(prev => ({ ...prev, telehealth: e.target.checked }))} />}
+                label={<Box><Typography fontWeight={700}>Telehealth</Typography><Typography variant="caption" color="text.secondary">Accept video consultations</Typography></Box>}
               />
-              <FormControlLabel 
-                control={<Switch checked={profile.afterHours} onChange={(e) => setProfile(prev => ({ ...prev, afterHours: e.target.checked }))} />} 
-                label={<Box><Typography fontWeight={700}>After-Hours</Typography><Typography variant="caption" color="text.secondary">Available after 5 PM AEST</Typography></Box>} 
+              <FormControlLabel
+                control={<Switch checked={profile.afterHours} onChange={(e) => setProfile(prev => ({ ...prev, afterHours: e.target.checked }))} />}
+                label={<Box><Typography fontWeight={700}>After-Hours</Typography><Typography variant="caption" color="text.secondary">Available after 5 PM AEST</Typography></Box>}
               />
-              <FormControlLabel 
-                control={<Switch checked={profile.weekends} onChange={(e) => setProfile(prev => ({ ...prev, weekends: e.target.checked }))} />} 
-                label={<Box><Typography fontWeight={700}>Weekends</Typography><Typography variant="caption" color="text.secondary">Available Saturday/Sunday</Typography></Box>} 
+              <FormControlLabel
+                control={<Switch checked={profile.weekends} onChange={(e) => setProfile(prev => ({ ...prev, weekends: e.target.checked }))} />}
+                label={<Box><Typography fontWeight={700}>Weekends</Typography><Typography variant="caption" color="text.secondary">Available Saturday/Sunday</Typography></Box>}
               />
               <Divider sx={{ my: 1 }} />
-              
+
               <Box>
                 <Typography variant="subtitle2" fontWeight={800} gutterBottom>Consultation Fee (AUD)</Typography>
-                <TextField 
-                  fullWidth 
-                  type="number" 
-                  value={profile.fee || 80} 
+                <TextField
+                  fullWidth
+                  type="number"
+                  value={profile.fee || 80}
                   onChange={(e) => setProfile({ ...profile, fee: e.target.value })}
                   InputProps={{ startAdornment: <Typography sx={{ mr: 1, fontWeight: 700 }}>$</Typography> }}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
@@ -450,16 +450,16 @@ const PractitionerDashboard = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Select the time slots you are available for bookings.
             </Typography>
-            
+
             <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 4 }}>
               {['08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM'].map(slot => (
-                <Chip 
+                <Chip
                   key={slot}
                   label={slot}
                   onClick={() => {
                     const currentSlots = profile.availableSlots || [];
-                    const newSlots = currentSlots.includes(slot) 
-                      ? currentSlots.filter(s => s !== slot) 
+                    const newSlots = currentSlots.includes(slot)
+                      ? currentSlots.filter(s => s !== slot)
                       : [...currentSlots, slot].sort();
                     setProfile({ ...profile, availableSlots: newSlots });
                   }}

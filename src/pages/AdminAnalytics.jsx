@@ -11,7 +11,7 @@ import {
 import { motion } from 'framer-motion';
 import { adminService } from '../services/api';
 
-const MotionCard = motion(Card);
+const MotionCard = motion.create(Card);
 
 const AdminAnalytics = () => {
   const [metrics, setMetrics] = useState(null);

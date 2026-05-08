@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { setFilters, resetFilters, fetchPractitioners } from '../store/slices/practitionerSlice';
 import { useAuth } from '../context/AuthContext';
 
-const MotionCard = motion(Card);
+const MotionCard = motion.create(Card);
 
 const Marketplace = () => {
   const navigate = useNavigate();
