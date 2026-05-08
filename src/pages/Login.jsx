@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -83,15 +83,24 @@ const RoleOption = ({ option, selected, onSelect }) => (
   </Paper>
 );
 
-const Login = ({ role: initialRole }) => {
+const Login = () => {
   const navigate = useNavigate();
+  const { role: urlRole } = useParams();
   const { login, user } = useAuth();
-  const [role, setRole] = useState(initialRole || null);
+  
+  // State for form fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Derive role from URL
+  const role = urlRole;
+
+  const handleRoleSelect = (selectedRole) => {
+    navigate(`/login/${selectedRole}`);
+  };
 
   //   useEffect(() => {
   //   if (user?.token) {
@@ -130,7 +139,6 @@ const Login = ({ role: initialRole }) => {
       if (!res?.success) {
         throw new Error('Invalid email or password');
       }
-      localStorage.setItem('token', res.access_token);
 
       const loggedInUser = res.user;
       if (
@@ -143,7 +151,7 @@ const Login = ({ role: initialRole }) => {
         );
         return;
       }
-      navigate('/dashboard');
+      navigate(`/dashboard/${loggedInUser.role}`);
 
     } catch (err) {
       setError(err.message || 'Login failed');
@@ -232,7 +240,7 @@ const Login = ({ role: initialRole }) => {
                         key={option.id}
                         option={option}
                         selected={role === option.id}
-                        onSelect={setRole}
+                        onSelect={handleRoleSelect}
                       />
                     ))}
                   </Stack>
@@ -241,7 +249,7 @@ const Login = ({ role: initialRole }) => {
                 <>
                   <Box sx={{ mb: 4 }}>
                     <IconButton
-                      onClick={() => setRole(null)}
+                      onClick={() => navigate('/login')}
                       sx={{ mb: 2, ml: -1 }}
                       aria-label="Change role"
                       disabled={!!error}
@@ -264,7 +272,7 @@ const Login = ({ role: initialRole }) => {
                         label={option.title}
                         color={role === option.id ? 'primary' : 'default'}
                         variant={role === option.id ? 'filled' : 'outlined'}
-                        onClick={() => !error && setRole(option.id)}
+                        onClick={() => !error && handleRoleSelect(option.id)}
                         disabled={!!error}
                       />
                     ))}
@@ -349,7 +357,7 @@ const Login = ({ role: initialRole }) => {
                       Don't have an account?{' '}
                       <Link
                         component={RouterLink}
-                        to={role === 'practitioner' ? '/register?role=practitioner' : '/register'}
+                        to={role === 'practitioner' ? '/register/practitioner' : '/register/client'}
                         color="primary"
                         sx={{ fontWeight: 800 }}
                       >

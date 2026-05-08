@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Avatar,
@@ -79,9 +79,8 @@ const roleCards = [
 
 const Register = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const initialRole = searchParams.get('role') === 'practitioner' ? 'practitioner' : 'client';
-  const [role, setRole] = useState(initialRole);
+  const { role: urlRole } = useParams();
+  const role = urlRole || 'client';
   const [activeStep, setActiveStep] = useState(0);
   const [uploadedDocs, setUploadedDocs] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -115,7 +114,7 @@ const Register = () => {
     .every((doc) => uploadedDocs[doc.id]);
 
   const handleRoleChange = (nextRole) => {
-    setRole(nextRole);
+    navigate(`/register/${nextRole}`);
     setActiveStep(0);
     setError('');
   };
@@ -365,7 +364,7 @@ const Register = () => {
                 ? 'Your application is under review. Please login to track your verification status.'
                 : 'Your account is ready. Please login to start booking allied health services.'}
             </Typography>
-            <Button variant="contained" fullWidth size="large" onClick={() => navigate('/login')} sx={{ py: 1.6, fontWeight: 900 }}>
+            <Button variant="contained" fullWidth size="large" onClick={() => navigate(`/login/${role}`)} sx={{ py: 1.6, fontWeight: 900 }}>
               Go to Login
             </Button>
           </Paper>

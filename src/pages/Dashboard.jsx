@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   Box, Container, Typography, Grid, Card, CardContent,
@@ -21,16 +21,22 @@ const MotionCard = motion(Card);
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { role: urlRole } = useParams();
   const dispatch = useDispatch();
   const { user } = useAuth();
   const { appointments } = useSelector((state) => state.booking);
   const [cancelId, setCancelId] = useState(null);
 
+  // Enforce role consistency: if URL role doesn't match user role, redirect to correct URL
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
+    if (user && urlRole && user.role !== urlRole) {
+      navigate(`/dashboard/${user.role}`, { replace: true });
     }
-  }, [user, navigate]);
+    // If no role in URL, add it
+    if (user && !urlRole) {
+      navigate(`/dashboard/${user.role}`, { replace: true });
+    }
+  }, [user, urlRole, navigate]);
 
   if (!user) return null;
 

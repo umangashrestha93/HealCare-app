@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('beyond5_access_token', access_token);
       localStorage.setItem('beyond5_user', JSON.stringify(user));
       setUser(user);
-      return user;
+      return { ...response, success: true };
     } catch (error) {
       throw error;
     }
@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('beyond5_access_token', access_token);
       localStorage.setItem('beyond5_user', JSON.stringify(user));
       setUser(user);
-      return user;
+      return { ...response, success: true };
     } catch (error) {
       throw error;
     }

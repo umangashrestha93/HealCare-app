@@ -64,7 +64,7 @@ const MainLayout = () => {
               {[
                 { label: 'Home', path: '/' },
                 { label: 'Find a Doctor', path: '/marketplace', roles: ['client', null] },
-                { label: 'Dashboard', path: '/dashboard' },
+                { label: 'Dashboard', path: user ? `/dashboard/${user.role}` : '/dashboard' },
               ].filter(link => !link.roles || link.roles.includes(user?.role || null)).map((link) => (
                 <Button
                   key={link.label}
@@ -115,7 +115,7 @@ const MainLayout = () => {
                     onClose={handleClose}
                     sx={{ mt: 1 }}
                   >
-                    <MenuItem onClick={() => { handleClose(); navigate('/dashboard'); }}>
+                    <MenuItem onClick={() => { handleClose(); navigate(`/dashboard/${user.role}`); }}>
                       <Person fontSize="small" sx={{ mr: 1 }} /> Dashboard
                     </MenuItem>
                     <Divider />

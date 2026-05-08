@@ -39,13 +39,6 @@ const PractitionerDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
-  // Handle Auth redirection in useEffect to avoid bad setState in render
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    }
-  }, [user, navigate]);
-
   // ─── STATE MANAGEMENT ───────────────────────────────────────────────
 
   const [documents, setDocuments] = useState([
