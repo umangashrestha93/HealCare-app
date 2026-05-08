@@ -80,6 +80,9 @@ const PractitionerDashboard = () => {
           telehealth: profRes.data.telehealth || false,
           afterHours: profRes.data.afterHours || false,
           weekends: profRes.data.weekends || false,
+          fee: profRes.data.fee || 80,
+          availableSlots: profRes.data.availableSlots || [],
+          avatar: profRes.data.avatar || ''
         });
       }
     } catch (err) {
@@ -402,7 +405,7 @@ const PractitionerDashboard = () => {
   const availabilitySection = () => (
     <Box>
       <Typography variant="h5" fontWeight={900} gutterBottom>Clinic Availability</Typography>
-      <Typography color="text.secondary" sx={{ mb: 4 }}>Manage your active booking flags. All sessions are 60 minutes.</Typography>
+      <Typography color="text.secondary" sx={{ mb: 4 }}>Manage your active booking flags and time slots. All sessions are 60 minutes.</Typography>
 
       <Grid container spacing={4}>
         <Grid item xs={12} lg={6}>
@@ -422,20 +425,53 @@ const PractitionerDashboard = () => {
                 label={<Box><Typography fontWeight={700}>Weekends</Typography><Typography variant="caption" color="text.secondary">Available Saturday/Sunday</Typography></Box>} 
               />
               <Divider sx={{ my: 1 }} />
+              
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800} gutterBottom>Consultation Fee (AUD)</Typography>
+                <TextField 
+                  fullWidth 
+                  type="number" 
+                  value={profile.fee || 80} 
+                  onChange={(e) => setProfile({ ...profile, fee: e.target.value })}
+                  InputProps={{ startAdornment: <Typography sx={{ mr: 1, fontWeight: 700 }}>$</Typography> }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
+                />
+              </Box>
+
               <Button variant="contained" fullWidth size="large" onClick={handleSaveProfile} disabled={actionLoading} sx={{ py: 2, fontWeight: 800 }}>
-                {actionLoading ? <CircularProgress size={24} /> : 'Save Availability'}
+                {actionLoading ? <CircularProgress size={24} /> : 'Save Availability & Fee'}
               </Button>
             </Stack>
           </Paper>
         </Grid>
         <Grid item xs={12} lg={6}>
           <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc' }}>
-            <Typography variant="h6" fontWeight={800} gutterBottom>Smart Scheduling</Typography>
+            <Typography variant="h6" fontWeight={800} gutterBottom>Time Slot Management</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Your availability is dynamically calculated based on your practice flags and confirmed bookings.
+              Select the time slots you are available for bookings.
             </Typography>
+            
+            <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 4 }}>
+              {['08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM'].map(slot => (
+                <Chip 
+                  key={slot}
+                  label={slot}
+                  onClick={() => {
+                    const currentSlots = profile.availableSlots || [];
+                    const newSlots = currentSlots.includes(slot) 
+                      ? currentSlots.filter(s => s !== slot) 
+                      : [...currentSlots, slot].sort();
+                    setProfile({ ...profile, availableSlots: newSlots });
+                  }}
+                  color={(profile.availableSlots || []).includes(slot) ? 'primary' : 'default'}
+                  variant={(profile.availableSlots || []).includes(slot) ? 'filled' : 'outlined'}
+                  sx={{ fontWeight: 700 }}
+                />
+              ))}
+            </Stack>
+
             <Alert severity="info" sx={{ borderRadius: 3 }}>
-              Clients can book you during your selected hours if no conflict exists.
+              Your availability is dynamically calculated based on these slots and your practice flags.
             </Alert>
           </Paper>
         </Grid>

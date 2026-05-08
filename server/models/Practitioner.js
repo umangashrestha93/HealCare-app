@@ -12,6 +12,9 @@ const PractitionerSchema = new mongoose.Schema({
   bio: { type: String },
   yearsExp: { type: Number },
   abn: { type: String },
+  location: { type: String, index: true }, // Denormalized for fast filtering
+  avatar: { type: String, default: '' },
+  fee: { type: Number, default: 80 }, // Consultation fee in AUD
   
   // Verification System
   verificationStatus: { 
@@ -40,6 +43,13 @@ const PractitionerSchema = new mongoose.Schema({
   telehealth: { type: Boolean, default: false },
   afterHours: { type: Boolean, default: false },
   weekends: { type: Boolean, default: false },
+
+  // Bookable Time Slots (configurable per practitioner)
+  // e.g. ["09:00 AM", "10:30 AM", "01:00 PM", "02:30 PM", "04:00 PM"]
+  availableSlots: {
+    type: [String],
+    default: ['09:00 AM', '10:30 AM', '01:00 PM', '02:30 PM', '04:00 PM']
+  },
   
   // Performance Metrics
   averageRating: { type: Number, default: 0 },

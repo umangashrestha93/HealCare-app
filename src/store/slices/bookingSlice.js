@@ -1,76 +1,153 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../../services/api';
+
+// ─── Async Thunks ───────────────────────────────────────────────────────────
+
+export const fetchMyBookings = createAsyncThunk(
+  'booking/fetchMyBookings',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/bookings');
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err || 'Failed to fetch bookings');
+    }
+  }
+);
+
+export const createBooking = createAsyncThunk(
+  'booking/createBooking',
+  async (bookingData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/bookings', bookingData);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err || 'Failed to create booking');
+    }
+  }
+);
+
+export const cancelBooking = createAsyncThunk(
+  'booking/cancelBooking',
+  async (bookingId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/bookings/${bookingId}`);
+      return bookingId;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err || 'Failed to cancel booking');
+    }
+  }
+);
+
+export const fetchAvailableSlots = createAsyncThunk(
+  'booking/fetchAvailableSlots',
+  async ({ practitionerId, date }, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/bookings/availability', {
+        params: { practitionerId, date }
+      });
+      return response;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err || 'Failed to fetch slots');
+    }
+  }
+);
+
+// ─── Initial State ───────────────────────────────────────────────────────────
 
 const initialState = {
-  appointments: [
-    {
-      id: 1,
-      practitionerName: 'Dr. Sarah Jenkins',
-      discipline: 'Physiotherapy',
-      date: '2026-05-10',
-      time: '6:30 PM',
-      status: 'upcoming',
-      type: 'Telehealth'
-    },
-    {
-      id: 2,
-      practitionerName: 'Marcus Chen',
-      discipline: 'Occupational Therapy',
-      date: '2026-05-12',
-      time: '5:00 PM',
-      status: 'upcoming',
-      type: 'In-person'
-    }
-  ],
+  appointments: [],
+  availableSlots: [],
+  slotsLoading: false,
   currentBooking: {
     practitioner: null,
     date: null,
-    time: null,
-    loading: false,
-    error: null
-  }
+    time: null
+  },
+  loading: false,
+  createLoading: false,
+  cancelLoading: null, // holds the ID being cancelled
+  error: null
 };
+
+// ─── Slice ───────────────────────────────────────────────────────────────────
 
 const bookingSlice = createSlice({
   name: 'booking',
   initialState,
   reducers: {
-    setPractitioner: (state, action) => {
-      state.currentBooking.practitioner = action.payload;
+    setCurrentBooking: (state, action) => {
+      state.currentBooking = { ...state.currentBooking, ...action.payload };
     },
-    setBookingDetails: (state, action) => {
-      state.currentBooking.date = action.payload.date;
-      state.currentBooking.time = action.payload.time;
-    },
-    confirmBooking: (state) => {
-      const newAppointment = {
-        id: Date.now(),
-        practitionerName: state.currentBooking.practitioner.name,
-        discipline: state.currentBooking.practitioner.discipline,
-        date: state.currentBooking.date,
-        time: state.currentBooking.time,
-        status: 'upcoming',
-        type: state.currentBooking.practitioner.telehealth ? 'Telehealth' : 'In-person'
-      };
-      state.appointments.push(newAppointment);
-      state.currentBooking = initialState.currentBooking;
-    },
-    cancelAppointment: (state, action) => {
-      state.appointments = state.appointments.filter(app => app.id !== action.payload);
-    },
-    rescheduleAppointment: (state, action) => {
-      const { id, date, time } = action.payload;
-      const index = state.appointments.findIndex(app => app.id === id);
-      if (index !== -1) {
-        state.appointments[index].date = date;
-        state.appointments[index].time = time;
-      }
+    clearBookingError: (state) => {
+      state.error = null;
     }
+  },
+  extraReducers: (builder) => {
+    // Fetch bookings
+    builder
+      .addCase(fetchMyBookings.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMyBookings.fulfilled, (state, action) => {
+        state.loading = false;
+        state.appointments = action.payload || [];
+      })
+      .addCase(fetchMyBookings.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+
+    // Create booking
+    builder
+      .addCase(createBooking.pending, (state) => {
+        state.createLoading = true;
+        state.error = null;
+      })
+      .addCase(createBooking.fulfilled, (state, action) => {
+        state.createLoading = false;
+        state.appointments.push(action.payload);
+        state.currentBooking = initialState.currentBooking;
+      })
+      .addCase(createBooking.rejected, (state, action) => {
+        state.createLoading = false;
+        state.error = action.payload;
+      });
+
+    // Cancel booking
+    builder
+      .addCase(cancelBooking.pending, (state, action) => {
+        state.cancelLoading = action.meta.arg;
+      })
+      .addCase(cancelBooking.fulfilled, (state, action) => {
+        state.cancelLoading = null;
+        // Remove the cancelled booking from local state
+        state.appointments = state.appointments.filter(
+          a => a._id !== action.payload
+        );
+      })
+      .addCase(cancelBooking.rejected, (state, action) => {
+        state.cancelLoading = null;
+        state.error = action.payload;
+      });
+
+    // Available slots
+    builder
+      .addCase(fetchAvailableSlots.pending, (state) => {
+        state.slotsLoading = true;
+        state.availableSlots = [];
+      })
+      .addCase(fetchAvailableSlots.fulfilled, (state, action) => {
+        state.slotsLoading = false;
+        state.availableSlots = action.payload?.available || [];
+      })
+      .addCase(fetchAvailableSlots.rejected, (state) => {
+        state.slotsLoading = false;
+        state.availableSlots = [];
+      });
   }
 });
 
-export const { 
-  setPractitioner, setBookingDetails, confirmBooking, 
-  cancelAppointment, rescheduleAppointment 
-} = bookingSlice.actions;
-
+export const { setCurrentBooking, clearBookingError } = bookingSlice.actions;
 export default bookingSlice.reducer;

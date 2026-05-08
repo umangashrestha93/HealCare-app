@@ -17,20 +17,25 @@ exports.getPractitioners = async (req, res) => {
     } = req.query;
 
     // Base query: Only approved practitioners
-    let query = { verificationStatus: 'approved' };
+    // Relying on verificationStatus as the primary source of truth
+    let query = { 
+      verificationStatus: 'approved'
+    };
 
-    // Apply strict filters
+    console.log('[API] Marketplace Query:', JSON.stringify(query));
+
+    // Discipline filter
     if (discipline && discipline !== 'All') query.discipline = discipline;
-    if (telehealth === 'true') query.telehealth = true;
+
+    // Availability flag filters (Handle boolean strings from query params)
+    if (telehealth !== undefined) query.telehealth = telehealth === 'true';
     if (afterHours === 'true') query.afterHours = true;
     if (weekends === 'true') query.weekends = true;
 
-    // 1. Keyword Search (Search across Name, Bio, Discipline)
+    // Keyword Search (Search across Discipline, Bio, Specializations)
     if (keyword && keyword.trim() !== '') {
-      // Escape special characters for regex
       const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const searchRegex = new RegExp(escapedKeyword, 'i');
-      
       query.$or = [
         { discipline: searchRegex },
         { bio: searchRegex },
@@ -38,42 +43,28 @@ exports.getPractitioners = async (req, res) => {
       ];
     }
 
-    // 2. Pagination Logic
+    // Location filter (Now indexed and part of the main query)
+    if (location && location.trim() !== '') {
+      query.location = { $regex: location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    }
+
+    // Pagination
     const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.max(1, parseInt(limit));
+    const limitNum = Math.min(Math.max(1, parseInt(limit)), 50);
     const skip = (pageNum - 1) * limitNum;
 
-    // 3. Fetch Data with Population
-    let practitioners = await Practitioner.find(query)
+    // Fetch with populate
+    const practitioners = await Practitioner.find(query)
       .populate('userId', 'firstName lastName avatar location')
       .skip(skip)
       .limit(limitNum)
       .sort('-createdAt')
       .lean();
 
-    // 4. Manual Post-Processing (for nested field filters like location)
-    if (location && location.trim() !== '') {
-      practitioners = practitioners.filter(p => {
-        const locMatch = p.userId?.location?.toLowerCase().includes(location.toLowerCase());
-        return p.telehealth || locMatch;
-      });
-    }
-
-    // Keyword search on name (manual since it's a populated field)
-    if (keyword && keyword.trim() !== '') {
-      const searchTerms = keyword.toLowerCase().split(' ');
-      practitioners = practitioners.filter(p => {
-        const fullName = `${p.userId?.firstName} ${p.userId?.lastName}`.toLowerCase();
-        // Check if name matches (simple implementation)
-        const nameMatch = searchTerms.every(term => fullName.includes(term));
-        
-        // If it matches name, keep it. Otherwise check if it matches discipline/bio (already done by MongoDB)
-        // But since we filtered the array here, we should ensure we don't lose results
-        return nameMatch || practitioners.includes(p); 
-      });
-    }
-
+    // Re-count for filtered total
     const total = await Practitioner.countDocuments(query);
+
+    console.log(`[API] Found ${practitioners.length} practitioners out of ${total} total matches`);
 
     res.status(200).json({
       success: true,
@@ -93,6 +84,7 @@ exports.getPractitioners = async (req, res) => {
 
 // @desc    Get logged-in practitioner's onboarding profile
 // @route   GET /api/practitioners/profile
+// @access  Private (Practitioner)
 exports.getMyProfile = async (req, res) => {
   try {
     const practitioner = await Practitioner.findOne({ userId: req.user.id })
@@ -110,6 +102,7 @@ exports.getMyProfile = async (req, res) => {
 
 // @desc    Create or update logged-in practitioner's profile
 // @route   PUT /api/practitioners/profile
+// @access  Private (Practitioner)
 exports.updateMyProfile = async (req, res) => {
   try {
     const {
@@ -118,24 +111,35 @@ exports.updateMyProfile = async (req, res) => {
       bio,
       yearsExp,
       abn,
+      location,
       telehealth,
       afterHours,
-      weekends
+      weekends,
+      fee,
+      avatar,
+      availableSlots
     } = req.body;
+
+    const updatePayload = {
+      userId: req.user.id,
+      discipline: discipline || 'Other',
+      specializations: Array.isArray(specializations) ? specializations : [],
+      bio,
+      yearsExp,
+      abn,
+      location,
+      telehealth: Boolean(telehealth),
+      afterHours: Boolean(afterHours),
+      weekends: Boolean(weekends)
+    };
+
+    if (fee !== undefined) updatePayload.fee = Number(fee);
+    if (avatar !== undefined) updatePayload.avatar = avatar;
+    if (Array.isArray(availableSlots)) updatePayload.availableSlots = availableSlots;
 
     const practitioner = await Practitioner.findOneAndUpdate(
       { userId: req.user.id },
-      {
-        userId: req.user.id,
-        discipline: discipline || 'Other',
-        specializations: Array.isArray(specializations) ? specializations : [],
-        bio,
-        yearsExp,
-        abn,
-        telehealth: Boolean(telehealth),
-        afterHours: Boolean(afterHours),
-        weekends: Boolean(weekends)
-      },
+      updatePayload,
       { upsert: true, new: true, runValidators: true }
     );
 
@@ -147,6 +151,7 @@ exports.updateMyProfile = async (req, res) => {
 
 // @desc    Add compliance document metadata to practitioner profile
 // @route   POST /api/practitioners/upload
+// @access  Private (Practitioner)
 exports.uploadDocument = async (req, res) => {
   try {
     const { docType, expiryDate } = req.body;
@@ -171,23 +176,27 @@ exports.uploadDocument = async (req, res) => {
   }
 };
 
-// @desc    Get single practitioner by ID
+// @desc    Get single approved practitioner by ID (public listing)
 // @route   GET /api/practitioners/:id
+// @access  Public
 exports.getPractitioner = async (req, res) => {
   try {
-    const practitioner = await Practitioner.findById(req.params.id)
-      .populate('userId', 'firstName lastName email location phone');
+    const practitioner = await Practitioner.findOne({
+      _id: req.params.id,
+      verificationStatus: 'approved',
+      isVerified: true
+    }).populate('userId', 'firstName lastName email location phone');
 
     if (!practitioner) {
-      return res.status(404).json({ message: 'Practitioner not found' });
+      return res.status(404).json({ message: 'Practitioner not found or not yet approved' });
     }
 
     res.status(200).json({
       success: true,
       data: practitioner,
-      isVerified: practitioner.isVerified // Trust Signal
+      isVerified: practitioner.isVerified
     });
   } catch (err) {
-    res.status(500).json({ message: 'Server Error' });
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 };

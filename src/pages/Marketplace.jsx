@@ -30,14 +30,16 @@ const Marketplace = () => {
 
   // Re-fetch whenever filters change
   useEffect(() => {
-    dispatch(fetchPractitioners());
+    console.log('[Marketplace] Fetching with filters:', filters);
+    dispatch(fetchPractitioners()).then(res => {
+      console.log('[Marketplace] Fetch results:', res.payload);
+    });
   }, [
     dispatch, 
     filters.discipline, 
     filters.deliveryMode, 
     filters.availability, 
     filters.page,
-    // Note: We'll handle searchTerm separately with debouncing
   ]);
 
   useEffect(() => {

@@ -28,14 +28,14 @@ api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     const message = error.response?.data?.message || 'Something went wrong';
-    
+
     // Auto-logout on 401 Unauthorized
     if (error.response?.status === 401) {
       localStorage.removeItem('beyond5_access_token');
       localStorage.removeItem('beyond5_user');
       window.location.href = '/login';
     }
-    
+
     return Promise.reject(message);
   }
 );
@@ -55,6 +55,8 @@ export const bookingService = {
   getBookings: () => api.get('/bookings'),
   createBooking: (bookingData) => api.post('/bookings', bookingData),
   cancelBooking: (id) => api.delete(`/bookings/${id}`),
+  getAvailableSlots: (practitionerId, date) =>
+    api.get('/bookings/availability', { params: { practitionerId, date } }),
 };
 
 // --- PRACTITIONER SERVICES ---
@@ -69,13 +71,14 @@ export const practitionerService = {
 // --- ADMIN SERVICES ---
 export const adminService = {
   getPractitioners: (params) => api.get('/admin/practitioners', { params }),
+  getSinglePractitioner: (id) => api.get(`/admin/practitioners/${id}`),
   getVerificationQueue: () => api.get('/admin/practitioners', { params: { status: 'pending' } }),
   approvePractitioner: (id) => api.patch(`/admin/practitioners/${id}/approve`),
   rejectPractitioner: (id, reason) => api.patch(`/admin/practitioners/${id}/reject`, { reason }),
-  verifyPractitioner: (id, status) => api.put(`/admin/practitioners/${id}/verify`, { status }),
   getMarketMetrics: () => api.get('/admin/metrics'),
   getUsers: (params) => api.get('/admin/users', { params }),
   deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  createAdmin: (data) => api.post('/admin/users/admin', data),
 };
 
 // --- AUTH SERVICES ---

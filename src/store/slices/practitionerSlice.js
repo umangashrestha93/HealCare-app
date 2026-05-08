@@ -20,7 +20,7 @@ export const fetchPractitioners = createAsyncThunk(
       };
 
       const response = await api.get('/practitioners', { params });
-      return response.data; // Now contains { data, pagination, success }
+      return response; // response is already response.data from interceptor
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to fetch practitioners');
     }

@@ -14,11 +14,16 @@ const parsePagination = (query) => {
 };
 
 const publicPractitionerSelect = [
+  'userId',
   'discipline',
   'specializations',
   'bio',
   'yearsExp',
   'abn',
+  'location',
+  'fee',
+  'avatar',
+  'availableSlots',
   'verificationStatus',
   'isVerified',
   'complianceDocs',
@@ -115,6 +120,12 @@ const updatePractitionerStatus = async (req, res, status) => {
     const unsetFields = {};
 
     if (status === 'approved') {
+      // Find the user to sync location
+      const pToApprove = await Practitioner.findById(id).populate('userId');
+      if (pToApprove?.userId) {
+        setFields.location = pToApprove.userId.location;
+      }
+      
       setFields.verifiedAt = now;
       setFields.verifiedBy = adminUserId;
       unsetFields.rejectedAt = '';
@@ -164,6 +175,30 @@ exports.approvePractitioner = (req, res) => updatePractitionerStatus(req, res, '
 // @route   PATCH /api/admin/practitioners/:id/reject
 // @access  Private (Admin Only)
 exports.rejectPractitioner = (req, res) => updatePractitionerStatus(req, res, 'rejected');
+
+// @desc    Get single practitioner detail (admin only — bypasses public isVerified guard)
+// @route   GET /api/admin/practitioners/:id
+// @access  Private (Admin Only)
+exports.getSinglePractitioner = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid practitioner id' });
+    }
+
+    const practitioner = await Practitioner.findById(id)
+      .select(publicPractitionerSelect)
+      .populate(practitionerUserPopulate);
+
+    if (!practitioner || !practitioner.userId) {
+      return res.status(404).json({ success: false, message: 'Practitioner not found' });
+    }
+
+    res.status(200).json({ success: true, data: formatPractitionerResponse(practitioner) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Practitioner retrieval failed', error: err.message });
+  }
+};
 
 // Backward-compatible endpoints for the existing UI contract.
 exports.getPendingPractitioners = (req, res) => {
