@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -17,6 +17,7 @@ import {
   Avatar,
   Chip,
   CircularProgress,
+  FormHelperText,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
@@ -29,6 +30,7 @@ import {
   ShieldOutlined,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import { validation } from '../utils/validation';
 
 const MotionCard = motion(Card);
 
@@ -69,7 +71,7 @@ const RoleOption = ({ option, selected, onSelect }) => (
       },
     }}
   >
-    <Stack direction="row" spacing={2} alignItems="center">
+    <Stack direction="row" spacing={2}>
       <Avatar sx={{ bgcolor: option.color }}>{option.icon}</Avatar>
       <Box>
         <Typography fontWeight={800}>{option.title}</Typography>
@@ -87,35 +89,64 @@ const Login = ({ role: initialRole }) => {
   const [role, setRole] = useState(initialRole || null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (user) navigate('/dashboard');
-  }, [user, navigate]);
+  //   useEffect(() => {
+  //   if (user?.token) {
+  //     navigate('/dashboard');
+  //   }
+  // }, [user, navigate]);
+
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setEmail(value);
+    setErrors((prev) => ({ ...prev, email: validation.email(value) }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value;
+    setPassword(value);
+    setErrors((prev) => ({ ...prev, password: validation.password(value) }));
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!email || !password) {
-      setError('Please enter your email and password.');
+    const emailError = validation.email(email);
+    const passwordError = validation.password(password);
+
+    if (emailError || passwordError) {
+      setErrors({ email: emailError, password: passwordError });
+      setError('Please fix the validation errors above.');
       return;
     }
 
     try {
       setSubmitting(true);
-      const loggedInUser = await login({ email, password });
+      const res = await login({ email, password });
+      if (!res?.success) {
+        throw new Error('Invalid email or password');
+      }
+      localStorage.setItem('token', res.access_token);
 
-      if (role && loggedInUser.role !== role && loggedInUser.role !== 'admin') {
-        setError(`This account is registered as ${loggedInUser.role}. Select the matching role to continue.`);
-        setSubmitting(false);
+      const loggedInUser = res.user;
+      if (
+        role &&
+        loggedInUser.role !== role &&
+        loggedInUser.role !== 'admin'
+      ) {
+        setError(
+          `This account is registered as a ${loggedInUser.role}. Please select the correct role.`
+        );
         return;
       }
-
       navigate('/dashboard');
+
     } catch (err) {
-      setError(err || 'Failed to login. Please check your credentials.');
+      setError(err.message || 'Login failed');
     } finally {
       setSubmitting(false);
     }
@@ -167,7 +198,7 @@ const Login = ({ role: initialRole }) => {
                     { icon: <ShieldOutlined />, text: 'Role-based dashboards and verified profiles' },
                     { icon: <MedicalServices />, text: 'Practitioner onboarding and approval workflow' },
                   ].map((item) => (
-                    <Stack key={item.text} direction="row" spacing={1.5} alignItems="center">
+                    <Stack key={item.text} direction="row" spacing={1.5}>
                       <Avatar sx={{ width: 34, height: 34, bgcolor: 'rgba(255,255,255,0.14)' }}>
                         {item.icon}
                       </Avatar>
@@ -209,7 +240,13 @@ const Login = ({ role: initialRole }) => {
               ) : (
                 <>
                   <Box sx={{ mb: 4 }}>
-                    <IconButton onClick={() => setRole(null)} sx={{ mb: 2, ml: -1 }} aria-label="Change role">
+                    <IconButton
+                      onClick={() => setRole(null)}
+                      sx={{ mb: 2, ml: -1 }}
+                      aria-label="Change role"
+                      disabled={!!error}
+                      title={error ? 'Fix the error before changing role' : 'Change role'}
+                    >
                       <ArrowBack />
                     </IconButton>
                     <Typography variant="h4" fontWeight={900} gutterBottom>
@@ -227,12 +264,31 @@ const Login = ({ role: initialRole }) => {
                         label={option.title}
                         color={role === option.id ? 'primary' : 'default'}
                         variant={role === option.id ? 'filled' : 'outlined'}
-                        onClick={() => setRole(option.id)}
+                        onClick={() => !error && setRole(option.id)}
+                        disabled={!!error}
                       />
                     ))}
                   </Stack>
 
-                  {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+                  {error && (
+                    <Alert
+                      severity="error"
+                      sx={{
+                        mb: 3,
+                        borderLeft: '4px solid',
+                        borderColor: 'error.main',
+                        backgroundColor: 'error.lighter',
+                      }}
+                      onClose={() => setError('')}
+                    >
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
+                          Login Failed
+                        </Typography>
+                        <Typography variant="body2">{error}</Typography>
+                      </Box>
+                    </Alert>
+                  )}
 
                   <Box component="form" onSubmit={handleLogin}>
                     <TextField
@@ -242,7 +298,11 @@ const Login = ({ role: initialRole }) => {
                       required
                       margin="normal"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={handleEmailChange}
+                      error={!!errors.email}
+                      helperText={errors.email}
+                      disabled={submitting}
+                      placeholder="your.email@example.com"
                     />
                     <TextField
                       label="Password"
@@ -251,7 +311,11 @@ const Login = ({ role: initialRole }) => {
                       required
                       margin="normal"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={handlePasswordChange}
+                      error={!!errors.password}
+                      helperText={errors.password}
+                      disabled={submitting}
+                      placeholder="••••••••"
                     />
 
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
@@ -269,7 +333,7 @@ const Login = ({ role: initialRole }) => {
                       fullWidth
                       size="large"
                       startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : <Lock />}
-                      disabled={submitting}
+                      disabled={submitting || !!errors.email || !!errors.password}
                       sx={{ mt: 4, py: 1.6, fontWeight: 900 }}
                     >
                       {submitting ? 'Signing in...' : 'Sign In'}

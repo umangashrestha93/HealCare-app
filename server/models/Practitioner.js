@@ -24,7 +24,7 @@ const PractitionerSchema = new mongoose.Schema({
   // Compliance Documents
   complianceDocs: [{
     docType: { type: String, required: true },
-    url: { type: String, required: true },
+    url: { type: String, default: 'pending-upload' },
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     expiryDate: { type: Date },
     uploadedAt: { type: Date, default: Date.now }

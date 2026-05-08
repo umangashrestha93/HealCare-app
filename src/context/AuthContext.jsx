@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await authService.login(credentials);
+      console.log("Login response:", response);
       const { access_token, user } = response;
       
       localStorage.setItem('beyond5_access_token', access_token);

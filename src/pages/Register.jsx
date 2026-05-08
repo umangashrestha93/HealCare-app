@@ -12,6 +12,7 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   InputLabel,
   MenuItem,
   Paper,
@@ -34,7 +35,8 @@ import {
   UploadFile,
   VerifiedUser,
 } from '@mui/icons-material';
-import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/api';
+import { validation } from '../utils/validation';
 
 const DOCUMENTS = [
   { id: 'ahpra', label: 'AHPRA Registration', required: true },
@@ -85,7 +87,7 @@ const Register = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const { register } = useAuth();
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -120,7 +122,48 @@ const Register = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    const fieldValue = type === 'checkbox' ? checked : value;
+    
+    setFormData((prev) => ({ ...prev, [name]: fieldValue }));
+
+    // Validate field on change
+    let fieldError = '';
+    switch (name) {
+      case 'firstName':
+        fieldError = validation.firstName(fieldValue);
+        break;
+      case 'lastName':
+        fieldError = validation.lastName(fieldValue);
+        break;
+      case 'email':
+        fieldError = validation.email(fieldValue);
+        break;
+      case 'phone':
+        fieldError = validation.phone(fieldValue);
+        break;
+      case 'location':
+        fieldError = validation.location(fieldValue);
+        break;
+      case 'password':
+        fieldError = validation.password(fieldValue);
+        break;
+      case 'discipline':
+        fieldError = validation.discipline(fieldValue);
+        break;
+      case 'yearsExp':
+        fieldError = validation.yearsExp(fieldValue);
+        break;
+      case 'abn':
+        fieldError = validation.abn(fieldValue);
+        break;
+      case 'bio':
+        fieldError = validation.bio(fieldValue);
+        break;
+      default:
+        fieldError = '';
+    }
+
+    setFieldErrors((prev) => ({ ...prev, [name]: fieldError }));
   };
 
   const handleUpload = (id) => {
@@ -129,6 +172,80 @@ const Register = () => {
 
   const nextStep = () => {
     setError('');
+    
+    // Validate current step before proceeding
+    if (activeStep === 0) {
+      const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password'];
+      const errors = {};
+      let hasError = false;
+
+      requiredFields.forEach((field) => {
+        let error = '';
+        switch (field) {
+          case 'firstName':
+            error = validation.firstName(formData.firstName);
+            break;
+          case 'lastName':
+            error = validation.lastName(formData.lastName);
+            break;
+          case 'email':
+            error = validation.email(formData.email);
+            break;
+          case 'phone':
+            error = validation.phone(formData.phone);
+            break;
+          case 'location':
+            error = validation.location(formData.location);
+            break;
+          case 'password':
+            error = validation.password(formData.password);
+            break;
+          default:
+            break;
+        }
+        if (error) {
+          errors[field] = error;
+          hasError = true;
+        }
+      });
+
+      if (hasError) {
+        setFieldErrors(errors);
+        setError('Please correct the errors above before proceeding.');
+        return;
+      }
+    }
+
+    if (activeStep === 1) {
+      const practitionerFields = ['discipline', 'yearsExp'];
+      const errors = {};
+      let hasError = false;
+
+      practitionerFields.forEach((field) => {
+        let error = '';
+        switch (field) {
+          case 'discipline':
+            error = validation.discipline(formData.discipline);
+            break;
+          case 'yearsExp':
+            error = validation.yearsExp(formData.yearsExp);
+            break;
+          default:
+            break;
+        }
+        if (error) {
+          errors[field] = error;
+          hasError = true;
+        }
+      });
+
+      if (hasError) {
+        setFieldErrors(errors);
+        setError('Please correct the errors above before proceeding.');
+        return;
+      }
+    }
+
     setActiveStep((step) => step + 1);
   };
 
@@ -141,6 +258,57 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
+    // Validate all required fields for the role
+    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password'];
+    if (role === 'practitioner') {
+      requiredFields.push('discipline', 'yearsExp');
+    }
+
+    const errors = {};
+    let hasError = false;
+
+    requiredFields.forEach((field) => {
+      let error = '';
+      switch (field) {
+        case 'firstName':
+          error = validation.firstName(formData.firstName);
+          break;
+        case 'lastName':
+          error = validation.lastName(formData.lastName);
+          break;
+        case 'email':
+          error = validation.email(formData.email);
+          break;
+        case 'phone':
+          error = validation.phone(formData.phone);
+          break;
+        case 'location':
+          error = validation.location(formData.location);
+          break;
+        case 'password':
+          error = validation.password(formData.password);
+          break;
+        case 'discipline':
+          error = validation.discipline(formData.discipline);
+          break;
+        case 'yearsExp':
+          error = validation.yearsExp(formData.yearsExp);
+          break;
+        default:
+          break;
+      }
+      if (error) {
+        errors[field] = error;
+        hasError = true;
+      }
+    });
+
+    if (hasError) {
+      setFieldErrors(errors);
+      setError('Please correct all errors before submitting.');
+      return;
+    }
+
     if (role === 'practitioner' && !requiredDocsUploaded) {
       setError('Please mark the required compliance documents before submitting.');
       return;
@@ -148,7 +316,7 @@ const Register = () => {
 
     try {
       setSubmitting(true);
-      await register({
+      await authService.register({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -190,15 +358,15 @@ const Register = () => {
           <Paper sx={{ p: { xs: 4, md: 6 }, textAlign: 'center', borderRadius: 2 }}>
             <CheckCircle color="secondary" sx={{ fontSize: 72, mb: 3 }} />
             <Typography variant="h4" fontWeight={900} gutterBottom>
-              {role === 'practitioner' ? 'Application received' : 'Account created'}
+              {role === 'practitioner' ? 'Application received' : 'Account created successfully'}
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 4 }}>
               {role === 'practitioner'
-                ? "Your profile is pending verification. You'll see onboarding progress in your dashboard."
-                : 'You can now search, compare, and book after-hours allied health services.'}
+                ? 'Your application is under review. Please login to track your verification status.'
+                : 'Your account is ready. Please login to start booking allied health services.'}
             </Typography>
-            <Button variant="contained" fullWidth size="large" onClick={() => navigate('/dashboard')} sx={{ py: 1.6, fontWeight: 900 }}>
-              Go to Dashboard
+            <Button variant="contained" fullWidth size="large" onClick={() => navigate('/login')} sx={{ py: 1.6, fontWeight: 900 }}>
+              Go to Login
             </Button>
           </Paper>
         </Container>
@@ -305,32 +473,144 @@ const Register = () => {
                   <Stack spacing={3}>
                     {activeStep === 0 && (
                       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
-                        <TextField fullWidth label="First Name" name="firstName" required value={formData.firstName} onChange={handleChange} />
-                        <TextField fullWidth label="Last Name" name="lastName" required value={formData.lastName} onChange={handleChange} />
-                        <TextField fullWidth label="Email Address" name="email" type="email" required value={formData.email} onChange={handleChange} />
-                        <TextField fullWidth label="Phone Number" name="phone" required value={formData.phone} onChange={handleChange} />
-                        <TextField fullWidth label="Location" name="location" required value={formData.location} onChange={handleChange} />
-                        <TextField fullWidth label="Password" name="password" type="password" required value={formData.password} onChange={handleChange} helperText="Use at least 8 characters." />
+                        <TextField
+                          fullWidth
+                          label="First Name"
+                          name="firstName"
+                          required
+                          value={formData.firstName}
+                          onChange={handleChange}
+                          error={!!fieldErrors.firstName}
+                          helperText={fieldErrors.firstName}
+                          disabled={submitting}
+                        />
+                        <TextField
+                          fullWidth
+                          label="Last Name"
+                          name="lastName"
+                          required
+                          value={formData.lastName}
+                          onChange={handleChange}
+                          error={!!fieldErrors.lastName}
+                          helperText={fieldErrors.lastName}
+                          disabled={submitting}
+                        />
+                        <TextField
+                          fullWidth
+                          label="Email Address"
+                          name="email"
+                          type="email"
+                          required
+                          value={formData.email}
+                          onChange={handleChange}
+                          error={!!fieldErrors.email}
+                          helperText={fieldErrors.email}
+                          disabled={submitting}
+                          placeholder="your.email@example.com"
+                        />
+                        <TextField
+                          fullWidth
+                          label="Phone Number"
+                          name="phone"
+                          required
+                          value={formData.phone}
+                          onChange={handleChange}
+                          error={!!fieldErrors.phone}
+                          helperText={fieldErrors.phone}
+                          disabled={submitting}
+                          placeholder="+61 2 xxxx xxxx"
+                        />
+                        <TextField
+                          fullWidth
+                          label="Location"
+                          name="location"
+                          required
+                          value={formData.location}
+                          onChange={handleChange}
+                          error={!!fieldErrors.location}
+                          helperText={fieldErrors.location}
+                          disabled={submitting}
+                        />
+                        <TextField
+                          fullWidth
+                          label="Password"
+                          name="password"
+                          type="password"
+                          required
+                          value={formData.password}
+                          onChange={handleChange}
+                          error={!!fieldErrors.password}
+                          helperText={fieldErrors.password || 'Use at least 6 characters.'}
+                          disabled={submitting}
+                          placeholder="••••••••"
+                        />
                       </Box>
                     )}
 
                     {role === 'practitioner' && activeStep === 1 && (
                       <Stack spacing={3}>
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
-                          <FormControl fullWidth required>
+                          <FormControl fullWidth required error={!!fieldErrors.discipline}>
                             <InputLabel>Primary Discipline</InputLabel>
-                            <Select name="discipline" value={formData.discipline} label="Primary Discipline" onChange={handleChange}>
+                            <Select
+                              name="discipline"
+                              value={formData.discipline}
+                              label="Primary Discipline"
+                              onChange={handleChange}
+                              disabled={submitting}
+                            >
                               {DISCIPLINE_OPTIONS.map((option) => (
                                 <MenuItem key={option} value={option}>{option}</MenuItem>
                               ))}
                             </Select>
+                            {fieldErrors.discipline && <FormHelperText>{fieldErrors.discipline}</FormHelperText>}
                           </FormControl>
-                          <TextField fullWidth label="Years of Experience" name="yearsExp" type="number" value={formData.yearsExp} onChange={handleChange} />
-                          <TextField fullWidth label="ABN" name="abn" value={formData.abn} onChange={handleChange} />
-                          <TextField fullWidth label="Specialisations" name="languages" value={formData.languages} onChange={handleChange} helperText="Separate multiple items with commas." />
+                          <TextField
+                            fullWidth
+                            label="Years of Experience"
+                            name="yearsExp"
+                            type="number"
+                            value={formData.yearsExp}
+                            onChange={handleChange}
+                            error={!!fieldErrors.yearsExp}
+                            helperText={fieldErrors.yearsExp}
+                            disabled={submitting}
+                            inputProps={{ min: 0, max: 70 }}
+                          />
+                          <TextField
+                            fullWidth
+                            label="ABN"
+                            name="abn"
+                            value={formData.abn}
+                            onChange={handleChange}
+                            error={!!fieldErrors.abn}
+                            helperText={fieldErrors.abn}
+                            disabled={submitting}
+                            placeholder="11 digits"
+                          />
+                          <TextField
+                            fullWidth
+                            label="Specialisations"
+                            name="languages"
+                            value={formData.languages}
+                            onChange={handleChange}
+                            disabled={submitting}
+                            helperText="Separate multiple items with commas."
+                          />
                         </Box>
 
-                        <TextField fullWidth multiline rows={4} label="Professional Bio" name="bio" value={formData.bio} onChange={handleChange} />
+                        <TextField
+                          fullWidth
+                          multiline
+                          rows={4}
+                          label="Professional Bio"
+                          name="bio"
+                          value={formData.bio}
+                          onChange={handleChange}
+                          error={!!fieldErrors.bio}
+                          helperText={fieldErrors.bio || `${formData.bio.length}/500 characters`}
+                          disabled={submitting}
+                        />
 
                         <Paper variant="outlined" sx={{ p: 2.5 }}>
                           <Typography fontWeight={900} gutterBottom>Availability</Typography>
@@ -338,7 +618,7 @@ const Register = () => {
                             {availabilityOptions.map((option) => (
                               <FormControlLabel
                                 key={option.name}
-                                control={<Checkbox checked={formData[option.name]} onChange={handleChange} name={option.name} />}
+                                control={<Checkbox checked={formData[option.name]} onChange={handleChange} name={option.name} disabled={submitting} />}
                                 label={
                                   <Stack direction="row" spacing={0.75} alignItems="center">
                                     {option.icon}
@@ -394,7 +674,11 @@ const Register = () => {
                         Back
                       </Button>
                       {role === 'practitioner' && activeStep < steps.length - 1 ? (
-                        <Button variant="contained" onClick={nextStep}>
+                        <Button
+                          variant="contained"
+                          onClick={nextStep}
+                          disabled={submitting || Object.values(fieldErrors).some((e) => e !== '')}
+                        >
                           Continue
                         </Button>
                       ) : (
@@ -402,7 +686,7 @@ const Register = () => {
                           variant="contained"
                           color="secondary"
                           type="submit"
-                          disabled={submitting}
+                          disabled={submitting || Object.values(fieldErrors).some((e) => e !== '')}
                           startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : <CheckCircle />}
                           sx={{ fontWeight: 900 }}
                         >

@@ -68,14 +68,26 @@ exports.register = async (req, res) => {
       role: role || 'client'
     });
 
+    // Create practitioner profile if needed (don't fail registration if this fails)
     if (user.role === 'practitioner') {
-      await upsertPractitionerProfile(user._id, practitionerProfile || {});
+      try {
+        await upsertPractitionerProfile(user._id, practitionerProfile || {});
+      } catch (profileErr) {
+        console.warn('Failed to create practitioner profile, but user was created:', profileErr.message);
+        // Continue with registration - profile can be created later
+      }
     }
 
     sendTokenResponse(user, 201, res);
   } catch (err) {
-    res.status(500).json({ message: 'Registration failed', error: err.message });
-  }
+  console.error("REGISTER ERROR:");
+  console.error(err);
+
+  res.status(500).json({
+    message: 'Registration failed',
+    error: err.message
+  });
+}
 };
 
 // @desc    Get current user
@@ -313,11 +325,11 @@ const sanitizeUser = (user) => ({
 const upsertPractitionerProfile = async (userId, profile) => {
   const complianceDocs = Array.isArray(profile.complianceDocs)
     ? profile.complianceDocs.map((doc) => ({
-      docType: doc.docType,
-      url: doc.url || 'submitted-during-registration',
-      status: 'pending',
-      expiryDate: doc.expiryDate
-    }))
+        docType: doc.docType || doc.label || 'Unknown Document',
+        url: doc.url || 'pending-upload',
+        status: doc.status || 'pending',
+        expiryDate: doc.expiryDate
+      }))
     : [];
 
   return Practitioner.findOneAndUpdate(

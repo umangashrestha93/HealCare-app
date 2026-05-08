@@ -4,7 +4,7 @@ import {
   Box, Container, Typography, Grid, Paper,
   Avatar, Chip, Stack, Button, List, ListItem,
   ListItemText, ListItemAvatar, Divider, LinearProgress,
-  IconButton, Card, CardContent, TextField, Switch, FormControlLabel,
+  IconButton, TextField, Switch, FormControlLabel,
   Snackbar, Alert, Badge, CircularProgress
 } from '@mui/material';
 import {
@@ -21,11 +21,8 @@ import {
   AccessTime,
   CheckCircle,
   Warning,
-  VideoCameraFront,
-  LocationOn,
   Send,
   MoreVert,
-  AttachMoney,
   Star,
   Schedule,
   Person
@@ -76,7 +73,13 @@ const PractitionerDashboard = () => {
     { id: 2, sender: 'John Doe', text: 'Thank you for the session today!', time: '1h ago', active: false },
   ]);
 
-  const complianceProgress = (documents.filter(d => d.status === 'Approved').length / documents.length) * 100;
+  const [summaryCards] = useState([
+    { label: 'Weekly bookings', value: '12', detail: 'Up 18% from last week', icon: <CalendarMonth />, color: 'primary.main' },
+    { label: 'Client satisfaction', value: '4.9/5', detail: 'Top rated practitioner', icon: <Star />, color: 'secondary.main' },
+    { label: 'Verified documents', value: '2/3', detail: 'Complete your profile', icon: <Verified />, color: '#f59e0b' },
+  ]);
+
+  const complianceProgress = (documents.filter((d) => d.status === 'Approved').length / documents.length) * 100;
 
   // ─── HANDLERS ───────────────────────────────────────────────────────
 
@@ -111,9 +114,36 @@ const PractitionerDashboard = () => {
 
   // ─── SECTIONS ───────────────────────────────────────────────────────
 
-  const Overview = () => (
+  const overview = () => (
     <Box>
-      {/* SECTION 1: Onboarding & Compliance Header */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {summaryCards.map((card, index) => (
+          <Grid item xs={12} md={4} key={card.label}>
+            <MotionBox
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.08 }}
+              sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#fff', p: 3 }}
+            >
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Avatar sx={{ bgcolor: `${card.color}22`, color: card.color }}>{card.icon}</Avatar>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    {card.label}
+                  </Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ mt: 1 }}>
+                    {card.value}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {card.detail}
+                  </Typography>
+                </Box>
+              </Stack>
+            </MotionBox>
+          </Grid>
+        ))}
+      </Grid>
+
       <MotionBox
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -125,8 +155,8 @@ const PractitionerDashboard = () => {
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
               <Typography variant="h5" fontWeight={900}>Verification Status</Typography>
               <Chip
-                label={complianceProgress === 100 ? "Fully Verified" : "Action Required"}
-                color={complianceProgress === 100 ? "success" : "warning"}
+                label={complianceProgress === 100 ? 'Fully Verified' : 'Action Required'}
+                color={complianceProgress === 100 ? 'success' : 'warning'}
                 size="small"
                 sx={{ fontWeight: 800, borderRadius: 1.5 }}
               />
@@ -142,19 +172,30 @@ const PractitionerDashboard = () => {
                 aria-label="Onboarding progress"
               />
             </Box>
-            <Stack direction="row" spacing={3} sx={{ mt: 2 }}>
-              {documents.map(doc => (
+            <Stack direction="row" spacing={3} sx={{ mt: 2, flexWrap: 'wrap' }}>
+              {documents.map((doc) => (
                 <Stack key={doc.id} direction="row" spacing={1} alignItems="center">
-                  {doc.status === 'Approved' ? <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} /> :
-                    doc.status === 'Pending' ? <PendingActions sx={{ fontSize: 16, color: 'warning.main' }} /> :
-                      <Warning sx={{ fontSize: 16, color: 'error.main' }} />}
-                  <Typography variant="caption" fontWeight={600} color="text.secondary">{doc.name}</Typography>
+                  {doc.status === 'Approved' ? (
+                    <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
+                  ) : doc.status === 'Pending' ? (
+                    <PendingActions sx={{ fontSize: 16, color: 'warning.main' }} />
+                  ) : (
+                    <Warning sx={{ fontSize: 16, color: 'error.main' }} />
+                  )}
+                  <Typography variant="caption" fontWeight={600} color="text.secondary">
+                    {doc.name}
+                  </Typography>
                 </Stack>
               ))}
             </Stack>
           </Grid>
           <Grid item xs={12} md={4} sx={{ textAlign: { md: 'right' } }}>
-            <Button variant="contained" size="large" sx={{ borderRadius: '50px', px: 4, py: 1.5, fontWeight: 800 }} onClick={() => setActiveTab(1)}>
+            <Button
+              variant="contained"
+              size="large"
+              sx={{ borderRadius: '50px', px: 4, py: 1.5, fontWeight: 800 }}
+              onClick={() => setActiveTab(1)}
+            >
               Manage Documents
             </Button>
           </Grid>
@@ -168,7 +209,9 @@ const PractitionerDashboard = () => {
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="space-between" alignItems="center">
               <Box>
                 <Typography variant="subtitle1" fontWeight={800}>Practice Quick-Toggle</Typography>
-                <Typography variant="caption" color="text.secondary">Instantly open or close your clinic for after-hours bookings.</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Instantly open or close your clinic for after-hours bookings.
+                </Typography>
               </Box>
               <Stack direction="row" spacing={3}>
                 <FormControlLabel
@@ -192,7 +235,17 @@ const PractitionerDashboard = () => {
               { name: 'Tom Hardy', time: '7:30 PM', type: 'In-Person' },
             ].map((session, i) => (
               <MotionBox key={i} whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, border: '1px solid', borderColor: 'divider', '&:hover': { borderColor: 'primary.main', bgcolor: '#f8fafc' }, transition: '0.2s' }}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 4,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    '&:hover': { borderColor: 'primary.main', bgcolor: '#f8fafc' },
+                    transition: '0.2s',
+                  }}
+                >
                   <Grid container alignItems="center" spacing={2}>
                     <Grid item xs={12} sm={8}>
                       <Stack direction="row" spacing={2} alignItems="center">
@@ -206,8 +259,12 @@ const PractitionerDashboard = () => {
                       </Stack>
                     </Grid>
                     <Grid item xs={12} sm={4} sx={{ textAlign: { sm: 'right' } }}>
-                      <Button variant="outlined" size="small" sx={{ mr: 1, borderRadius: 2 }}>Details</Button>
-                      <Button variant="contained" color="secondary" size="small" sx={{ borderRadius: 2 }}>Join Call</Button>
+                      <Button variant="outlined" size="small" sx={{ mr: 1, borderRadius: 2 }}>
+                        Details
+                      </Button>
+                      <Button variant="contained" color="secondary" size="small" sx={{ borderRadius: 2 }}>
+                        Join Call
+                      </Button>
                     </Grid>
                   </Grid>
                 </Paper>
@@ -223,16 +280,26 @@ const PractitionerDashboard = () => {
           <Paper elevation={0} sx={{ p: 3, borderRadius: 6, border: '1px solid', borderColor: 'divider', mb: 3 }}>
             <Stack spacing={3}>
               <Box>
-                <Typography variant="caption" color="text.secondary" fontWeight={700}>BOOKING UTILIZATION</Typography>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                  BOOKING UTILIZATION
+                </Typography>
                 <Stack direction="row" spacing={2} alignItems="flex-end" sx={{ mt: 1 }}>
-                  <Typography variant="h4" fontWeight={900}>84%</Typography>
-                  <Typography variant="caption" color="success.main" fontWeight={800} sx={{ pb: 0.5 }}>+12% this week</Typography>
+                  <Typography variant="h4" fontWeight={900}>
+                    84%
+                  </Typography>
+                  <Typography variant="caption" color="success.main" fontWeight={800} sx={{ pb: 0.5 }}>
+                    +12% this week
+                  </Typography>
                 </Stack>
               </Box>
               <Divider />
               <Box>
-                <Typography variant="caption" color="text.secondary" fontWeight={700}>WEEKLY REVENUE</Typography>
-                <Typography variant="h5" fontWeight={900} sx={{ mt: 1 }}>$1,420.50</Typography>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                  WEEKLY REVENUE
+                </Typography>
+                <Typography variant="h5" fontWeight={900} sx={{ mt: 1 }}>
+                  $1,420.50
+                </Typography>
               </Box>
             </Stack>
           </Paper>
@@ -259,14 +326,16 @@ const PractitionerDashboard = () => {
                 </Box>
               ))}
             </List>
-            <Button fullWidth sx={{ py: 1.5, fontWeight: 700, bgcolor: '#f8fafc' }} onClick={() => setActiveTab(3)}>Open Messages</Button>
+            <Button fullWidth sx={{ py: 1.5, fontWeight: 700, bgcolor: '#f8fafc' }} onClick={() => setActiveTab(3)}>
+              Open Messages
+            </Button>
           </Paper>
         </Grid>
       </Grid>
     </Box>
   );
 
-  const Compliance = () => (
+  const compliance = () => (
     <Box>
       <Typography variant="h5" fontWeight={900} gutterBottom>Compliance Hub</Typography>
       <Alert severity={complianceProgress < 100 ? "warning" : "success"} sx={{ mb: 4, borderRadius: 3 }}>
@@ -308,7 +377,7 @@ const PractitionerDashboard = () => {
     </Box>
   );
 
-  const AvailabilitySection = () => (
+  const availabilitySection = () => (
     <Box>
       <Typography variant="h5" fontWeight={900} gutterBottom>Clinic Availability</Typography>
       <Typography color="text.secondary" sx={{ mb: 4 }}>Manage your active booking slots. All times are in AEST.</Typography>
@@ -364,7 +433,7 @@ const PractitionerDashboard = () => {
     </Box>
   );
 
-  const MessagesSection = () => (
+  const messagesSection = () => (
     <Box>
       <Grid container sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
         <Grid item xs={12} md={4} sx={{ borderRight: '1px solid', borderColor: 'divider' }}>
@@ -407,7 +476,7 @@ const PractitionerDashboard = () => {
     </Box>
   );
 
-  const SettingsSection = () => (
+  const settingsSection = () => (
     <Box sx={{ maxWidth: '1000px' }}>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
         <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: '-0.02em' }}>Account Settings</Typography>
@@ -567,11 +636,11 @@ const PractitionerDashboard = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.15 }}
               >
-                {activeTab === 0 && <Overview />}
-                {activeTab === 1 && <Compliance />}
-                {activeTab === 2 && <AvailabilitySection />}
-                {activeTab === 3 && <MessagesSection />}
-                {activeTab === 4 && <SettingsSection />}
+                {activeTab === 0 && overview()}
+                {activeTab === 1 && compliance()}
+                {activeTab === 2 && availabilitySection()}
+                {activeTab === 3 && messagesSection()}
+                {activeTab === 4 && settingsSection()}
               </motion.div>
             </AnimatePresence>
 
