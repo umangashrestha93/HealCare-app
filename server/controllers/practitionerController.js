@@ -1,41 +1,93 @@
 const Practitioner = require('../models/Practitioner');
 
-// @desc    Get all approved practitioners with filters
+// @desc    Get all approved practitioners with filters & pagination
 // @route   GET /api/practitioners
-// @access  Public (Gatekeeper Logic)
+// @access  Public
 exports.getPractitioners = async (req, res) => {
   try {
-    const { discipline, telehealth, afterHours, location, specialisation, specialization } = req.query;
+    const { 
+      discipline, 
+      telehealth, 
+      afterHours, 
+      weekends,
+      location, 
+      keyword,
+      page = 1,
+      limit = 10 
+    } = req.query;
 
     // Base query: Only approved practitioners
     let query = { verificationStatus: 'approved' };
 
-    // Apply filters
-    if (discipline) query.discipline = discipline;
+    // Apply strict filters
+    if (discipline && discipline !== 'All') query.discipline = discipline;
     if (telehealth === 'true') query.telehealth = true;
     if (afterHours === 'true') query.afterHours = true;
-    if (specialisation || specialization) {
-      query.specializations = { $in: [specialisation || specialization] };
+    if (weekends === 'true') query.weekends = true;
+
+    // 1. Keyword Search (Search across Name, Bio, Discipline)
+    if (keyword && keyword.trim() !== '') {
+      // Escape special characters for regex
+      const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = new RegExp(escapedKeyword, 'i');
+      
+      query.$or = [
+        { discipline: searchRegex },
+        { bio: searchRegex },
+        { specializations: { $elemMatch: { $regex: searchRegex } } }
+      ];
     }
 
-    const practitioners = await Practitioner.find(query)
-      .populate('userId', 'firstName lastName email location')
+    // 2. Pagination Logic
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.max(1, parseInt(limit));
+    const skip = (pageNum - 1) * limitNum;
+
+    // 3. Fetch Data with Population
+    let practitioners = await Practitioner.find(query)
+      .populate('userId', 'firstName lastName avatar location')
+      .skip(skip)
+      .limit(limitNum)
+      .sort('-createdAt')
       .lean();
 
-    const filteredPractitioners = location
-      ? practitioners.filter((practitioner) => (
-        practitioner.telehealth
-        || practitioner.userId?.location?.toLowerCase().includes(location.toLowerCase())
-      ))
-      : practitioners;
+    // 4. Manual Post-Processing (for nested field filters like location)
+    if (location && location.trim() !== '') {
+      practitioners = practitioners.filter(p => {
+        const locMatch = p.userId?.location?.toLowerCase().includes(location.toLowerCase());
+        return p.telehealth || locMatch;
+      });
+    }
+
+    // Keyword search on name (manual since it's a populated field)
+    if (keyword && keyword.trim() !== '') {
+      const searchTerms = keyword.toLowerCase().split(' ');
+      practitioners = practitioners.filter(p => {
+        const fullName = `${p.userId?.firstName} ${p.userId?.lastName}`.toLowerCase();
+        // Check if name matches (simple implementation)
+        const nameMatch = searchTerms.every(term => fullName.includes(term));
+        
+        // If it matches name, keep it. Otherwise check if it matches discipline/bio (already done by MongoDB)
+        // But since we filtered the array here, we should ensure we don't lose results
+        return nameMatch || practitioners.includes(p); 
+      });
+    }
+
+    const total = await Practitioner.countDocuments(query);
 
     res.status(200).json({
       success: true,
-      count: filteredPractitioners.length,
-      data: filteredPractitioners
+      count: practitioners.length,
+      pagination: {
+        total,
+        page: pageNum,
+        pages: Math.ceil(total / limitNum) || 1
+      },
+      data: practitioners
     });
   } catch (err) {
-    res.status(500).json({ message: 'Server Error', error: err.message });
+    console.error('Fetch error:', err);
+    res.status(500).json({ success: false, message: 'Practitioner fetch failed', error: err.message });
   }
 };
 

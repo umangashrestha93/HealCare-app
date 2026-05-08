@@ -48,7 +48,13 @@ api.interceptors.response.use(
 export const clientService = {
   getPractitioners: (filters) => api.get('/practitioners', { params: filters }),
   getPractitionerDetails: (id) => api.get(`/practitioners/${id}`),
+};
+
+// --- BOOKING SERVICES ---
+export const bookingService = {
+  getBookings: () => api.get('/bookings'),
   createBooking: (bookingData) => api.post('/bookings', bookingData),
+  cancelBooking: (id) => api.delete(`/bookings/${id}`),
 };
 
 // --- PRACTITIONER SERVICES ---
@@ -62,9 +68,14 @@ export const practitionerService = {
 
 // --- ADMIN SERVICES ---
 export const adminService = {
-  getVerificationQueue: () => api.get('/admin/practitioners/pending'),
+  getPractitioners: (params) => api.get('/admin/practitioners', { params }),
+  getVerificationQueue: () => api.get('/admin/practitioners', { params: { status: 'pending' } }),
+  approvePractitioner: (id) => api.patch(`/admin/practitioners/${id}/approve`),
+  rejectPractitioner: (id, reason) => api.patch(`/admin/practitioners/${id}/reject`, { reason }),
   verifyPractitioner: (id, status) => api.put(`/admin/practitioners/${id}/verify`, { status }),
   getMarketMetrics: () => api.get('/admin/metrics'),
+  getUsers: (params) => api.get('/admin/users', { params }),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
 };
 
 // --- AUTH SERVICES ---

@@ -1,46 +1,75 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
 import { 
   Box, Container, Typography, Grid, Paper, 
-  Avatar, Button, Chip, Stack, Divider, Alert, IconButton
+  Avatar, Button, Chip, Stack, Divider, Alert, IconButton,
+  CircularProgress
 } from '@mui/material';
 import { 
   CheckCircle, CalendarMonth, Language, ArrowBack
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MOCK_PRACTITIONERS, TIME_SLOTS_BY_DATE } from '../utils/mockData';
-import { setPractitioner, setBookingDetails, confirmBooking } from '../store/slices/bookingSlice';
+import { clientService, bookingService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-const DATES = Object.keys(TIME_SLOTS_BY_DATE);
+const DATES = ['2026-05-10', '2026-05-11', '2026-05-12', '2026-05-13'];
+const SLOTS = ['09:00 AM', '10:30 AM', '01:00 PM', '02:30 PM', '04:00 PM'];
 
 const Booking = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const practitionerId = searchParams.get('practitioner');
   
+  const [practitioner, setPractitioner] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [bookingLoading, setBookingLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [selectedDate, setSelectedDate] = useState(DATES[0]);
   const [selectedSlot, setSelectedSlot] = useState('');
+  const [error, setError] = useState('');
 
-  const practitioner = MOCK_PRACTITIONERS.find(p => p.id === parseInt(practitionerId)) || MOCK_PRACTITIONERS[0];
-
-  // Role-Based Access
   useEffect(() => {
     if (user && user.role !== 'client') {
       navigate('/dashboard');
+      return;
     }
-    dispatch(setPractitioner(practitioner));
-  }, [user, navigate, practitioner, dispatch]);
+    
+    if (practitionerId) {
+      fetchPractitioner();
+    }
+  }, [user, practitionerId]);
 
-  const handleConfirm = () => {
-    dispatch(setBookingDetails({ date: selectedDate, time: selectedSlot }));
-    dispatch(confirmBooking());
-    setActiveStep(1);
+  const fetchPractitioner = async () => {
+    try {
+      setLoading(true);
+      const res = await clientService.getPractitionerDetails(practitionerId);
+      setPractitioner(res.data);
+    } catch (err) {
+      setError('Failed to load practitioner details.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleConfirm = async () => {
+    try {
+      setBookingLoading(true);
+      await bookingService.createBooking({
+        practitionerId,
+        date: selectedDate,
+        time: selectedSlot
+      });
+      setActiveStep(1);
+    } catch (err) {
+      setError(err || 'Failed to create booking. Please try again.');
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  if (loading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>;
+  if (error && !practitioner) return <Container sx={{ py: 10 }}><Alert severity="error">{error}</Alert></Container>;
 
   if (activeStep === 1) {
     return (
@@ -52,7 +81,7 @@ const Booking = () => {
             </motion.div>
             <Typography variant="h4" fontWeight={800} gutterBottom>Booking Confirmed!</Typography>
             <Typography color="text.secondary" sx={{ mb: 4 }}>
-              Your session with <strong>{practitioner.name}</strong> on <strong>{selectedDate}</strong> at <strong>{selectedSlot}</strong> is locked in.
+              Your session with <strong>{practitioner?.userId?.firstName} {practitioner?.userId?.lastName}</strong> on <strong>{selectedDate}</strong> at <strong>{selectedSlot}</strong> is locked in.
             </Typography>
             <Stack spacing={2}>
               <Button variant="contained" fullWidth size="large" onClick={() => navigate('/dashboard')} sx={{ py: 2, borderRadius: '50px' }}>
@@ -69,6 +98,7 @@ const Booking = () => {
   return (
     <Box sx={{ bgcolor: '#f1f5f9', minHeight: '100vh', py: { xs: 4, md: 8 } }}>
       <Container maxWidth="md">
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         <Paper sx={{ borderRadius: 4, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.05)' }}>
           <Box sx={{ p: 4, bgcolor: 'primary.main', color: '#fff' }}>
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
@@ -85,16 +115,16 @@ const Booking = () => {
               <Grid item xs={12} md={4}>
                 <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 3, textAlign: 'center', border: '1px solid', borderColor: 'divider' }}>
                   <Avatar 
-                    src={practitioner.image} 
+                    src={practitioner?.userId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${practitioner?._id}`} 
                     sx={{ width: 100, height: 100, mx: 'auto', mb: 2, border: '4px solid #fff', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} 
                   />
-                  <Typography variant="h6" fontWeight={800}>{practitioner.name}</Typography>
+                  <Typography variant="h6" fontWeight={800}>{practitioner?.userId?.firstName} {practitioner?.userId?.lastName}</Typography>
                   <Typography color="primary" variant="caption" fontWeight={700} sx={{ display: 'block', mb: 2 }}>
-                    {practitioner.discipline}
+                    {practitioner?.discipline}
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
                   <Typography variant="caption" color="text.secondary" display="block">Consultation Fee</Typography>
-                  <Typography variant="h5" fontWeight={800}>${practitioner.fee}</Typography>
+                  <Typography variant="h5" fontWeight={800}>${practitioner?.fee || '80'}</Typography>
                 </Box>
               </Grid>
 
@@ -110,7 +140,6 @@ const Booking = () => {
                           color={selectedDate === d ? 'primary' : 'default'}
                           variant={selectedDate === d ? 'filled' : 'outlined'}
                           sx={{ px: 1, fontWeight: 700 }}
-                          aria-label={`Select date ${d}`}
                         />
                       ))}
                     </Stack>
@@ -119,14 +148,13 @@ const Booking = () => {
                   <Box>
                     <Typography variant="h6" fontWeight={800} gutterBottom aria-label="Select Time">2. Select Time</Typography>
                     <Grid container spacing={1}>
-                      {TIME_SLOTS_BY_DATE[selectedDate]?.map((slot) => (
+                      {SLOTS.map((slot) => (
                         <Grid item xs={4} sm={3} key={slot}>
                           <Button 
                             fullWidth variant={selectedSlot === slot ? 'contained' : 'outlined'}
                             onClick={() => setSelectedSlot(slot)}
                             size="small"
                             sx={{ fontWeight: 700 }}
-                            aria-label={`Select time slot ${slot}`}
                           >
                             {slot}
                           </Button>
@@ -137,16 +165,12 @@ const Booking = () => {
 
                   <Button 
                     variant="contained" color="secondary" size="large" fullWidth
-                    disabled={!selectedSlot}
+                    disabled={!selectedSlot || bookingLoading}
                     onClick={handleConfirm}
                     sx={{ py: 2, borderRadius: '50px', fontSize: '1.1rem', fontWeight: 800 }}
-                    aria-label="Confirm Booking"
                   >
-                    Confirm & Book
+                    {bookingLoading ? 'Processing...' : 'Confirm & Book'}
                   </Button>
-                  <Typography variant="caption" color="text.secondary" textAlign="center" display="block">
-                    <Language sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} /> Secure encryption by Stripe
-                  </Typography>
                 </Stack>
               </Grid>
             </Grid>

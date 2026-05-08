@@ -49,9 +49,50 @@ exports.createBooking = async (req, res) => {
   }
 };
 
+// @desc    Get bookings for logged in user (Client or Practitioner)
+// @route   GET /api/bookings
+// @access  Private
+exports.getMyBookings = async (req, res) => {
+  try {
+    let query = {};
+    if (req.user.role === 'client') {
+      query.clientId = req.user.id;
+    } else if (req.user.role === 'practitioner') {
+      // Find practitioner doc first
+      const practitioner = await Practitioner.findOne({ userId: req.user.id });
+      if (!practitioner) return res.status(404).json({ message: 'Practitioner profile not found' });
+      query.practitionerId = practitioner._id;
+    }
+
+    const bookings = await Booking.find(query)
+      .populate('clientId', 'firstName lastName email')
+      .populate({
+        path: 'practitionerId',
+        populate: { path: 'userId', select: 'firstName lastName email' }
+      })
+      .sort('-appointmentDate');
+
+    res.status(200).json({ success: true, count: bookings.length, data: bookings });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to retrieve bookings', error: err.message });
+  }
+};
+
 // Helper: Standard 60-min session
 const calculateEndTime = (startTime) => {
-  const [hours, minutes] = startTime.split(':').map(Number);
-  const endHours = hours + 1;
-  return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  if (!startTime) return '';
+  try {
+    const [time, modifier] = startTime.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    
+    const endHours = hours + 1;
+    const finalHours = endHours > 12 ? endHours - 12 : endHours;
+    const finalModifier = endHours >= 12 ? 'PM' : 'AM';
+    
+    return `${finalHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${finalModifier}`;
+  } catch (e) {
+    return startTime;
+  }
 };

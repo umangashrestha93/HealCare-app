@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Box, Drawer, AppBar, Toolbar, List, Typography, 
@@ -19,6 +19,7 @@ import {
   Security
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import { adminService } from '../services/api';
 
 const drawerWidth = 280;
 
@@ -27,10 +28,34 @@ const AdminLayout = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPendingCount = async () => {
+      try {
+        const response = await adminService.getPractitioners({ status: 'pending', limit: 1 });
+        if (isMounted) {
+          setPendingCount(response.total || response.count || 0);
+        }
+      } catch {
+        if (isMounted) setPendingCount(0);
+      }
+    };
+
+    fetchPendingCount();
+    const intervalId = window.setInterval(fetchPendingCount, 15000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const menuItems = [
     { text: 'Overview', icon: <DashboardIcon />, path: '/admin/dashboard' },
-    { text: 'Verification Queue', icon: <VerifiedUser />, path: '/admin/verification', badge: 12 },
+    { text: 'Verification Queue', icon: <VerifiedUser />, path: '/admin/verification', badge: pendingCount },
     { text: 'User Management', icon: <People />, path: '/admin/users' },
     { text: 'Analytics', icon: <Assessment />, path: '/admin/analytics' },
     { text: 'Admin Management', icon: <Security />, path: '/admin/management' },

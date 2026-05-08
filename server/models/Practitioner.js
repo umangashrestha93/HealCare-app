@@ -17,9 +17,15 @@ const PractitionerSchema = new mongoose.Schema({
   verificationStatus: { 
     type: String, 
     enum: ['pending', 'approved', 'rejected'], 
+    index: true,
     default: 'pending' 
   },
   isVerified: { type: Boolean, default: false },
+  verifiedAt: { type: Date },
+  verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  rejectedAt: { type: Date },
+  rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  rejectionReason: { type: String },
   
   // Compliance Documents
   complianceDocs: [{
@@ -40,7 +46,16 @@ const PractitionerSchema = new mongoose.Schema({
   totalReviews: { type: Number, default: 0 },
   utilizationRate: { type: Number, default: 0 }, // Utilization Data
   
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+PractitionerSchema.index({ verificationStatus: 1, createdAt: -1 });
+PractitionerSchema.index({ isVerified: 1, createdAt: -1 });
+
+PractitionerSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
 // Virtual for Trust Signal

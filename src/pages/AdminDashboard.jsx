@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react';
 import {
   Box, Grid, Typography, Card, CardContent,
   Stack, Button, Chip, LinearProgress, Avatar,
-  IconButton, Tooltip, Container, Divider
+  IconButton, Tooltip, Container, Divider,
+  CircularProgress
 } from '@mui/material';
 import {
   People,
@@ -14,36 +16,86 @@ import {
   Info
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { adminService } from '../services/api';
 
 const MotionCard = motion(Card);
 
 const AdminDashboard = () => {
+  const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        setLoading(true);
+        const res = await adminService.getMarketMetrics();
+        setMetrics(res.data);
+      } catch (err) {
+        console.error('Failed to fetch metrics', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMetrics();
+  }, []);
+
   const analytics = [
-    { label: 'Active Practitioners', value: '156', change: '+12%', icon: <MedicalServices />, color: '#0ea5e9' },
-    { label: 'Active Bookings', value: '432', change: '+8%', icon: <TrendingUp />, color: '#10b981' },
-    { label: 'Client Growth', value: '1,284', change: '+24%', icon: <People />, color: '#6366f1' },
-    { label: 'Compliance Rate', value: '98.2%', change: '+0.5%', icon: <VerifiedUser />, color: '#f59e0b' },
+    { 
+      label: 'Active Practitioners', 
+      value: metrics?.activeSupply || '0', 
+      change: `${metrics?.verificationCounts?.approved || 0} approved`, 
+      icon: <MedicalServices />, 
+      color: '#0ea5e9' 
+    },
+    { 
+      label: 'Confirmed Bookings', 
+      value: metrics?.totalBookings || '0', 
+      change: 'Live count', 
+      icon: <TrendingUp />, 
+      color: '#10b981' 
+    },
+    { 
+      label: 'Market Utilization', 
+      value: `${(metrics?.marketUtilization || 0).toFixed(1)}%`, 
+      change: 'Confirmed only', 
+      icon: <People />, 
+      color: '#6366f1' 
+    },
+    { 
+      label: 'Pending Verification', 
+      value: metrics?.pendingVerifications || '0', 
+      change: `${metrics?.rejectedPractitioners || 0} rejected`, 
+      icon: <VerifiedUser />, 
+      color: '#f59e0b' 
+    },
   ];
 
-  const recentActivity = [
-    { user: 'Dr. Sarah Wilson', action: 'Uploaded AHPRA certificate', time: '12 mins ago', status: 'pending' },
-    { user: 'Marcus Chen', action: 'Updated clinical bio', time: '45 mins ago', status: 'approved' },
-    { user: 'System', action: 'New backup created successfully', time: '2 hours ago', status: 'info' },
-    { user: 'Emma Thompson', action: 'Registration application', time: '3 hours ago', status: 'pending' },
-  ];
+  const recentActivity = metrics?.recentPractitioners?.map((practitioner) => ({
+    user: `${practitioner.userId?.firstName || ''} ${practitioner.userId?.lastName || ''}`.trim() || 'Practitioner',
+    action: `${practitioner.verificationStatus} verification application`,
+    time: practitioner.createdAt ? new Date(practitioner.createdAt).toLocaleDateString() : 'Date unavailable',
+    status: practitioner.verificationStatus
+  })) || [];
 
-  const topDisciplines = [
-    { name: 'Physiotherapy', count: 45, percentage: 85 },
-    { name: 'Psychology', count: 38, percentage: 72 },
-    { name: 'Occupational Therapy', count: 24, percentage: 45 },
-    { name: 'Speech Pathology', count: 18, percentage: 32 },
-  ];
+  const topDisciplines = metrics?.demandByDiscipline?.map(d => ({
+    name: d._id,
+    count: d.count,
+    percentage: Math.min(100, (d.count / (metrics.activeSupply || 1)) * 100)
+  })) || [];
 
   const quickActions = [
     { label: 'Review Verifications', variant: 'contained' },
     { label: 'Export Reports', variant: 'outlined' },
     { label: 'Send Broadcast', variant: 'outlined' },
   ];
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', py: { xs: 4, md: 6 } }}>
@@ -112,23 +164,29 @@ const AdminDashboard = () => {
                   </Button>
                 </Stack>
                 <Stack spacing={4}>
-                  {topDisciplines.map((discipline) => (
-                    <Box key={discipline.name}>
-                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                        <Typography variant="body2" fontWeight={700}>
-                          {discipline.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {discipline.count} Active
-                        </Typography>
-                      </Stack>
-                      <LinearProgress
-                        variant="determinate"
-                        value={discipline.percentage}
-                        sx={{ height: 10, borderRadius: 4, bgcolor: '#f1f5f9', '& .MuiLinearProgress-bar': { borderRadius: 4 } }}
-                      />
-                    </Box>
-                  ))}
+                  {topDisciplines.length > 0 ? (
+                    topDisciplines.map((discipline) => (
+                      <Box key={discipline.name}>
+                        <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+                          <Typography variant="body2" fontWeight={700}>
+                            {discipline.name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {discipline.count} Active
+                          </Typography>
+                        </Stack>
+                        <LinearProgress
+                          variant="determinate"
+                          value={discipline.percentage}
+                          sx={{ height: 10, borderRadius: 4, bgcolor: '#f1f5f9', '& .MuiLinearProgress-bar': { borderRadius: 4 } }}
+                        />
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" align="center">
+                      No discipline data available
+                    </Typography>
+                  )}
                 </Stack>
               </CardContent>
             </Card>
@@ -139,16 +197,17 @@ const AdminDashboard = () => {
                   <Typography variant="h6" fontWeight={800}>
                     Verification Snapshot
                   </Typography>
-                  <Chip label="12 pending" color="warning" />
+                  <Chip label="Real-time" color="primary" variant="outlined" size="small" />
                 </Stack>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                   Track in-progress practitioner verifications and prioritize cases that need immediate review.
                 </Typography>
                 <Stack spacing={2}>
                   {[
-                    { label: 'New applications', value: '18' },
-                    { label: 'Awaiting documents', value: '7' },
-                    { label: 'High-priority cases', value: '4' },
+                    { label: 'Pending Queue', value: metrics?.pendingVerifications || 0 },
+                    { label: 'Market Bookings', value: metrics?.totalBookings || 0 },
+                    { label: 'Active Supply', value: metrics?.activeSupply || 0 },
+                    { label: 'Capacity Utilization', value: `${(metrics?.marketUtilization || 0).toFixed(1)}%` },
                   ].map((item) => (
                     <Stack key={item.label} direction="row" justifyContent="space-between" alignItems="center">
                       <Typography variant="body2" color="text.secondary">
@@ -178,8 +237,8 @@ const AdminDashboard = () => {
                   </Tooltip>
                 </Stack>
                 <Stack spacing={2}>
-                  {recentActivity.map((activity, index) => (
-                    <Box key={activity.user}>
+                  {recentActivity.length > 0 ? recentActivity.map((activity, index) => (
+                    <Box key={index}>
                       <Stack direction="row" spacing={2} alignItems="flex-start">
                         <Box sx={{ mt: 0.5 }}>
                           <Box
@@ -213,7 +272,11 @@ const AdminDashboard = () => {
                       </Stack>
                       {index < recentActivity.length - 1 && <Divider sx={{ mt: 2 }} />}
                     </Box>
-                  ))}
+                  )) : (
+                    <Typography variant="body2" color="text.secondary" align="center">
+                      No practitioner activity yet
+                    </Typography>
+                  )}
                 </Stack>
                 <Button fullWidth variant="outlined" sx={{ mt: 3, borderRadius: 2 }}>
                   View Full System Audit
