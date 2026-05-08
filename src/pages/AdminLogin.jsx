@@ -19,23 +19,24 @@ const AdminLogin = () => {
 
   // If already logged in as admin, redirect to dashboard
   useEffect(() => {
-    if (user && user.role === 'admin') navigate('/dashboard');
+    if (user && user.role === 'admin') navigate('/admin/dashboard');
     else if (user) navigate('/dashboard'); // Go to whatever dashboard they have
   }, [user, navigate]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Simulate admin login
-    if (email === 'admin@beyond5.com' && password === 'admin123') {
-      login({ 
-        firstName: 'System', 
-        lastName: 'Admin', 
-        email, 
-        role: 'admin' 
-      });
-      navigate('/dashboard');
-    } else {
-      setError('Invalid Administrator Credentials');
+    setError('');
+
+    try {
+      const res = await login({ email, password });
+      
+      if (res.user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        setError('Access Denied: Insufficient Privileges');
+      }
+    } catch (err) {
+      setError(err || 'Invalid Administrator Credentials');
     }
   };
 
@@ -87,6 +88,7 @@ const AdminLogin = () => {
                   fullWidth
                   required
                   variant="filled"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   InputProps={{ disableUnderline: true, sx: { borderRadius: 2, bgcolor: '#334155', color: '#fff' } }}

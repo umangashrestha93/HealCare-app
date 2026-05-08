@@ -4,7 +4,9 @@ import {
   TableCell, TableContainer, TableHead, TableRow, Paper,
   Button, Chip, IconButton, Dialog, DialogTitle, 
   DialogContent, DialogActions, Stack, Divider,
-  TextField, InputAdornment
+  TextField, InputAdornment,
+  Grid,
+  Avatar
 } from '@mui/material';
 import { 
   Visibility, CheckCircle, Cancel, Info, 

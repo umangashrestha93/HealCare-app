@@ -1,5 +1,6 @@
 const Practitioner = require('../models/Practitioner');
 const Booking = require('../models/Booking');
+const User = require('../models/User');
 
 // @desc    Get pending practitioner applications
 // @route   GET /api/admin/practitioners/pending
@@ -70,5 +71,44 @@ exports.getMarketMetrics = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: 'Metrics retrieval failed', error: err.message });
+  }
+};
+
+// @desc    Create a new admin user
+// @route   POST /api/admin/users/admin
+// @access  Private (Admin Only)
+exports.createAdmin = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password } = req.body;
+
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ message: 'Please provide all required fields' });
+    }
+
+    const userExists = await User.findOne({ email: email.toLowerCase() });
+    if (userExists) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const admin = await User.create({
+      firstName,
+      lastName,
+      email: email.toLowerCase(),
+      password,
+      role: 'admin'
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: admin._id,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        email: admin.email,
+        role: admin.role
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Admin creation failed', error: err.message });
   }
 };

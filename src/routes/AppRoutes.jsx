@@ -11,6 +11,7 @@ import AdminLayout from '../layouts/AdminLayout';
 import AdminDashboard from '../pages/AdminDashboard';
 import AdminVerification from '../pages/AdminVerification';
 import AdminAnalytics from '../pages/AdminAnalytics';
+import AdminManagement from '../pages/AdminManagement';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 const AppRoutes = () => {
@@ -58,6 +59,10 @@ const AppRoutes = () => {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="verification" element={<AdminVerification />} />
         <Route path="analytics" element={<AdminAnalytics />} />
+        <Route path="management" element={<AdminManagement />} />
+        <Route path="users" element={<div style={{ padding: 20 }}><h2>User Management Coming Soon</h2></div>} />
+        <Route path="logs" element={<div style={{ padding: 20 }}><h2>Compliance Logs Coming Soon</h2></div>} />
+        <Route path="settings" element={<div style={{ padding: 20 }}><h2>System Settings Coming Soon</h2></div>} />
       </Route>
     </Routes>
   );

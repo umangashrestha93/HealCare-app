@@ -15,7 +15,8 @@ import {
   Logout, 
   Dashboard as DashboardIcon,
   Shield,
-  Gavel
+  Gavel,
+  Security
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
@@ -32,6 +33,7 @@ const AdminLayout = () => {
     { text: 'Verification Queue', icon: <VerifiedUser />, path: '/admin/verification', badge: 12 },
     { text: 'User Management', icon: <People />, path: '/admin/users' },
     { text: 'Analytics', icon: <Assessment />, path: '/admin/analytics' },
+    { text: 'Admin Management', icon: <Security />, path: '/admin/management' },
     { text: 'Compliance Logs', icon: <Gavel />, path: '/admin/logs' },
     { text: 'System Settings', icon: <Settings />, path: '/admin/settings' },
   ];

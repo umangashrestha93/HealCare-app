@@ -36,6 +36,16 @@ exports.register = async (req, res) => {
         return res.status(400).json({ message: 'User already exists' });
       }
 
+      // Security Guard: Prevent unauthorized admin creation
+      let finalRole = role || 'client';
+      if (role === 'admin') {
+        const ADMIN_SECRET = process.env.ADMIN_REGISTRATION_KEY || 'beyond5_secret_2026';
+        if (req.body.adminSecret !== ADMIN_SECRET) {
+          return res.status(403).json({ message: 'Invalid Admin Secret Key' });
+        }
+        finalRole = 'admin';
+      }
+
       const user = {
         _id: crypto.randomUUID(),
         firstName,
@@ -44,8 +54,8 @@ exports.register = async (req, res) => {
         phone,
         location,
         password: await bcrypt.hash(password, 10),
-        role: role || 'client',
-        practitionerProfile: role === 'practitioner' ? practitionerProfile : undefined
+        role: finalRole,
+        practitionerProfile: finalRole === 'practitioner' ? practitionerProfile : undefined
       };
       await devUserStore.upsertUser(user);
       return sendTokenResponse(user, 201, res);
@@ -57,6 +67,16 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // Security Guard: Prevent unauthorized admin creation
+    let finalRole = role || 'client';
+    if (role === 'admin') {
+      const ADMIN_SECRET = process.env.ADMIN_REGISTRATION_KEY || 'beyond5_secret_2026';
+      if (req.body.adminSecret !== ADMIN_SECRET) {
+        return res.status(403).json({ message: 'Invalid Admin Secret Key' });
+      }
+      finalRole = 'admin';
+    }
+
     // Create user
     const user = await User.create({
       firstName,
@@ -65,7 +85,7 @@ exports.register = async (req, res) => {
       phone,
       location,
       password,
-      role: role || 'client'
+      role: finalRole
     });
 
     // Create practitioner profile if needed (don't fail registration if this fails)
