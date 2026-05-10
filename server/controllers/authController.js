@@ -141,6 +141,33 @@ exports.getMe = async (req, res) => {
   }
 };
 
+// @desc    Get user by ID
+// @route   GET /api/auth/user/:id
+exports.getUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    if (!isMongoConnected()) {
+      const user = await devUserStore.findById(userId);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      return res.status(200).json({
+        success: true,
+        user: sanitizeUser(user)
+      });
+    }
+
+    const user = await User.findById(userId).lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.status(200).json({
+      success: true,
+      user: sanitizeUser(user)
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch user', error: err.message });
+  }
+};
+
 // @desc    Update current user profile
 // @route   PUT /api/auth/profile
 exports.updateProfile = async (req, res) => {

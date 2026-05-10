@@ -15,6 +15,8 @@ const UserSchema = new mongoose.Schema({
   phone: { type: String },
   resetPasswordToken: { type: String },
   resetPasswordExpire: { type: Date },
+  isOnline: { type: Boolean, default: false },
+  lastSeen: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 
