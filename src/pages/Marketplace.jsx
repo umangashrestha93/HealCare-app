@@ -7,10 +7,11 @@ import {
   Paper, IconButton, Drawer, FormGroup, FormControlLabel, Checkbox,
   InputAdornment, Skeleton, Badge, Pagination
 } from '@mui/material';
-import { 
-  Search, FilterList, Verified, 
+import {
+  Search, FilterList, Verified,
   LocationOn, RestartAlt, CalendarMonth, Info,
-  NavigateBefore, NavigateNext
+  NavigateBefore, NavigateNext, Close,
+  Star
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setFilters, resetFilters, fetchPractitioners } from '../store/slices/practitionerSlice';
@@ -24,7 +25,7 @@ const Marketplace = () => {
   const { user } = useAuth();
   const { practitioners, filters, pagination, loading, error } = useSelector(state => state.practitioners);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  
+
   // Use a ref to debounce search typing
   const searchTimeout = useRef(null);
 
@@ -35,10 +36,10 @@ const Marketplace = () => {
       console.log('[Marketplace] Fetch results:', res.payload);
     });
   }, [
-    dispatch, 
-    filters.discipline, 
-    filters.deliveryMode, 
-    filters.availability, 
+    dispatch,
+    filters.discipline,
+    filters.deliveryMode,
+    filters.availability,
     filters.page,
   ]);
 
@@ -97,8 +98,8 @@ const Marketplace = () => {
               size="small"
               fullWidth
               onClick={() => handleDisciplineChange(d)}
-              sx={{ 
-                justifyContent: 'flex-start', 
+              sx={{
+                justifyContent: 'flex-start',
                 textAlign: 'left',
                 fontWeight: 600,
                 color: filters.discipline === d ? '#fff' : 'text.secondary'
@@ -117,13 +118,13 @@ const Marketplace = () => {
           AVAILABILITY
         </Typography>
         <FormGroup sx={{ mt: 1 }}>
-          <FormControlLabel 
-            control={<Checkbox size="small" checked={filters.availability.includes('After-Hours')} onChange={() => handleAvailabilityToggle('After-Hours')} />} 
-            label={<Typography variant="body2" fontWeight={600}>After-Hours</Typography>} 
+          <FormControlLabel
+            control={<Checkbox size="small" checked={filters.availability.includes('After-Hours')} onChange={() => handleAvailabilityToggle('After-Hours')} />}
+            label={<Typography variant="body2" fontWeight={600}>After-Hours</Typography>}
           />
-          <FormControlLabel 
-            control={<Checkbox size="small" checked={filters.availability.includes('Weekends')} onChange={() => handleAvailabilityToggle('Weekends')} />} 
-            label={<Typography variant="body2" fontWeight={600}>Weekends</Typography>} 
+          <FormControlLabel
+            control={<Checkbox size="small" checked={filters.availability.includes('Weekends')} onChange={() => handleAvailabilityToggle('Weekends')} />}
+            label={<Typography variant="body2" fontWeight={600}>Weekends</Typography>}
           />
         </FormGroup>
       </Box>
@@ -134,10 +135,10 @@ const Marketplace = () => {
         <Typography variant="subtitle2" fontWeight={800} color="primary" gutterBottom>
           SERVICE TYPE
         </Typography>
-        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
+        <Stack direction="row" gap={1} sx={{ flexWrap: 'wrap', mt: 1 }}>
           {['All', 'Telehealth', 'In-person'].map(m => (
-            <Chip 
-              key={m} label={m} 
+            <Chip
+              key={m} label={m}
               onClick={() => handleDeliveryChange(m)}
               color={filters.deliveryMode === m ? 'primary' : 'default'}
               variant={filters.deliveryMode === m ? 'filled' : 'outlined'}
@@ -148,14 +149,14 @@ const Marketplace = () => {
         </Stack>
       </Box>
 
-      <Button 
-        variant="outlined" 
+      <Button
+        variant="outlined"
         size="small"
-        startIcon={<RestartAlt />} 
+        startIcon={<RestartAlt />}
         onClick={() => {
           dispatch(resetFilters());
           dispatch(fetchPractitioners());
-        }} 
+        }}
         fullWidth
         sx={{ mt: 2, borderRadius: 2, fontWeight: 700 }}
       >
@@ -179,18 +180,18 @@ const Marketplace = () => {
           {/* MAIN PAGE: SEARCH & PRACTITIONERS */}
           <Grid item xs={12} md={9}>
             {/* Search Bar at Top of Results */}
-            <Paper 
+            <Paper
               elevation={0}
-              sx={{ 
+              sx={{
                 p: 1.5, mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider',
                 display: 'flex', alignItems: 'center', bgcolor: '#fff'
               }}
             >
               <Search sx={{ ml: 1.5, mr: 1, color: 'text.disabled' }} />
-              <TextField 
-                fullWidth placeholder="Search by name, specialty, or condition..." 
-                variant="standard" 
-                InputProps={{ 
+              <TextField
+                fullWidth placeholder="Search by name, specialty, or condition..."
+                variant="standard"
+                InputProps={{
                   disableUnderline: true,
                   endAdornment: filters.searchTerm && (
                     <IconButton size="small" onClick={clearSearch} sx={{ mr: 1 }}><Close fontSize="small" /></IconButton>
@@ -201,9 +202,9 @@ const Marketplace = () => {
                 onChange={handleSearchChange}
               />
               <Divider orientation="vertical" flexItem sx={{ mx: 1, height: 24, alignSelf: 'center' }} />
-              <Button 
-                variant="text" 
-                startIcon={<FilterList />} 
+              <Button
+                variant="text"
+                startIcon={<FilterList />}
                 onClick={() => setMobileFilterOpen(true)}
                 sx={{ display: { md: 'none' }, ml: 1, fontWeight: 700 }}
               >
@@ -216,14 +217,14 @@ const Marketplace = () => {
 
             <AnimatePresence mode="popLayout">
               {loading ? (
-                <Stack spacing={2}>
+                <Stack spacing={2} key="loading-skeletons">
                   {[1, 2, 3, 4].map(i => <Skeleton key={i} variant="rounded" height={160} sx={{ borderRadius: 3 }} />)}
                 </Stack>
               ) : practitioners.length > 0 ? (
-                <>
+                <Box key="results-list">
                   <Stack spacing={2}>
                     {practitioners.map((p) => (
-                      <MotionCard 
+                      <MotionCard
                         key={p._id}
                         layout
                         initial={{ opacity: 0, y: 10 }}
@@ -238,13 +239,13 @@ const Marketplace = () => {
                                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                                 badgeContent={p.verificationStatus === 'approved' && <Verified color="secondary" sx={{ bgcolor: '#fff', borderRadius: '50%', fontSize: 20 }} />}
                               >
-                                <Avatar 
-                                  src={p.userId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p._id}`} 
-                                  sx={{ width: 80, height: 80, border: '2px solid #fff', boxShadow: '0 4px 8px rgba(0,0,0,0.05)' }} 
+                                <Avatar
+                                  src={p.userId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p._id}`}
+                                  sx={{ width: 80, height: 80, border: '2px solid #fff', boxShadow: '0 4px 8px rgba(0,0,0,0.05)' }}
                                 />
                               </Badge>
                             </Grid>
-                            
+
                             <Grid item xs={12} sm>
                               <Box sx={{ mb: 0.5 }}>
                                 <Typography variant="h6" fontWeight={800}>{p.userId?.firstName} {p.userId?.lastName}</Typography>
@@ -253,6 +254,9 @@ const Marketplace = () => {
                               <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                   <LocationOn sx={{ fontSize: 14 }} /> {p.userId?.location || 'Remote'}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Star sx={{ fontSize: 14, color: '#f59e0b' }} /> {p.averageRating || '0.0'} ({p.totalReviews || 0})
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                   <CalendarMonth sx={{ fontSize: 14 }} /> {p.afterHours ? 'After-Hours' : 'Normal Hours'}
@@ -266,7 +270,7 @@ const Marketplace = () => {
                             <Grid item xs={12} sm="auto" sx={{ textAlign: { sm: 'right' }, borderLeft: { sm: '1px solid' }, borderColor: 'divider', pl: { sm: 3 } }}>
                               <Typography variant="h6" fontWeight={800} color="primary.main">${p.fee || '80'}</Typography>
                               <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>per session</Typography>
-                              <Button 
+                              <Button
                                 variant="contained" color="secondary" size="small"
                                 onClick={() => navigate(`/booking?practitioner=${p._id}`)}
                                 sx={{ borderRadius: '50px', px: 3, fontWeight: 800 }}
@@ -279,23 +283,23 @@ const Marketplace = () => {
                       </MotionCard>
                     ))}
                   </Stack>
-                  
+
                   {/* Pagination Controls */}
                   {pagination.pages > 1 && (
                     <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
-                      <Pagination 
-                        count={pagination.pages} 
-                        page={pagination.page} 
-                        onChange={handlePageChange} 
+                      <Pagination
+                        count={pagination.pages}
+                        page={pagination.page}
+                        onChange={handlePageChange}
                         color="primary"
                         size="large"
                         sx={{ '& .MuiPaginationItem-root': { fontWeight: 700 } }}
                       />
                     </Box>
                   )}
-                </>
+                </Box>
               ) : (
-                <Paper sx={{ p: 8, textAlign: 'center', borderRadius: 4, bgcolor: '#fff', border: '1px solid', borderColor: 'divider' }}>
+                <Paper key="no-results" sx={{ p: 8, textAlign: 'center', borderRadius: 4, bgcolor: '#fff', border: '1px solid', borderColor: 'divider' }}>
                   <Info sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
                   <Typography variant="h6" fontWeight={800}>No specialists found</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Try adjusting your filters or search terms.</Typography>

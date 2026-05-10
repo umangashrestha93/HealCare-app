@@ -55,16 +55,23 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Route Files
+const authRoutes = require('./routes/authRoutes');
 const practitionerRoutes = require('./routes/practitionerRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const authRoutes = require('./routes/authRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Mount Routers
 app.use('/api/auth', authRoutes);
 app.use('/api/practitioners', practitionerRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/notifications', notificationRoutes);
+
 
 // Root Endpoint (Lightweight / Mobile-First)
 app.get('/', (req, res) => {
@@ -82,6 +89,9 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`Beyond5 Server running in ${process.env.NODE_ENV || 'development'} mode at http://${HOST}:${PORT}`);
 });
 
+const { initializeSocket } = require('./socketHandler');
+initializeSocket(server, corsOptions, app);
+
 server.on('error', (err) => {
   console.error(`Server failed to start: ${err.message}`);
 });
@@ -92,3 +102,5 @@ process.on('unhandledRejection', (err, promise) => {
   // Close server & exit process
   // server.close(() => process.exit(1));
 });
+
+

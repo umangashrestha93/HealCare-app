@@ -5,6 +5,7 @@ import theme from './theme';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import AppRoutes from './routes/AppRoutes';
 
 function App() {
@@ -13,13 +14,16 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <AuthProvider>
-          <Router>
-            <AppRoutes />
-          </Router>
+          <SocketProvider>
+            <Router>
+              <AppRoutes />
+            </Router>
+          </SocketProvider>
         </AuthProvider>
       </ThemeProvider>
     </Provider>
   );
 }
+
 
 export default App;

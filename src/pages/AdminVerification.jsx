@@ -98,7 +98,7 @@ const AdminVerification = () => {
       )}
 
       {/* Header */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={2} sx={{ mb: 4 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, mb: 4 }}>
         <Box>
           <Typography variant="h4" fontWeight={900}>Verification Queue</Typography>
           <Typography color="text.secondary">Review practitioner applications before they appear in the marketplace.</Typography>
@@ -238,7 +238,7 @@ const AdminVerification = () => {
 
                     {/* Action Buttons */}
                     <Grid item xs={12} sm="auto">
-                      <Stack spacing={1.5} alignItems={{ sm: 'flex-end' }}>
+                      <Stack spacing={1.5} sx={{ alignItems: { sm: 'flex-end' } }}>
                         <Chip
                           label={currentStatus.toUpperCase()}
                           color={STATUS_COLORS[currentStatus]}

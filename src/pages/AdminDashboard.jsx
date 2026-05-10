@@ -100,7 +100,7 @@ const AdminDashboard = () => {
   return (
     <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', py: { xs: 4, md: 6 } }}>
       <Container maxWidth="xl">
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems="flex-start" spacing={3} sx={{ mb: 5 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ justifyContent: 'space-between', alignItems: 'flex-start', mb: 5 }}>
           <Box>
             <Typography variant="h4" fontWeight={900} gutterBottom>
               Administrative Overview
@@ -109,7 +109,7 @@ const AdminDashboard = () => {
               Manage platform health, practitioner verification, and marketplace performance from one central command center.
             </Typography>
           </Box>
-          <Stack direction="row" spacing={2} flexWrap="wrap">
+          <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
             {quickActions.map((action) => (
               <Button key={action.label} variant={action.variant} sx={{ borderRadius: 3, px: 3, py: 1.5, fontWeight: 700 }}>
                 {action.label}

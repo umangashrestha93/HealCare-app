@@ -5,7 +5,7 @@ import {
   Avatar, Chip, Stack, Button, List, ListItem,
   ListItemText, ListItemAvatar, Divider, LinearProgress,
   IconButton, TextField, Switch, FormControlLabel,
-  Snackbar, Alert, Badge, CircularProgress
+  Snackbar, Alert, Badge, CircularProgress, Rating
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -29,7 +29,7 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { practitionerService, bookingService } from '../services/api';
+import { practitionerService, bookingService, reviewService } from '../services/api';
 
 const MotionBox = motion.create(Box);
 
@@ -45,6 +45,7 @@ const PractitionerDashboard = () => {
 
   const [practitionerData, setPractitionerData] = useState(null);
   const [bookings, setBookings] = useState([]);
+  const [reviews, setReviews] = useState([]);
 
   const [profile, setProfile] = useState({
     discipline: '',
@@ -84,6 +85,10 @@ const PractitionerDashboard = () => {
           availableSlots: profRes.data.availableSlots || [],
           avatar: profRes.data.avatar || ''
         });
+
+        // Fetch reviews
+        const revRes = await reviewService.getPractitionerReviews(profRes.data._id);
+        setReviews(revRes.data);
       }
     } catch (err) {
       console.error('Dashboard data fetch failed', err);
@@ -92,11 +97,6 @@ const PractitionerDashboard = () => {
       setLoading(false);
     }
   };
-
-  const [messages] = useState([
-    { id: 1, sender: 'Alice Cooper', text: 'Hi Dr. Sarah, can we move our session to 7pm?', time: '2m ago', active: true },
-    { id: 2, sender: 'John Doe', text: 'Thank you for the session today!', time: '1h ago', active: false },
-  ]);
 
   const documents = practitionerData?.complianceDocs || [];
   const complianceProgress = documents.length > 0
@@ -129,12 +129,6 @@ const PractitionerDashboard = () => {
     } finally {
       setActionLoading(false);
     }
-  };
-
-  const handleUpload = async (docType) => {
-    // In a real app, this would open a file picker. 
-    // Here we simulate the metadata update.
-    showToast(`File picker simulation for ${docType}`);
   };
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
@@ -171,93 +165,12 @@ const PractitionerDashboard = () => {
         ))}
       </Grid>
 
-      <MotionBox
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        elevation={0}
-        sx={{ p: 4, borderRadius: 6, border: '1px solid', borderColor: 'divider', mb: 4, bgcolor: '#ffffff' }}
-      >
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={8}>
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-              <Typography variant="h5" fontWeight={900}>Verification Status</Typography>
-              <Chip
-                label={practitionerData?.verificationStatus?.toUpperCase() || 'PENDING'}
-                color={practitionerData?.isVerified ? 'success' : 'warning'}
-                size="small"
-                sx={{ fontWeight: 800, borderRadius: 1.5 }}
-              />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Your profile is {Math.round(complianceProgress)}% verified. Upload mandatory documents to unlock full marketplace features.
-            </Typography>
-            <Box sx={{ width: '100%', mb: 1 }}>
-              <LinearProgress
-                variant="determinate"
-                value={complianceProgress}
-                sx={{ height: 10, borderRadius: 5, bgcolor: '#f1f5f9' }}
-              />
-            </Box>
-            <Stack direction="row" spacing={3} sx={{ mt: 2, flexWrap: 'wrap' }}>
-              {['AHPRA', 'Insurance', 'WWCC'].map((type) => {
-                const doc = documents.find(d => d.docType === type);
-                return (
-                  <Stack key={type} direction="row" spacing={1} alignItems="center">
-                    {doc?.status === 'approved' ? (
-                      <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
-                    ) : doc?.status === 'pending' ? (
-                      <PendingActions sx={{ fontSize: 16, color: 'warning.main' }} />
-                    ) : (
-                      <Warning sx={{ fontSize: 16, color: 'error.main' }} />
-                    )}
-                    <Typography variant="caption" fontWeight={600} color="text.secondary">
-                      {type}
-                    </Typography>
-                  </Stack>
-                );
-              })}
-            </Stack>
-          </Grid>
-          <Grid item xs={12} md={4} sx={{ textAlign: { md: 'right' } }}>
-            <Button
-              variant="contained"
-              size="large"
-              sx={{ borderRadius: '50px', px: 4, py: 1.5, fontWeight: 800 }}
-              onClick={() => setActiveTab(1)}
-            >
-              Manage Documents
-            </Button>
-          </Grid>
-        </Grid>
-      </MotionBox>
-
       <Grid container spacing={4}>
         <Grid item xs={12} lg={8}>
-          <Paper variant="outlined" sx={{ p: 3, borderRadius: 6, mb: 4, bgcolor: '#f8fafc', borderStyle: 'dashed' }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography variant="subtitle1" fontWeight={800}>Practice Quick-Toggle</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Instantly open or close your clinic for specialized bookings.
-                </Typography>
-              </Box>
-              <Stack direction="row" spacing={3}>
-                <FormControlLabel
-                  control={<Switch checked={profile.telehealth} onChange={(e) => setProfile({ ...profile, telehealth: e.target.checked })} />}
-                  label={<Typography variant="body2" fontWeight={700}>Telehealth</Typography>}
-                />
-                <FormControlLabel
-                  control={<Switch checked={profile.afterHours} onChange={(e) => setProfile({ ...profile, afterHours: e.target.checked })} />}
-                  label={<Typography variant="body2" fontWeight={700}>After-Hours</Typography>}
-                />
-              </Stack>
-            </Stack>
-          </Paper>
-
           <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Schedule color="primary" /> Upcoming Sessions
           </Typography>
-          <Stack spacing={2}>
+          <Stack spacing={2} sx={{ mb: 4 }}>
             {bookings.length > 0 ? (
               bookings.slice(0, 3).map((session, i) => (
                 <MotionBox key={i} whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
@@ -275,7 +188,7 @@ const PractitionerDashboard = () => {
                     <Grid container alignItems="center" spacing={2}>
                       <Grid item xs={12} sm={8}>
                         <Stack direction="row" spacing={2} alignItems="center">
-                          <Avatar src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session.clientId?._id}`} sx={{ width: 52, height: 52 }} />
+                          <Avatar src={`https://api.dicebear.com/7.x/initials/svg?seed=${session.clientId?.firstName}`} sx={{ width: 52, height: 52 }} />
                           <Box>
                             <Typography fontWeight={800}>{session.clientId?.firstName} {session.clientId?.lastName}</Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -285,8 +198,13 @@ const PractitionerDashboard = () => {
                         </Stack>
                       </Grid>
                       <Grid item xs={12} sm={4} sx={{ textAlign: { sm: 'right' } }}>
-                        <Button variant="outlined" size="small" sx={{ mr: 1, borderRadius: 2 }}>
-                          Details
+                        <Button 
+                          variant="outlined" 
+                          size="small" 
+                          sx={{ mr: 1, borderRadius: 2 }}
+                          onClick={() => navigate('/chat', { state: { recipient: session.clientId } })}
+                        >
+                          Chat
                         </Button>
                         <Button variant="contained" color="secondary" size="small" sx={{ borderRadius: 2 }}>
                           Join Call
@@ -299,6 +217,35 @@ const PractitionerDashboard = () => {
             ) : (
               <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
                 No upcoming sessions found.
+              </Typography>
+            )}
+          </Stack>
+
+          <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Star color="secondary" /> Recent Reviews
+          </Typography>
+          <Stack spacing={2}>
+            {reviews.length > 0 ? (
+              reviews.map((rev) => (
+                <Paper key={rev._id} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                    <Stack direction="row" spacing={2}>
+                      <Avatar src={`https://api.dicebear.com/7.x/initials/svg?seed=${rev.clientId?.firstName}`} />
+                      <Box>
+                        <Typography fontWeight={800}>{rev.clientId?.firstName} {rev.clientId?.lastName}</Typography>
+                        <Rating value={rev.rating} readOnly size="small" />
+                        <Typography variant="body2" sx={{ mt: 1 }}>{rev.comment}</Typography>
+                      </Box>
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(rev.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </Stack>
+                </Paper>
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+                No reviews yet.
               </Typography>
             )}
           </Stack>
@@ -335,29 +282,16 @@ const PractitionerDashboard = () => {
             </Stack>
           </Paper>
 
-          <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Notifications color="secondary" /> Communication Hub
-          </Typography>
-          <Paper elevation={0} sx={{ borderRadius: 6, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-            <List disablePadding>
-              {messages.map((msg, i) => (
-                <Box key={msg.id}>
-                  <ListItem sx={{ py: 2 }}>
-                    <ListItemAvatar>
-                      <Badge variant="dot" color="primary" invisible={!msg.active}>
-                        <Avatar src={`https://i.pravatar.cc/150?u=${msg.sender}`} />
-                      </Badge>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={<Typography variant="body2" fontWeight={msg.active ? 800 : 500}>{msg.sender}</Typography>}
-                      secondary={<Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{msg.text}</Typography>}
-                    />
-                  </ListItem>
-                  {i < messages.length - 1 && <Divider />}
-                </Box>
-              ))}
-            </List>
-          </Paper>
+          <Button 
+            fullWidth 
+            variant="contained" 
+            size="large" 
+            startIcon={<Message />} 
+            onClick={() => navigate('/chat')}
+            sx={{ py: 2, borderRadius: 4, fontWeight: 800 }}
+          >
+            Open Chat Hub
+          </Button>
         </Grid>
       </Grid>
     </Box>
@@ -474,49 +408,6 @@ const PractitionerDashboard = () => {
               Your availability is dynamically calculated based on these slots and your practice flags.
             </Alert>
           </Paper>
-        </Grid>
-      </Grid>
-    </Box>
-  );
-
-  const messagesSection = () => (
-    <Box>
-      <Grid container sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
-        <Grid item xs={12} md={4} sx={{ borderRight: '1px solid', borderColor: 'divider' }}>
-          <Box sx={{ p: 2, bgcolor: '#f8fafc' }}>
-            <TextField fullWidth placeholder="Search chats..." size="small" variant="outlined" sx={{ bgcolor: '#fff' }} />
-          </Box>
-          <List disablePadding>
-            {messages.map((chat) => (
-              <ListItem key={chat.id} button sx={{ p: 2.5, bgcolor: chat.active ? 'primary.main' : 'transparent', color: chat.active ? '#fff' : 'inherit' }}>
-                <ListItemAvatar><Avatar src={`https://i.pravatar.cc/150?u=${chat.sender}`} /></ListItemAvatar>
-                <ListItemText primary={<Typography fontWeight={800}>{chat.sender}</Typography>} secondary={<Typography variant="caption" sx={{ color: chat.active ? 'rgba(255,255,255,0.8)' : 'text.secondary' }}>{chat.text}</Typography>} />
-              </ListItem>
-            ))}
-          </List>
-        </Grid>
-        <Grid item xs={12} md={8} sx={{ height: '65vh', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Avatar src="https://i.pravatar.cc/150?u=Alice" />
-              <Typography fontWeight={800}>Alice Cooper</Typography>
-            </Stack>
-            <IconButton><MoreVert /></IconButton>
-          </Box>
-          <Box sx={{ flexGrow: 1, p: 3, bgcolor: '#f1f5f9', overflowY: 'auto' }}>
-            <Box sx={{ maxWidth: '75%', bgcolor: '#fff', p: 2, borderRadius: '15px 15px 15px 0', mb: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <Typography variant="body2">Hi Dr. Sarah, can we move our session to 7pm today?</Typography>
-            </Box>
-            <Box sx={{ maxWidth: '75%', bgcolor: 'primary.main', color: '#fff', p: 2, borderRadius: '15px 15px 0 15px', mb: 2, ml: 'auto' }}>
-              <Typography variant="body2">Sure Alice, that works for me. I've updated the slot.</Typography>
-            </Box>
-          </Box>
-          <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-            <Stack direction="row" spacing={1}>
-              <TextField fullWidth placeholder="Write a message..." size="small" />
-              <Button variant="contained" sx={{ minWidth: 100 }}><Send /></Button>
-            </Stack>
-          </Box>
         </Grid>
       </Grid>
     </Box>
@@ -639,7 +530,6 @@ const PractitionerDashboard = () => {
                   { label: 'Overview', icon: <DashboardIcon /> },
                   { label: 'Compliance', icon: <Assignment />, badge: complianceProgress < 100 },
                   { label: 'Availability', icon: <CalendarMonth /> },
-                  { label: 'Messages', icon: <Message />, badge: true },
                   { label: 'Settings', icon: <Settings /> },
                 ].map((nav, i) => (
                   <Button
@@ -659,6 +549,20 @@ const PractitionerDashboard = () => {
                     {nav.label}
                   </Button>
                 ))}
+                <Button
+                  onClick={() => navigate('/chat')}
+                  variant="text"
+                  startIcon={<Message />}
+                  fullWidth
+                  sx={{
+                    justifyContent: 'flex-start', py: 1.5, px: 2, borderRadius: 3,
+                    fontWeight: 700,
+                    color: 'text.secondary',
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' }
+                  }}
+                >
+                  Messages
+                </Button>
               </Stack>
             </Paper>
           </Grid>
@@ -676,8 +580,7 @@ const PractitionerDashboard = () => {
                 {activeTab === 0 && overview()}
                 {activeTab === 1 && compliance()}
                 {activeTab === 2 && availabilitySection()}
-                {activeTab === 3 && messagesSection()}
-                {activeTab === 4 && settingsSection()}
+                {activeTab === 3 && settingsSection()}
               </motion.div>
             </AnimatePresence>
 

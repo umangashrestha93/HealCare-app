@@ -4,16 +4,16 @@ import {
   Box, Container, Typography, Grid, Card, CardContent,
   Avatar, Chip, Stack, Divider, Button, List, ListItem,
   ListItemText, ListItemAvatar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
-  CircularProgress
+  CircularProgress, TextField, Rating
 } from '@mui/material';
 import {
   CalendarMonth, Person, History,
   Notifications, VideoCameraFront,
-  Cancel, Replay, MoreVert
+  Cancel, Replay, MoreVert, Message, Star
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { bookingService } from '../services/api';
+import { bookingService, reviewService } from '../services/api';
 import PractitionerDashboard from './PractitionerDashboard';
 import AdminDashboard from './AdminDashboard';
 
@@ -26,6 +26,13 @@ const Dashboard = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cancelId, setCancelId] = useState(null);
+  
+  // Rating State
+  const [ratingOpen, setRatingOpen] = useState(false);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingComment, setRatingComment] = useState('');
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
     if (user && urlRole && user.role !== urlRole) {
@@ -64,6 +71,39 @@ const Dashboard = () => {
     }
   };
 
+  const handleOpenRating = (booking) => {
+    setSelectedBooking(booking);
+    setRatingOpen(true);
+  };
+
+  const handleCloseRating = () => {
+    setRatingOpen(false);
+    setSelectedBooking(null);
+    setRatingValue(5);
+    setRatingComment('');
+  };
+
+  const handleSubmitRating = async () => {
+    if (!selectedBooking) return;
+    try {
+      setSubmittingRating(true);
+      await reviewService.createReview({
+        bookingId: selectedBooking._id,
+        rating: ratingValue,
+        comment: ratingComment
+      });
+      // Update local state to mark as rated
+      setAppointments(prev => prev.map(a => a._id === selectedBooking._id ? { ...a, isRated: true } : a));
+      handleCloseRating();
+    } catch (err) {
+      console.error('Rating submission failed', err);
+      alert(err || 'Failed to submit rating. You might have already rated this booking.');
+      handleCloseRating();
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   if (!user) return null;
 
   if (user.role === 'practitioner') {
@@ -74,10 +114,13 @@ const Dashboard = () => {
     return <AdminDashboard />;
   }
 
+  const upcoming = appointments.filter(a => new Date(a.appointmentDate) >= new Date().setHours(0,0,0,0));
+  const past = appointments.filter(a => new Date(a.appointmentDate) < new Date().setHours(0,0,0,0));
+
   const stats = [
-    { label: 'Upcoming sessions', value: appointments.length.toString(), icon: <CalendarMonth />, color: '#004a99' },
-    { label: 'Saved specialists', value: '5', icon: <Person />, color: '#22c55e' },
-    { label: 'Care moments tracked', value: '18', icon: <History />, color: '#ea580c' },
+    { label: 'Upcoming sessions', value: upcoming.length.toString(), icon: <CalendarMonth />, color: '#004a99' },
+    { label: 'Past sessions', value: past.length.toString(), icon: <History />, color: '#ea580c' },
+    { label: 'Care access', value: '24/7', icon: <Person />, color: '#22c55e' },
   ];
 
   return (
@@ -156,22 +199,18 @@ const Dashboard = () => {
         <Grid container spacing={4}>
           <Grid item xs={12} lg={8}>
             <Paper sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', mb: 4 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                <Box>
-                  <Typography variant="h5" fontWeight={900} gutterBottom>
-                    Upcoming Appointments
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Stay on top of your next care sessions and prepare for every appointment.
-                  </Typography>
-                </Box>
-              </Stack>
+              <Typography variant="h5" fontWeight={900} gutterBottom>
+                Upcoming Appointments
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Stay on top of your next care sessions and prepare for every appointment.
+              </Typography>
 
               <Stack spacing={2}>
                 {loading ? (
                   <Box sx={{ py: 6, textAlign: 'center' }}><CircularProgress /></Box>
-                ) : appointments.length > 0 ? (
-                  appointments.map((app) => (
+                ) : upcoming.length > 0 ? (
+                  upcoming.map((app) => (
                     <Paper
                       key={app._id}
                       variant="outlined"
@@ -200,6 +239,14 @@ const Dashboard = () => {
                           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent={{ sm: 'flex-end' }}>
                             <Button
                               size="small"
+                              variant="outlined"
+                              startIcon={<Message />}
+                              onClick={() => navigate('/chat', { state: { recipient: app.practitionerId.userId } })}
+                            >
+                              Chat
+                            </Button>
+                            <Button
+                              size="small"
                               variant="contained"
                               color="error"
                               startIcon={<Cancel />}
@@ -213,33 +260,92 @@ const Dashboard = () => {
                     </Paper>
                   ))
                 ) : (
-                  <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4, bgcolor: '#f8fafc' }}>
-                    <CalendarMonth sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-                    <Typography color="text.secondary">You have no scheduled appointments right now.</Typography>
-                    <Button variant="contained" sx={{ mt: 2 }} onClick={() => navigate('/marketplace')}>
-                      Find specialists
-                    </Button>
+                  <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 4, bgcolor: '#f8fafc', border: '1px dashed', borderColor: 'divider' }}>
+                    <Typography color="text.secondary">No upcoming appointments.</Typography>
                   </Paper>
+                )}
+              </Stack>
+
+              <Typography variant="h5" fontWeight={900} sx={{ mt: 6, mb: 1 }}>
+                Past Appointments
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Review your history and rate your experience with practitioners.
+              </Typography>
+
+              <Stack spacing={2}>
+                {past.length > 0 ? (
+                  past.map((app) => (
+                    <Paper
+                      key={app._id}
+                      variant="outlined"
+                      sx={{ p: 3, borderRadius: 4, borderColor: 'transparent', bgcolor: 'background.paper' }}
+                    >
+                      <Grid container alignItems="center" spacing={2}>
+                        <Grid item xs={12} sm={8}>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Avatar src={`https://api.dicebear.com/7.x/initials/svg?seed=${app.practitionerId?.userId?.firstName}`} />
+                            <Box>
+                              <Typography fontWeight={800}>
+                                {app.practitionerId?.userId?.firstName} {app.practitionerId?.userId?.lastName}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {app.practitionerId?.discipline} • Completed on {new Date(app.appointmentDate).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </Grid>
+                        <Grid item xs={12} sm={4} sx={{ textAlign: { sm: 'right' } }}>
+                          {app.isRated ? (
+                            <Chip label="Rated" color="success" size="small" icon={<Star />} />
+                          ) : (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="secondary"
+                              startIcon={<Star />}
+                              onClick={() => handleOpenRating(app)}
+                            >
+                              Rate Now
+                            </Button>
+                          )}
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  ))
+                ) : (
+                  <Typography color="text.secondary" align="center" sx={{ py: 4 }}>No past history found.</Typography>
                 )}
               </Stack>
             </Paper>
           </Grid>
 
           <Grid item xs={12} lg={4}>
-            <MotionCard sx={{ borderRadius: 4, p: 3, border: '1px solid', borderColor: 'divider', mb: 4 }}>
+            <MotionCard sx={{ borderRadius: 4, p: 3, border: '1px solid', borderColor: 'divider', mb: 4, bgcolor: '#fff' }}>
               <Typography variant="h6" fontWeight={900} sx={{ mb: 2 }}>
                 Platform Features
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Your care moments and health tracking modules are currently being synchronized with our clinical systems.
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Communicate directly with your practitioners and share feedback to improve the community.
               </Typography>
+              <Button 
+                fullWidth 
+                variant="contained" 
+                startIcon={<Message />} 
+                onClick={() => navigate('/chat')}
+                sx={{ mb: 2, borderRadius: 2, py: 1.2 }}
+              >
+                Open Chat Hub
+              </Button>
+              <Divider sx={{ my: 2 }} />
               <Chip label="Coming soon: Care Plans" color="primary" variant="outlined" sx={{ mb: 1, width: '100%' }} />
-              <Chip label="Coming soon: Chat" color="primary" variant="outlined" sx={{ width: '100%' }} />
+              <Chip label="Coming soon: Prescriptions" color="primary" variant="outlined" sx={{ width: '100%' }} />
             </MotionCard>
           </Grid>
         </Grid>
       </Container>
 
+      {/* Cancel Confirmation */}
       <Dialog open={!!cancelId} onClose={() => setCancelId(null)}>
         <DialogTitle fontWeight={800}>Cancel Appointment?</DialogTitle>
         <DialogContent>
@@ -251,6 +357,44 @@ const Dashboard = () => {
           <Button onClick={() => setCancelId(null)}>No, Keep it</Button>
           <Button variant="contained" color="error" onClick={handleCancel}>
             Yes, Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Rating Dialog */}
+      <Dialog open={ratingOpen} onClose={handleCloseRating} maxWidth="xs" fullWidth>
+        <DialogTitle fontWeight={800}>Rate your experience</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2 }}>
+            <Typography variant="body2" color="text.secondary" align="center">
+              How was your session with <strong>{selectedBooking?.practitionerId?.userId?.firstName}</strong>?
+            </Typography>
+            <Rating
+              value={ratingValue}
+              onChange={(event, newValue) => setRatingValue(newValue)}
+              size="large"
+            />
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Leave a comment (optional)"
+              value={ratingComment}
+              onChange={(e) => setRatingComment(e.target.value)}
+              sx={{ mt: 1 }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={handleCloseRating} disabled={submittingRating}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            color="secondary" 
+            onClick={handleSubmitRating}
+            disabled={submittingRating}
+            startIcon={submittingRating ? <CircularProgress size={16} /> : <Star />}
+          >
+            Submit Rating
           </Button>
         </DialogActions>
       </Dialog>
