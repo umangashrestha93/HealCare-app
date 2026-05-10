@@ -28,7 +28,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [cancelId, setCancelId] = useState(null);
   
-  // Rating State
   const [ratingOpen, setRatingOpen] = useState(false);
   const [ratingValue, setRatingValue] = useState(5);
   const [ratingComment, setRatingComment] = useState('');
@@ -93,7 +92,6 @@ const Dashboard = () => {
         rating: ratingValue,
         comment: ratingComment
       });
-      // Update local state to mark as rated
       setAppointments(prev => prev.map(a => a._id === selectedBooking._id ? { ...a, isRated: true } : a));
       handleCloseRating();
     } catch (err) {
@@ -123,6 +121,47 @@ const Dashboard = () => {
     { label: 'Past sessions', value: past.length.toString(), icon: <History />, color: '#ea580c' },
     { label: 'Care access', value: '24/7', icon: <Person />, color: '#22c55e' },
   ];
+
+  const renderStats = () => {
+    return (
+      <Grid container spacing={3} sx={{ mb: 6 }}>
+        {stats.map((stat, index) => (
+          <Grid item xs={12} sm={4} key={stat.label}>
+            <MotionCard
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.08 }}
+              sx={{ borderRadius: 4, overflow: 'hidden' }}
+            >
+              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 3 }}>
+                <Box
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 3,
+                    bgcolor: `${stat.color}1a`,
+                    color: stat.color,
+                    display: 'grid',
+                    placeItems: 'center',
+                  }}
+                >
+                  {stat.icon}
+                </Box>
+                <Box>
+                  <Typography variant="h4" fontWeight={900}>
+                    {stat.value}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {stat.label}
+                  </Typography>
+                </Box>
+              </CardContent>
+            </MotionCard>
+          </Grid>
+        ))}
+      </Grid>
+    )
+  }
 
   return (
     <Box sx={{ bgcolor: '#f1f5f9', minHeight: '100vh', py: { xs: 4, md: 8 } }}>
@@ -160,42 +199,7 @@ const Dashboard = () => {
           </Stack>
         </Box>
 
-        <Grid container spacing={3} sx={{ mb: 6 }}>
-          {stats.map((stat, index) => (
-            <Grid item xs={12} sm={4} key={stat.label}>
-              <MotionCard
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.08 }}
-                sx={{ borderRadius: 4, overflow: 'hidden' }}
-              >
-                <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 3 }}>
-                  <Box
-                    sx={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 3,
-                      bgcolor: `${stat.color}1a`,
-                      color: stat.color,
-                      display: 'grid',
-                      placeItems: 'center',
-                    }}
-                  >
-                    {stat.icon}
-                  </Box>
-                  <Box>
-                    <Typography variant="h4" fontWeight={900}>
-                      {stat.value}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {stat.label}
-                    </Typography>
-                  </Box>
-                </CardContent>
-              </MotionCard>
-            </Grid>
-          ))}
-        </Grid>
+        {renderStats()}
 
         <PractitionerRecommendations />
 
