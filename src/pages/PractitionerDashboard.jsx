@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Container, Typography, Grid, Paper,
-  Avatar, Chip, Stack, Button, List, ListItem,
-  ListItemText, ListItemAvatar, Divider, LinearProgress,
-  IconButton, TextField, Switch, FormControlLabel,
+  Avatar, Chip, Stack, Button,
+  Divider,
+  TextField, Switch,
   Snackbar, Alert, Badge, CircularProgress, Rating
 } from '@mui/material';
 import {
@@ -16,13 +16,10 @@ import {
   Verified,
   PendingActions,
   TrendingUp,
-  Notifications,
   CloudUpload,
   AccessTime,
   CheckCircle,
   Warning,
-  Send,
-  MoreVert,
   Star,
   Schedule,
   Person
@@ -32,6 +29,22 @@ import { useAuth } from '../context/AuthContext';
 import { practitionerService, bookingService, reviewService } from '../services/api';
 
 const MotionBox = motion.create(Box);
+
+const AVAILABLE_SLOTS = [
+  '08:00 AM',
+  '09:00 AM',
+  '10:00 AM',
+  '11:00 AM',
+  '12:00 PM',
+  '01:00 PM',
+  '02:00 PM',
+  '03:00 PM',
+  '04:00 PM',
+  '05:00 PM',
+  '06:00 PM',
+  '07:00 PM',
+  '08:00 PM'
+];
 
 const PractitionerDashboard = () => {
   const navigate = useNavigate();
@@ -54,13 +67,14 @@ const PractitionerDashboard = () => {
     telehealth: false,
     afterHours: false,
     weekends: false,
+    fee: 80,
+    availableSlots: [],
+    avatar: '',
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user]);
+  const showToast = (message, severity = 'success') => {
+    setToast({ open: true, message, severity });
+  };
 
   const fetchData = async () => {
     try {
@@ -98,6 +112,16 @@ const PractitionerDashboard = () => {
     }
   };
 
+  useEffect(() => {
+    if (user) {
+      const timer = setTimeout(() => {
+        fetchData();
+      }, 0);
+
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
   const documents = practitionerData?.complianceDocs || [];
   const complianceProgress = documents.length > 0
     ? (documents.filter((d) => d.status === 'approved').length / 3) * 100
@@ -111,10 +135,6 @@ const PractitionerDashboard = () => {
 
   // ─── HANDLERS ───────────────────────────────────────────────────────
 
-  const showToast = (message, severity = 'success') => {
-    setToast({ open: true, message, severity });
-  };
-
   const handleSaveProfile = async () => {
     try {
       setActionLoading(true);
@@ -125,10 +145,50 @@ const PractitionerDashboard = () => {
       showToast('Profile updated successfully!');
       fetchData(); // Refresh data
     } catch (err) {
+      console.error('Profile update failed', err);
       showToast('Profile update failed', 'error');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleSlotToggle = (slot) => {
+    setProfile((prev) => {
+      const currentSlots = prev.availableSlots || [];
+      const nextSlots = currentSlots.includes(slot)
+        ? currentSlots.filter((item) => item !== slot)
+        : [...currentSlots, slot];
+
+      return {
+        ...prev,
+        availableSlots: AVAILABLE_SLOTS.filter((item) => nextSlots.includes(item))
+      };
+    });
+  };
+
+  const handleSaveAvailability = async () => {
+    try {
+      setActionLoading(true);
+      const payload = {
+        ...profile,
+        fee: Number(profile.fee) || 80,
+        availableSlots: AVAILABLE_SLOTS.filter((slot) => (profile.availableSlots || []).includes(slot)),
+        specializations: profile.specializations.split(',').map((item) => item.trim()).filter(Boolean)
+      };
+
+      await practitionerService.updateProfile(payload);
+      showToast('Availability saved successfully!');
+      await fetchData();
+    } catch (err) {
+      console.error('Availability save failed', err);
+      showToast('Availability save failed', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUpload = (type) => {
+    showToast(`${type} upload is not available in this view yet.`, 'info');
   };
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
@@ -338,74 +398,189 @@ const PractitionerDashboard = () => {
 
   const availabilitySection = () => (
     <Box>
-      <Typography variant="h5" fontWeight={900} gutterBottom>Clinic Availability</Typography>
-      <Typography color="text.secondary" sx={{ mb: 4 }}>Manage your active booking flags and time slots. All sessions are 60 minutes.</Typography>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={2}
+        alignItems={{ xs: 'stretch', md: 'flex-start' }}
+        justifyContent="space-between"
+        sx={{ mb: 3 }}
+      >
+        <Box>
+          <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: '-0.02em' }}>
+            Clinic Availability
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 680 }}>
+            Manage how clients can book you. Your selected slots are saved to your practitioner profile and used by the booking flow.
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          size="large"
+          onClick={handleSaveAvailability}
+          disabled={actionLoading}
+          sx={{ borderRadius: 3, fontWeight: 900, px: 3, minHeight: 48 }}
+        >
+          {actionLoading ? <CircularProgress size={22} color="inherit" /> : 'Save Availability'}
+        </Button>
+      </Stack>
 
-      <Grid container spacing={4}>
-        <Grid item xs={12} lg={6}>
-          <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="h6" fontWeight={800} gutterBottom>Practice Hours</Typography>
-            <Stack spacing={3} sx={{ mt: 2 }}>
-              <FormControlLabel
-                control={<Switch checked={profile.telehealth} onChange={(e) => setProfile(prev => ({ ...prev, telehealth: e.target.checked }))} />}
-                label={<Box><Typography fontWeight={700}>Telehealth</Typography><Typography variant="caption" color="text.secondary">Accept video consultations</Typography></Box>}
-              />
-              <FormControlLabel
-                control={<Switch checked={profile.afterHours} onChange={(e) => setProfile(prev => ({ ...prev, afterHours: e.target.checked }))} />}
-                label={<Box><Typography fontWeight={700}>After-Hours</Typography><Typography variant="caption" color="text.secondary">Available after 5 PM AEST</Typography></Box>}
-              />
-              <FormControlLabel
-                control={<Switch checked={profile.weekends} onChange={(e) => setProfile(prev => ({ ...prev, weekends: e.target.checked }))} />}
-                label={<Box><Typography fontWeight={700}>Weekends</Typography><Typography variant="caption" color="text.secondary">Available Saturday/Sunday</Typography></Box>}
-              />
-              <Divider sx={{ my: 1 }} />
-
-              <Box>
-                <Typography variant="subtitle2" fontWeight={800} gutterBottom>Consultation Fee (AUD)</Typography>
-                <TextField
-                  fullWidth
-                  type="number"
-                  value={profile.fee || 80}
-                  onChange={(e) => setProfile({ ...profile, fee: e.target.value })}
-                  InputProps={{ startAdornment: <Typography sx={{ mr: 1, fontWeight: 700 }}>$</Typography> }}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {[
+          {
+            key: 'telehealth',
+            title: 'Telehealth',
+            detail: 'Accept secure video consultations',
+            activeLabel: 'Online sessions enabled'
+          },
+          {
+            key: 'afterHours',
+            title: 'After-hours',
+            detail: 'Show availability after 5 PM AEST',
+            activeLabel: 'Evening sessions enabled'
+          },
+          {
+            key: 'weekends',
+            title: 'Weekends',
+            detail: 'Show Saturday and Sunday availability',
+            activeLabel: 'Weekend sessions enabled'
+          }
+        ].map((item) => {
+          const checked = Boolean(profile[item.key]);
+          return (
+            <Grid item xs={12} md={4} key={item.key}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  height: '100%',
+                  borderRadius: 3,
+                  border: '1px solid',
+                  borderColor: checked ? 'primary.main' : 'divider',
+                  bgcolor: checked ? 'rgba(0, 74, 153, 0.04)' : '#fff',
+                  transition: '0.2s',
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography fontWeight={900}>{item.title}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {item.detail}
+                    </Typography>
+                  </Box>
+                  <Switch
+                    checked={checked}
+                    onChange={(e) => setProfile((prev) => ({ ...prev, [item.key]: e.target.checked }))}
+                  />
+                </Stack>
+                <Chip
+                  size="small"
+                  color={checked ? 'primary' : 'default'}
+                  variant={checked ? 'filled' : 'outlined'}
+                  label={checked ? item.activeLabel : 'Disabled'}
+                  sx={{ mt: 2, maxWidth: '100%' }}
                 />
-              </Box>
+              </Paper>
+            </Grid>
+          );
+        })}
+      </Grid>
 
-              <Button variant="contained" fullWidth size="large" onClick={handleSaveProfile} disabled={actionLoading} sx={{ py: 2, fontWeight: 800 }}>
-                {actionLoading ? <CircularProgress size={24} /> : 'Save Availability & Fee'}
-              </Button>
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={4}>
+          <Paper elevation={0} sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+            <Typography variant="h6" fontWeight={900}>Session Settings</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>
+              Pricing is shown to clients before they book.
+            </Typography>
+
+            <Typography variant="subtitle2" fontWeight={800} gutterBottom>Consultation Fee (AUD)</Typography>
+            <TextField
+              fullWidth
+              type="number"
+              value={profile.fee || 80}
+              onChange={(e) => setProfile({ ...profile, fee: e.target.value })}
+              InputProps={{ startAdornment: <Typography sx={{ mr: 1, fontWeight: 700 }}>$</Typography> }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
+            />
+
+            <Divider sx={{ my: 3 }} />
+
+            <Stack spacing={1.25}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="text.secondary">Selected slots</Typography>
+                <Typography fontWeight={900}>{(profile.availableSlots || []).length}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="text.secondary">Service types</Typography>
+                <Typography fontWeight={900}>{profile.telehealth ? 'Telehealth' : 'In person'}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="text.secondary">Extended hours</Typography>
+                <Typography fontWeight={900}>{profile.afterHours || profile.weekends ? 'Enabled' : 'Off'}</Typography>
+              </Stack>
             </Stack>
           </Paper>
         </Grid>
-        <Grid item xs={12} lg={6}>
-          <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc' }}>
-            <Typography variant="h6" fontWeight={800} gutterBottom>Time Slot Management</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Select the time slots you are available for bookings.
-            </Typography>
 
-            <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 4 }}>
-              {['08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM'].map(slot => (
-                <Chip
-                  key={slot}
-                  label={slot}
-                  onClick={() => {
-                    const currentSlots = profile.availableSlots || [];
-                    const newSlots = currentSlots.includes(slot)
-                      ? currentSlots.filter(s => s !== slot)
-                      : [...currentSlots, slot].sort();
-                    setProfile({ ...profile, availableSlots: newSlots });
-                  }}
-                  color={(profile.availableSlots || []).includes(slot) ? 'primary' : 'default'}
-                  variant={(profile.availableSlots || []).includes(slot) ? 'filled' : 'outlined'}
-                  sx={{ fontWeight: 700 }}
-                />
-              ))}
+        <Grid item xs={12} lg={8}>
+          <Paper elevation={0} sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 2.5 }}>
+              <Box>
+                <Typography variant="h6" fontWeight={900}>Time Slot Management</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Select the start times clients can book. Sessions are 60 minutes.
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1}>
+                <Button size="small" variant="outlined" onClick={() => setProfile((prev) => ({ ...prev, availableSlots: AVAILABLE_SLOTS }))}>
+                  Select all
+                </Button>
+                <Button size="small" variant="text" onClick={() => setProfile((prev) => ({ ...prev, availableSlots: [] }))}>
+                  Clear
+                </Button>
+              </Stack>
             </Stack>
 
-            <Alert severity="info" sx={{ borderRadius: 3 }}>
-              Your availability is dynamically calculated based on these slots and your practice flags.
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'repeat(2, minmax(0, 1fr))',
+                  sm: 'repeat(3, minmax(0, 1fr))',
+                  md: 'repeat(4, minmax(0, 1fr))',
+                },
+                gap: 1,
+                mb: 3,
+              }}
+            >
+              {AVAILABLE_SLOTS.map((slot) => {
+                const selected = (profile.availableSlots || []).includes(slot);
+                return (
+                  <Button
+                    key={slot}
+                    variant={selected ? 'contained' : 'outlined'}
+                    color={selected ? 'primary' : 'inherit'}
+                    onClick={() => handleSlotToggle(slot)}
+                    startIcon={<AccessTime />}
+                    sx={{
+                      minHeight: 44,
+                      borderRadius: 2,
+                      fontWeight: 800,
+                      justifyContent: 'center',
+                      px: 1,
+                      '& .MuiButton-startIcon': { mr: 0.75 },
+                    }}
+                  >
+                    {slot}
+                  </Button>
+                );
+              })}
+            </Box>
+
+            <Alert severity={(profile.availableSlots || []).length > 0 ? 'success' : 'warning'} sx={{ borderRadius: 2 }}>
+              {(profile.availableSlots || []).length > 0
+                ? `${(profile.availableSlots || []).length} booking slots selected. Save to persist these changes.`
+                : 'No time slots selected. Clients will not see bookable times until you add slots.'}
             </Alert>
           </Paper>
         </Grid>
