@@ -100,8 +100,6 @@ const PractitionerDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
-  // ─── STATE MANAGEMENT ───────────────────────────────────────────────
-
   const [practitionerData, setPractitionerData] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -200,8 +198,6 @@ const PractitionerDashboard = () => {
     { label: 'Verification', value: practitionerData?.verificationStatus?.toUpperCase() || 'PENDING', detail: practitionerData?.isVerified ? 'Fully Verified' : 'Awaiting Review', icon: <Verified />, color: '#f59e0b' },
   ];
 
-  // ─── HANDLERS ───────────────────────────────────────────────────────
-
   const handleSaveProfile = async () => {
     try {
       setActionLoading(true);
@@ -210,7 +206,7 @@ const PractitionerDashboard = () => {
         specializations: profile.specializations.split(',').map(s => s.trim())
       });
       showToast('Profile updated successfully!');
-      fetchData(); // Refresh data
+      fetchData();
     } catch (err) {
       console.error('Profile update failed', err);
       showToast('Profile update failed', 'error');
@@ -295,8 +291,6 @@ const PractitionerDashboard = () => {
   };
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
-
-  // ─── SECTIONS ───────────────────────────────────────────────────────
 
   const overview = () => (
     <Box>
