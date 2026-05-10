@@ -1,8 +1,8 @@
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
-const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Practitioner = require('../models/Practitioner');
+const { onlineUsers } = require('../socketHandler');
 
 // Helper to check if users can chat
 const canUsersChat = async (userAId, userBId) => {
@@ -64,13 +64,16 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
+    const receiverIsOnline = onlineUsers.has(receiverId.toString());
+
     // Create the message
     const message = await Message.create({
       conversationId: conversation._id,
       senderId,
       receiverId,
       content,
-      attachments: attachments || []
+      attachments: attachments || [],
+      delivered: receiverIsOnline
     });
 
     // Update conversation
@@ -87,6 +90,9 @@ exports.sendMessage = async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.to(receiverId.toString()).emit('receiveMessage', populatedMessage);
+      if (receiverIsOnline) {
+        io.to(senderId.toString()).emit('messages_delivered', [message._id]);
+      }
       
       // Global notification toast event
       io.to(receiverId.toString()).emit('new_notification', {
@@ -126,6 +132,12 @@ exports.getMessages = async (req, res) => {
     conversation.unreadCounts.set(currentUserId.toString(), 0);
     await conversation.save();
 
+    const unreadMessages = await Message.find({
+      conversationId: conversation._id,
+      senderId: otherUserId,
+      seen: false
+    }).select('_id senderId');
+
     // Mark all unread messages from other user as seen
     await Message.updateMany(
       { conversationId: conversation._id, senderId: otherUserId, seen: false },
@@ -135,6 +147,11 @@ exports.getMessages = async (req, res) => {
     const messages = await Message.find({ conversationId: conversation._id })
       .populate('senderId', 'firstName lastName avatar')
       .sort({ createdAt: 1 });
+
+    const io = req.app.get('io');
+    if (io && unreadMessages.length > 0) {
+      io.to(otherUserId.toString()).emit('messages_seen', unreadMessages.map((message) => message._id));
+    }
 
     res.status(200).json({
       success: true,

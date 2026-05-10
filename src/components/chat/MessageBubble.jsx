@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Typography, Avatar } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { AccessTime, Done, DoneAll, ErrorOutlineOutlined } from '@mui/icons-material';

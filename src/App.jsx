@@ -6,6 +6,8 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { PresenceProvider } from './context/PresenceContext';
+import { ChatProvider } from './context/ChatContext';
 import AppRoutes from './routes/AppRoutes';
 
 function App() {
@@ -15,15 +17,18 @@ function App() {
         <CssBaseline />
         <AuthProvider>
           <SocketProvider>
-            <Router>
-              <AppRoutes />
-            </Router>
+            <PresenceProvider>
+              <Router>
+                <ChatProvider>
+                  <AppRoutes />
+                </ChatProvider>
+              </Router>
+            </PresenceProvider>
           </SocketProvider>
         </AuthProvider>
       </ThemeProvider>
     </Provider>
   );
 }
-
 
 export default App;

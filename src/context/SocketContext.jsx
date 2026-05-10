@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { Snackbar, Alert, Typography, Box } from '@mui/material';
@@ -39,7 +39,7 @@ export const SocketProvider = ({ children }) => {
       // Initial keys received from server
       newSocket.on('initialOnlineUsers', (userIds) => {
         const map = {};
-        userIds.forEach(id => map[id] = { isOnline: true });
+        userIds.forEach(id => map[id] = { isOnline: true, lastSeen: null });
         setOnlineStatusMap(map);
       });
 
@@ -83,7 +83,9 @@ export const SocketProvider = ({ children }) => {
           try {
             const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
             audio.play();
-          } catch(e) {}
+          } catch {
+            // Browsers commonly block notification audio before user interaction.
+          }
         }
       });
 
@@ -91,9 +93,11 @@ export const SocketProvider = ({ children }) => {
 
       return () => {
         newSocket.disconnect();
+        setSocket(null);
       };
     } else {
       setTypingUsers(new Set());
+      setSocket(null);
     }
   }, [user, SOCKET_URL]);
 
@@ -102,29 +106,38 @@ export const SocketProvider = ({ children }) => {
     setNotification({ ...notification, open: false });
   };
 
-  const emitTyping = (receiverId) => {
+  const emitTyping = useCallback((receiverId) => {
     const currentUserId = user ? (user._id || user.id) : null;
     if (socket && currentUserId) {
       socket.emit('typing', { receiverId, senderId: currentUserId });
     }
-  };
+  }, [socket, user]);
 
-  const emitStopTyping = (receiverId) => {
+  const emitStopTyping = useCallback((receiverId) => {
     const currentUserId = user ? (user._id || user.id) : null;
     if (socket && currentUserId) {
       socket.emit('stop_typing', { receiverId, senderId: currentUserId });
     }
-  };
+  }, [socket, user]);
   
-  const markMessagesSeen = (messageIds, conversationId) => {
+  const markMessagesSeen = useCallback((messageIds, conversationId) => {
     const currentUserId = user ? (user._id || user.id) : null;
     if (socket && currentUserId) {
       socket.emit('message_seen', { messageIds, conversationId, userId: currentUserId });
     }
-  };
+  }, [socket, user]);
+
+  const value = useMemo(() => ({
+    socket,
+    onlineStatusMap,
+    typingUsers,
+    emitTyping,
+    emitStopTyping,
+    markMessagesSeen,
+  }), [emitStopTyping, emitTyping, markMessagesSeen, onlineStatusMap, socket, typingUsers]);
 
   return (
-    <SocketContext.Provider value={{ socket, onlineStatusMap, typingUsers, emitTyping, emitStopTyping, markMessagesSeen }}>
+    <SocketContext.Provider value={value}>
       {children}
       <Snackbar
         open={notification.open}

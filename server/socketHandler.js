@@ -1,8 +1,10 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const Message = require('./models/Message');
 const Conversation = require('./models/Conversation');
 const User = require('./models/User');
+const devUserStore = require('./utils/devUserStore');
 
 // Track online users: Map<userId, Set<socketId>>
 const onlineUsers = new Map();
@@ -22,7 +24,7 @@ const initializeSocket = (server, corsOptions, app) => {
         return next(new Error('Authentication error: Token missing'));
       }
       
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
       socket.user = decoded; // { id, role, ... }
       next();
     } catch (err) {
@@ -39,11 +41,46 @@ const initializeSocket = (server, corsOptions, app) => {
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
       // First connection across all tabs/devices
-      await User.findByIdAndUpdate(userId, { isOnline: true });
-      io.emit('user_online', userId);
+      try {
+        if (mongoose.connection.readyState === 1) {
+          await User.findByIdAndUpdate(userId, { isOnline: true });
+        } else {
+          await devUserStore.upsertUser({ _id: userId, isOnline: true });
+        }
+        io.emit('user_online', userId);
+      } catch (err) {
+        console.error('Error marking user online:', err.message);
+      }
     }
     onlineUsers.get(userId).add(socket.id);
     socket.join(userId);
+
+    try {
+      const pendingDeliveredMessages = await Message.find({
+        receiverId: userId,
+        delivered: false
+      }).select('_id senderId');
+
+      if (pendingDeliveredMessages.length > 0) {
+        await Message.updateMany(
+          { _id: { $in: pendingDeliveredMessages.map((message) => message._id) } },
+          { $set: { delivered: true } }
+        );
+
+        const deliveredBySender = pendingDeliveredMessages.reduce((groups, message) => {
+          const senderId = message.senderId.toString();
+          if (!groups.has(senderId)) groups.set(senderId, []);
+          groups.get(senderId).push(message._id);
+          return groups;
+        }, new Map());
+
+        deliveredBySender.forEach((messageIds, senderId) => {
+          io.to(senderId).emit('messages_delivered', messageIds);
+        });
+      }
+    } catch (err) {
+      console.error('Error marking pending messages delivered:', err.message);
+    }
 
     // Send current online users list (only keys/userIds) to the newly connected user
     socket.emit('initialOnlineUsers', Array.from(onlineUsers.keys()));
@@ -102,10 +139,18 @@ const initializeSocket = (server, corsOptions, app) => {
           const lastSeenDate = new Date();
           
           try {
-            await User.findByIdAndUpdate(userId, { 
-              isOnline: false, 
-              lastSeen: lastSeenDate 
-            });
+            if (mongoose.connection.readyState === 1) {
+              await User.findByIdAndUpdate(userId, { 
+                isOnline: false, 
+                lastSeen: lastSeenDate 
+              });
+            } else {
+              await devUserStore.upsertUser({ 
+                _id: userId, 
+                isOnline: false, 
+                lastSeen: lastSeenDate 
+              });
+            }
             // Broadcast offline state with lastSeen timestamp
             io.emit('user_offline', { userId, lastSeen: lastSeenDate });
           } catch (error) {
