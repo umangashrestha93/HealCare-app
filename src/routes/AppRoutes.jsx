@@ -13,6 +13,7 @@ import AdminVerification from '../pages/AdminVerification';
 import AdminAnalytics from '../pages/AdminAnalytics';
 import AdminManagement from '../pages/AdminManagement';
 import ProtectedRoute from '../components/ProtectedRoute';
+import Chat from '../pages/Chat';
 
 const AppRoutes = () => {
   return (
@@ -43,6 +44,16 @@ const AppRoutes = () => {
         <Route path="booking" element={
           <ProtectedRoute allowedRoles={['client']}>
             <Booking />
+          </ProtectedRoute>
+        } />
+        <Route path="chat" element={
+          <ProtectedRoute>
+            <Chat />
+          </ProtectedRoute>
+        } />
+        <Route path="chat/:userId" element={
+          <ProtectedRoute>
+            <Chat />
           </ProtectedRoute>
         } />
       </Route>

@@ -31,9 +31,15 @@ api.interceptors.response.use(
 
     // Auto-logout on 401 Unauthorized
     if (error.response?.status === 401) {
-      localStorage.removeItem('beyond5_access_token');
-      localStorage.removeItem('beyond5_user');
-      window.location.href = '/login';
+      // Avoid redirecting if the error occurred during a login attempt
+      // This prevents falling back to the RoleOption screen on wrong password
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+      
+      if (!isLoginRequest) {
+        localStorage.removeItem('beyond5_access_token');
+        localStorage.removeItem('beyond5_user');
+        window.location.href = '/login';
+      }
     }
 
     return Promise.reject(message);
@@ -86,9 +92,23 @@ export const authService = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   getMe: () => api.get('/auth/me'),
+  getUserById: (id) => api.get(`/auth/user/${id}`),
   updateProfile: (profileData) => api.put('/auth/profile', profileData),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
+};
+
+// --- CHAT SERVICES ---
+export const chatService = {
+  getConversations: () => api.get('/chat/conversations'),
+  getMessages: (userId) => api.get(`/chat/${userId}`),
+  sendMessage: (receiverId, content) => api.post('/chat', { receiverId, content }),
+};
+
+// --- REVIEW SERVICES ---
+export const reviewService = {
+  createReview: (reviewData) => api.post('/reviews', reviewData),
+  getPractitionerReviews: (practitionerId) => api.get(`/reviews/practitioner/${practitionerId}`),
 };
 
 export default api;
