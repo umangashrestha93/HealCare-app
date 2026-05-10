@@ -11,6 +11,14 @@ const UserSchema = new mongoose.Schema({
     enum: ['client', 'practitioner', 'admin'], 
     default: 'client' 
   },
+  status: {
+    type: String,
+    enum: ['active', 'suspended'],
+    default: 'active',
+    index: true
+  },
+  deletedAt: { type: Date, default: null, index: true },
+  deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   location: { type: String },
   phone: { type: String },
   resetPasswordToken: { type: String },
@@ -19,6 +27,8 @@ const UserSchema = new mongoose.Schema({
   lastSeen: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
+
+UserSchema.index({ role: 1, status: 1, deletedAt: 1 });
 
 // Hash password before saving
 UserSchema.pre('save', async function() {

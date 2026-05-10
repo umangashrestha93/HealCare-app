@@ -19,7 +19,8 @@ import {
   CloudUpload,
   AccessTime,
   CheckCircle,
-  Warning,
+  InsertDriveFile,
+  Shield,
   Star,
   Schedule,
   Person
@@ -46,6 +47,51 @@ const AVAILABLE_SLOTS = [
   '08:00 PM'
 ];
 
+const REQUIRED_COMPLIANCE_DOCS = [
+  {
+    type: 'AHPRA',
+    title: 'AHPRA Registration',
+    description: 'Upload your current AHPRA registration certificate or confirmation document.'
+  },
+  {
+    type: 'Insurance',
+    title: 'Professional Indemnity Insurance',
+    description: 'Upload a certificate of currency for your current professional insurance.'
+  },
+  {
+    type: 'WWCC',
+    title: 'WWCC Registration',
+    description: 'Upload your Working With Children Check registration or clearance document.'
+  }
+];
+
+const getComplianceStorageKey = (userId) => `beyond5_compliance_drafts_${userId}`;
+
+const readComplianceDrafts = (userId) => {
+  if (!userId) return {};
+  try {
+    const saved = window.localStorage.getItem(getComplianceStorageKey(userId));
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeComplianceDrafts = (userId, drafts) => {
+  if (!userId) return;
+  try {
+    const serializable = Object.fromEntries(
+      Object.entries(drafts).map(([type, value]) => [
+        type,
+        { expiryDate: value?.expiryDate || '' }
+      ])
+    );
+    window.localStorage.setItem(getComplianceStorageKey(userId), JSON.stringify(serializable));
+  } catch {
+    // Local draft persistence is best-effort.
+  }
+};
+
 const PractitionerDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -59,6 +105,9 @@ const PractitionerDashboard = () => {
   const [practitionerData, setPractitionerData] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [complianceForms, setComplianceForms] = useState({});
+  const [uploadingDocs, setUploadingDocs] = useState({});
+  const [selectedComplianceType, setSelectedComplianceType] = useState('AHPRA');
 
   const [profile, setProfile] = useState({
     discipline: '',
@@ -122,10 +171,28 @@ const PractitionerDashboard = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const timer = setTimeout(() => {
+      setComplianceForms(readComplianceDrafts(user._id || user.id));
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    writeComplianceDrafts(user._id || user.id, complianceForms);
+  }, [complianceForms, user]);
+
   const documents = practitionerData?.complianceDocs || [];
-  const complianceProgress = documents.length > 0
-    ? (documents.filter((d) => d.status === 'approved').length / 3) * 100
-    : 0;
+  const approvedDocuments = REQUIRED_COMPLIANCE_DOCS.filter(({ type }) => documents.find((doc) => doc.docType === type && doc.status === 'approved')).length;
+  const pendingDocuments = REQUIRED_COMPLIANCE_DOCS.filter(({ type }) => documents.find((doc) => doc.docType === type && doc.status === 'pending')).length;
+  const missingDocuments = REQUIRED_COMPLIANCE_DOCS.length - REQUIRED_COMPLIANCE_DOCS.filter(({ type }) => documents.find((doc) => doc.docType === type)).length;
+  const complianceProgress = (
+    approvedDocuments
+    / REQUIRED_COMPLIANCE_DOCS.length
+  ) * 100;
 
   const summaryCards = [
     { label: 'Total bookings', value: bookings.length, detail: 'Across all time', icon: <CalendarMonth />, color: 'primary.main' },
@@ -187,8 +254,44 @@ const PractitionerDashboard = () => {
     }
   };
 
-  const handleUpload = (type) => {
-    showToast(`${type} upload is not available in this view yet.`, 'info');
+  const updateComplianceForm = (type, patch) => {
+    setComplianceForms((prev) => ({
+      ...prev,
+      [type]: {
+        ...(prev[type] || {}),
+        ...patch
+      }
+    }));
+  };
+
+  const handleUpload = async (type) => {
+    const formState = complianceForms[type] || {};
+    if (!formState.file) {
+      showToast(`Please choose a ${type} document before uploading.`, 'warning');
+      return;
+    }
+
+    try {
+      setUploadingDocs((prev) => ({ ...prev, [type]: true }));
+      const formData = new FormData();
+      formData.append('docType', type);
+      formData.append('document', formState.file);
+      if (formState.expiryDate) formData.append('expiryDate', formState.expiryDate);
+
+      const res = await practitionerService.uploadDocuments(formData);
+      setPractitionerData((prev) => ({
+        ...prev,
+        complianceDocs: res.data || prev?.complianceDocs || []
+      }));
+      updateComplianceForm(type, { file: null, expiryDate: '' });
+      showToast(`${type} document submitted for review.`);
+      await fetchData();
+    } catch (err) {
+      console.error(`${type} upload failed`, err);
+      showToast(err || `${type} upload failed`, 'error');
+    } finally {
+      setUploadingDocs((prev) => ({ ...prev, [type]: false }));
+    }
   };
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
@@ -357,44 +460,249 @@ const PractitionerDashboard = () => {
     </Box>
   );
 
-  const compliance = () => (
-    <Box>
-      <Typography variant="h5" fontWeight={900} gutterBottom>Compliance Hub</Typography>
-      <Alert severity={complianceProgress < 100 ? "warning" : "success"} sx={{ mb: 4, borderRadius: 3 }}>
-        {complianceProgress < 100 ? "Action Required: Please upload missing documents to achieve full verification." : "Compliance Met: Your profile is fully verified and active."}
-      </Alert>
+  const compliance = () => {
+    const selectedRequirement = REQUIRED_COMPLIANCE_DOCS.find((item) => item.type === selectedComplianceType) || REQUIRED_COMPLIANCE_DOCS[0];
+    const selectedDoc = documents.find((item) => item.docType === selectedRequirement.type);
+    const selectedForm = complianceForms[selectedRequirement.type] || {};
+    const isUploading = Boolean(uploadingDocs[selectedRequirement.type]);
+    const hasDraft = Boolean(selectedForm.file || selectedForm.expiryDate);
+    const selectedStatusColor = selectedDoc?.status === 'approved' ? 'success' : selectedDoc?.status === 'pending' ? 'warning' : selectedDoc?.status === 'rejected' ? 'error' : 'default';
+    const selectedStatusLabel = selectedDoc?.status?.toUpperCase() || 'MISSING';
 
-      <Stack spacing={2}>
-        {['AHPRA', 'Insurance', 'WWCC'].map((type) => {
-          const doc = documents.find(d => d.docType === type);
-          return (
-            <Paper key={type} variant="outlined" sx={{ p: 3, borderRadius: 4 }}>
-              <Grid container alignItems="center" spacing={3}>
-                <Grid item>
-                  <Avatar sx={{
-                    bgcolor: doc?.status === 'approved' ? 'success.light' : doc?.status === 'pending' ? 'warning.light' : 'error.light',
-                    width: 56, height: 56
-                  }}>
-                    {doc?.status === 'approved' ? <CheckCircle /> : doc?.status === 'pending' ? <PendingActions /> : <Warning />}
-                  </Avatar>
+    return (
+      <Box>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2.5, md: 3 },
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: '#fff',
+            mb: 3,
+            overflow: 'hidden'
+          }}
+        >
+          <Grid container spacing={3} alignItems="center">
+            <Grid item xs={12} lg>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>
+                  <Shield />
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: '-0.02em' }}>Compliance Hub</Typography>
+                  <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 720 }}>
+                    Upload and maintain your required verification documents. Select a document from the left, then upload or update it on the right.
+                  </Typography>
+                </Box>
+              </Stack>
+            </Grid>
+            <Grid item xs={12} lg="auto">
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: '#f8fafc', minWidth: { lg: 340 } }}>
+                <Stack spacing={1.5}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" fontWeight={900}>VERIFICATION PROGRESS</Typography>
+                      <Typography variant="h4" fontWeight={900}>{Math.round(complianceProgress)}%</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" fontWeight={800}>
+                      {approvedDocuments}/{REQUIRED_COMPLIANCE_DOCS.length} approved
+                    </Typography>
+                  </Stack>
+                  <Box sx={{ height: 10, borderRadius: 999, bgcolor: '#e2e8f0', overflow: 'hidden' }}>
+                    <Box sx={{ height: '100%', width: `${Math.round(complianceProgress)}%`, bgcolor: complianceProgress === 100 ? 'success.main' : 'primary.main' }} />
+                  </Box>
+                  <Stack direction="row" spacing={1}>
+                    {[
+                      { label: 'Approved', value: approvedDocuments, color: 'success.main' },
+                      { label: 'Pending', value: pendingDocuments, color: 'warning.main' },
+                      { label: 'Missing', value: missingDocuments, color: 'text.secondary' }
+                    ].map((item) => (
+                      <Box key={item.label} sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: '#fff', textAlign: 'center', minWidth: 0 }}>
+                        <Typography variant="h6" fontWeight={900} sx={{ color: item.color }}>{item.value}</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={800} noWrap>{item.label}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Stack>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Paper>
+
+        <Alert severity={complianceProgress < 100 ? 'warning' : 'success'} sx={{ mb: 3, borderRadius: 2 }}>
+          {complianceProgress < 100 ? 'Action required: upload all required documents and wait for admin approval.' : 'Compliance met: your documents have been approved.'}
+        </Alert>
+
+        <Grid container spacing={3} alignItems="stretch">
+          <Grid item xs={12} lg={4}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: '#fff', height: '100%' }}>
+              <Typography variant="subtitle2" color="text.secondary" fontWeight={900} sx={{ mb: 1.5 }}>REQUIRED DOCUMENTS</Typography>
+              <Stack spacing={1}>
+                {REQUIRED_COMPLIANCE_DOCS.map((item) => {
+                  const doc = documents.find((documentItem) => documentItem.docType === item.type);
+                  const statusColor = doc?.status === 'approved' ? 'success' : doc?.status === 'pending' ? 'warning' : doc?.status === 'rejected' ? 'error' : 'default';
+                  const isSelected = selectedRequirement.type === item.type;
+                  const hasItemDraft = Boolean(complianceForms[item.type]?.file || complianceForms[item.type]?.expiryDate);
+
+                  return (
+                    <Button
+                      key={item.type}
+                      onClick={() => setSelectedComplianceType(item.type)}
+                      variant={isSelected ? 'contained' : 'outlined'}
+                      fullWidth
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        justifyContent: 'flex-start',
+                        textAlign: 'left',
+                        bgcolor: isSelected ? 'primary.main' : '#fff',
+                        color: isSelected ? '#fff' : 'text.primary',
+                        borderColor: hasItemDraft ? 'primary.main' : 'divider',
+                      }}
+                    >
+                      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%', minWidth: 0 }}>
+                        <Avatar sx={{ width: 38, height: 38, bgcolor: isSelected ? 'rgba(255,255,255,0.18)' : '#f1f5f9', color: isSelected ? '#fff' : 'text.secondary' }}>
+                          {doc?.status === 'approved' ? <CheckCircle fontSize="small" /> : doc?.status === 'pending' ? <PendingActions fontSize="small" /> : <InsertDriveFile fontSize="small" />}
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography fontWeight={900} noWrap>{item.title}</Typography>
+                          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.25 }}>
+                            <Chip label={doc?.status?.toUpperCase() || 'MISSING'} size="small" color={statusColor} sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800 }} />
+                            {hasItemDraft && <Chip label="DRAFT" size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800 }} />}
+                          </Stack>
+                        </Box>
+                      </Stack>
+                    </Button>
+                  );
+                })}
+              </Stack>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} lg={8}>
+            <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: hasDraft ? 'primary.main' : 'divider', bgcolor: '#fff', height: '100%', overflow: 'hidden' }}>
+              <Box sx={{ p: { xs: 2, md: 3 }, borderBottom: '1px solid', borderColor: 'divider', bgcolor: hasDraft ? 'rgba(0, 74, 153, 0.04)' : '#fff' }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="h5" fontWeight={900}>{selectedRequirement.title}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 640 }}>
+                      {selectedRequirement.description}
+                    </Typography>
+                  </Box>
+                  <Chip label={selectedStatusLabel} color={selectedStatusColor} sx={{ fontWeight: 900, alignSelf: { xs: 'flex-start', sm: 'center' } }} />
+                </Stack>
+              </Box>
+
+              <Grid container spacing={0}>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ p: { xs: 2, md: 3 }, height: '100%', borderRight: { md: '1px solid' }, borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" color="text.secondary" fontWeight={900} sx={{ mb: 1.5 }}>CURRENT FILE</Typography>
+                    {selectedDoc?.url ? (
+                      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, bgcolor: '#f8fafc' }}>
+                        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                          <Avatar sx={{ bgcolor: 'primary.main' }}>
+                            <InsertDriveFile />
+                          </Avatar>
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography fontWeight={900} noWrap>{selectedDoc.originalName || `${selectedRequirement.type} document`}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {selectedDoc.uploadedAt ? `Uploaded ${new Date(selectedDoc.uploadedAt).toLocaleDateString()}` : 'Uploaded'}
+                            </Typography>
+                            {selectedDoc.expiryDate && (
+                              <Typography variant="body2" color="text.secondary">
+                                Expires {new Date(selectedDoc.expiryDate).toLocaleDateString()}
+                              </Typography>
+                            )}
+                            <Button size="small" href={selectedDoc.url} target="_blank" rel="noreferrer" sx={{ mt: 1 }}>
+                              View document
+                            </Button>
+                          </Box>
+                        </Stack>
+                      </Paper>
+                    ) : (
+                      <Paper variant="outlined" sx={{ p: 3, borderRadius: 2.5, bgcolor: '#f8fafc', textAlign: 'center' }}>
+                        <InsertDriveFile color="disabled" />
+                        <Typography fontWeight={900} sx={{ mt: 1 }}>No document uploaded</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Upload this document to send it for admin review.
+                        </Typography>
+                      </Paper>
+                    )}
+
+                    {hasDraft && (
+                      <Alert severity="info" sx={{ borderRadius: 2, mt: 2 }}>
+                        Draft changes are saved on this device until you submit.
+                      </Alert>
+                    )}
+                  </Box>
                 </Grid>
-                <Grid item xs>
-                  <Typography variant="h6" fontWeight={800}>{type} Registration</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Official documentation required for practice verification.</Typography>
-                  <Chip label={doc?.status?.toUpperCase() || 'MISSING'} size="small" color={doc?.status === 'approved' ? 'success' : 'default'} sx={{ fontWeight: 700 }} />
-                </Grid>
-                <Grid item xs={12} sm="auto" sx={{ textAlign: { sm: 'right' } }}>
-                  <Button variant="contained" startIcon={<CloudUpload />} onClick={() => handleUpload(type)} size="small">
-                    {doc ? 'Update' : 'Upload Now'}
-                  </Button>
+
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ p: { xs: 2, md: 3 }, height: '100%', bgcolor: '#f8fafc' }}>
+                    <Typography variant="subtitle2" color="text.secondary" fontWeight={900} sx={{ mb: 1.5 }}>UPLOAD DETAILS</Typography>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ display: 'block', mb: 0.75 }}>
+                          EXPIRY DATE
+                        </Typography>
+                        <TextField
+                          type="date"
+                          size="small"
+                          fullWidth
+                          value={selectedForm.expiryDate || (selectedDoc?.expiryDate ? new Date(selectedDoc.expiryDate).toISOString().slice(0, 10) : '')}
+                          onChange={(event) => updateComplianceForm(selectedRequirement.type, { expiryDate: event.target.value })}
+                          sx={{
+                            '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#fff' },
+                            '& input': { minWidth: 0 }
+                          }}
+                        />
+                      </Box>
+
+                      <Button
+                        component="label"
+                        variant="outlined"
+                        startIcon={<CloudUpload />}
+                        sx={{
+                          borderRadius: 2,
+                          justifyContent: 'flex-start',
+                          textTransform: 'none',
+                          overflow: 'hidden',
+                          minHeight: 48,
+                          bgcolor: '#fff'
+                        }}
+                      >
+                        <Typography variant="body2" noWrap sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {selectedForm.file?.name || 'Choose PDF or image'}
+                        </Typography>
+                        <input
+                          hidden
+                          type="file"
+                          accept=".pdf,image/png,image/jpeg,image/webp"
+                          onChange={(event) => updateComplianceForm(selectedRequirement.type, { file: event.target.files?.[0] || null })}
+                        />
+                      </Button>
+
+                      <Button
+                        variant="contained"
+                        startIcon={isUploading ? null : <CloudUpload />}
+                        onClick={() => handleUpload(selectedRequirement.type)}
+                        disabled={isUploading}
+                        fullWidth
+                        sx={{ borderRadius: 2, fontWeight: 900, minHeight: 48 }}
+                      >
+                        {isUploading ? <CircularProgress size={22} color="inherit" /> : selectedDoc ? 'Submit Updated Document' : 'Submit Document'}
+                      </Button>
+                    </Stack>
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
-          );
-        })}
-      </Stack>
-    </Box>
-  );
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  };
 
   const availabilitySection = () => (
     <Box>
@@ -694,9 +1002,9 @@ const PractitionerDashboard = () => {
   // ─── MAIN RENDER ─────────────────────────────────────────────────────
 
   return (
-    <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', py: { xs: 2, md: 4 } }}>
+    <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', pt: { xs: 1.5, md: 2 }, pb: { xs: 2, md: 4 } }}>
       <Container maxWidth="xl">
-        <Grid container spacing={3}>
+        <Grid container spacing={3} alignItems="flex-start">
           {/* Navigation Sidebar */}
           <Grid item xs={12} md={2.5} lg={2}>
             <Paper elevation={0} sx={{ p: 2, borderRadius: 4, border: '1px solid', borderColor: 'divider', position: { md: 'sticky' }, top: 100 }}>
@@ -743,14 +1051,15 @@ const PractitionerDashboard = () => {
           </Grid>
 
           {/* Main Content Area */}
-          <Grid item xs={12} md={9.5} lg={10}>
+          <Grid item xs={12} md={9.5} lg={10} sx={{ minWidth: 0 }}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
+                style={{ margin: 0 }}
               >
                 {activeTab === 0 && overview()}
                 {activeTab === 1 && compliance()}

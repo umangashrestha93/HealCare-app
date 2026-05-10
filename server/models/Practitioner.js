@@ -34,9 +34,17 @@ const PractitionerSchema = new mongoose.Schema({
   complianceDocs: [{
     docType: { type: String, required: true },
     url: { type: String, default: 'pending-upload' },
+    originalName: { type: String },
+    mimeType: { type: String },
+    size: { type: Number },
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     expiryDate: { type: Date },
     uploadedAt: { type: Date, default: Date.now }
+  }],
+  complianceNotes: [{
+    note: { type: String, required: true, trim: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt: { type: Date, default: Date.now }
   }],
   
   // Availability Flags

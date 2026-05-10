@@ -57,6 +57,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
+app.use('/uploads', express.static(path.resolve(__dirname, 'uploads')));
 
 // Route Files
 const authRoutes = require('./routes/authRoutes');

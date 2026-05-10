@@ -81,10 +81,20 @@ export const adminService = {
   getVerificationQueue: () => api.get('/admin/practitioners', { params: { status: 'pending' } }),
   approvePractitioner: (id) => api.patch(`/admin/practitioners/${id}/approve`),
   rejectPractitioner: (id, reason) => api.patch(`/admin/practitioners/${id}/reject`, { reason }),
+  addComplianceNote: (id, data) => api.post(`/admin/practitioners/${id}/notes`, data),
   getMarketMetrics: () => api.get('/admin/metrics'),
   getUsers: (params) => api.get('/admin/users', { params }),
+  createUser: (data) => api.post('/admin/users', data),
+  updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
   deleteUser: (id) => api.delete(`/admin/users/${id}`),
   createAdmin: (data) => api.post('/admin/users/admin', data),
+  getAdmins: (params) => api.get('/admin/admins', { params }),
+  createAdminProfile: (data) => api.post('/admin/admins', data),
+  updateAdminProfile: (id, data) => api.put(`/admin/admins/${id}`, data),
+  deleteAdminProfile: (id) => api.delete(`/admin/admins/${id}`),
+  getComplianceLogs: (params) => api.get('/admin/compliance-logs', { params }),
+  getSettings: () => api.get('/admin/settings'),
+  updateSettings: (data) => api.put('/admin/settings', data),
 };
 
 // --- AUTH SERVICES ---

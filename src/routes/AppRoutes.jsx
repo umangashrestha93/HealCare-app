@@ -12,6 +12,9 @@ import AdminDashboard from '../pages/AdminDashboard';
 import AdminVerification from '../pages/AdminVerification';
 import AdminAnalytics from '../pages/AdminAnalytics';
 import AdminManagement from '../pages/AdminManagement';
+import UserManagement from '../pages/admin/UserManagement';
+import ComplianceLogsPage from '../pages/admin/ComplianceLogsPage';
+import SystemSettingsPage from '../pages/admin/SystemSettingsPage';
 import ProtectedRoute from '../components/ProtectedRoute';
 import Chat from '../pages/Chat';
 
@@ -71,9 +74,9 @@ const AppRoutes = () => {
         <Route path="verification" element={<AdminVerification />} />
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="management" element={<AdminManagement />} />
-        <Route path="users" element={<div style={{ padding: 20 }}><h2>User Management Coming Soon</h2></div>} />
-        <Route path="logs" element={<div style={{ padding: 20 }}><h2>Compliance Logs Coming Soon</h2></div>} />
-        <Route path="settings" element={<div style={{ padding: 20 }}><h2>System Settings Coming Soon</h2></div>} />
+        <Route path="users" element={<UserManagement />} />
+        <Route path="logs" element={<ComplianceLogsPage />} />
+        <Route path="settings" element={<SystemSettingsPage />} />
       </Route>
     </Routes>
   );

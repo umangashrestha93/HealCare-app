@@ -156,21 +156,39 @@ exports.uploadDocument = async (req, res) => {
   try {
     const { docType, expiryDate } = req.body;
     if (!docType) return res.status(400).json({ message: 'Document type is required' });
+    if (!['AHPRA', 'Insurance', 'WWCC'].includes(docType)) {
+      return res.status(400).json({ message: 'Unsupported document type' });
+    }
+    if (!req.file) return res.status(400).json({ message: 'Document file is required' });
 
     const practitioner = await Practitioner.findOne({ userId: req.user.id });
     if (!practitioner) {
       return res.status(404).json({ message: 'Create your practitioner profile before uploading documents' });
     }
 
-    practitioner.complianceDocs.push({
+    const nextDoc = {
       docType,
-      url: req.file ? `/uploads/${req.file.filename}` : 'submitted-during-registration',
+      url: `/uploads/compliance/${req.file.filename}`,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
       status: 'pending',
-      expiryDate
-    });
+      expiryDate: expiryDate || undefined,
+      uploadedAt: new Date()
+    };
+
+    const existingIndex = practitioner.complianceDocs.findIndex((doc) => doc.docType === docType);
+    if (existingIndex >= 0) {
+      practitioner.complianceDocs.set(existingIndex, nextDoc);
+    } else {
+      practitioner.complianceDocs.push(nextDoc);
+    }
+
+    practitioner.verificationStatus = 'pending';
+    practitioner.isVerified = false;
     await practitioner.save();
 
-    res.status(201).json({ success: true, data: practitioner.complianceDocs });
+    res.status(201).json({ success: true, data: practitioner.complianceDocs, practitioner });
   } catch (err) {
     res.status(500).json({ message: 'Document upload failed', error: err.message });
   }

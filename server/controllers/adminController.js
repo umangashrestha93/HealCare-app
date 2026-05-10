@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const Practitioner = require('../models/Practitioner');
 const Booking = require('../models/Booking');
 const User = require('../models/User');
+const Admin = require('../models/Admin');
+const ComplianceLog = require('../models/ComplianceLog');
+const SystemSettings = require('../models/SystemSettings');
 
 const ALLOWED_STATUSES = ['pending', 'approved', 'rejected'];
 const MAX_PAGE_SIZE = 100;
@@ -34,7 +37,8 @@ const publicPractitionerSelect = [
   'updatedAt',
   'verifiedAt',
   'rejectedAt',
-  'rejectionReason'
+  'rejectionReason',
+  'complianceNotes'
 ].join(' ');
 
 const practitionerUserPopulate = {
@@ -44,6 +48,31 @@ const practitionerUserPopulate = {
 };
 
 const getAdminUserId = (req) => req.user?._id || req.user?.id;
+
+const userSelect = 'firstName lastName email role status location phone createdAt deletedAt';
+
+const sanitizeUser = (user) => {
+  const value = user.toObject ? user.toObject() : user;
+  delete value.password;
+  return value;
+};
+
+const buildUserQuery = (query) => {
+  const filters = { deletedAt: null };
+  if (query.role && query.role !== 'all') filters.role = query.role;
+  if (query.status && query.status !== 'all') filters.status = query.status;
+  if (query.search) {
+    const safe = query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(safe, 'i');
+    filters.$or = [
+      { firstName: regex },
+      { lastName: regex },
+      { email: regex },
+      { phone: regex }
+    ];
+  }
+  return filters;
+};
 
 const formatPractitionerResponse = (practitioner) => practitioner.toObject
   ? practitioner.toObject()
@@ -112,6 +141,11 @@ const updatePractitionerStatus = async (req, res, status) => {
 
     const adminUserId = getAdminUserId(req);
     const now = new Date();
+    const existingPractitioner = await Practitioner.findById(id).select('verificationStatus userId');
+    if (!existingPractitioner) {
+      return res.status(404).json({ success: false, message: 'Practitioner not found' });
+    }
+
     const setFields = {
       verificationStatus: status,
       isVerified: status === 'approved',
@@ -139,6 +173,13 @@ const updatePractitionerStatus = async (req, res, status) => {
       setFields.rejectionReason = req.body?.reason || 'Application did not meet verification requirements';
     }
 
+    if (req.body?.note) {
+      setFields.complianceNotes = [
+        ...((await Practitioner.findById(id).select('complianceNotes'))?.complianceNotes || []),
+        { note: req.body.note, createdBy: adminUserId, createdAt: now }
+      ];
+    }
+
     const updateOperation = { $set: setFields };
     if (Object.keys(unsetFields).length > 0) {
       updateOperation.$unset = unsetFields;
@@ -155,6 +196,16 @@ const updatePractitionerStatus = async (req, res, status) => {
     if (!practitioner || !practitioner.userId) {
       return res.status(404).json({ success: false, message: 'Practitioner not found' });
     }
+
+    await ComplianceLog.create({
+      practitionerId: practitioner._id,
+      adminId: adminUserId,
+      action: status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'status-updated',
+      fromStatus: existingPractitioner.verificationStatus,
+      toStatus: status,
+      note: req.body?.note || req.body?.reason || '',
+      metadata: { practitionerUserId: existingPractitioner.userId }
+    });
 
     res.status(200).json({
       success: true,
@@ -303,5 +354,292 @@ exports.createAdmin = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Admin creation failed', error: err.message });
+  }
+};
+
+exports.getUsers = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const query = buildUserQuery(req.query);
+    const [users, total] = await Promise.all([
+      User.find(query).select(userSelect).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      User.countDocuments(query)
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: users.map(sanitizeUser),
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'User retrieval failed', error: err.message });
+  }
+};
+
+exports.createUser = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, role = 'client', status = 'active', phone, location } = req.body;
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ success: false, message: 'First name, last name, email, and password are required' });
+    }
+    if (!['client', 'practitioner', 'admin'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
+    }
+
+    const exists = await User.findOne({ email: email.toLowerCase() });
+    if (exists) return res.status(400).json({ success: false, message: 'User already exists' });
+
+    const user = await User.create({
+      firstName,
+      lastName,
+      email: email.toLowerCase(),
+      password,
+      role,
+      status,
+      phone,
+      location
+    });
+
+    if (role === 'admin') {
+      await Admin.create({
+        userId: user._id,
+        adminRole: req.body.adminRole || 'support-admin',
+        permissions: req.body.permissions || ['users:read'],
+        createdBy: getAdminUserId(req)
+      });
+    }
+
+    res.status(201).json({ success: true, data: sanitizeUser(user) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'User creation failed', error: err.message });
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ success: false, message: 'Invalid user id' });
+
+    const allowed = ['firstName', 'lastName', 'role', 'status', 'phone', 'location'];
+    const update = {};
+    allowed.forEach((field) => {
+      if (req.body[field] !== undefined) update[field] = req.body[field];
+    });
+
+    if (update.role && !['client', 'practitioner', 'admin'].includes(update.role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
+    }
+    if (update.status && !['active', 'suspended'].includes(update.status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const user = await User.findOneAndUpdate(
+      { _id: id, deletedAt: null },
+      { $set: update },
+      { new: true, runValidators: true }
+    ).select(userSelect);
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    res.status(200).json({ success: true, data: sanitizeUser(user) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'User update failed', error: err.message });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ success: false, message: 'Invalid user id' });
+    if (id === getAdminUserId(req)?.toString()) {
+      return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
+    }
+
+    const user = await User.findOneAndUpdate(
+      { _id: id, deletedAt: null },
+      { $set: { deletedAt: new Date(), deletedBy: getAdminUserId(req), status: 'suspended' } },
+      { new: true }
+    ).select(userSelect);
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    res.status(200).json({ success: true, data: sanitizeUser(user) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'User deletion failed', error: err.message });
+  }
+};
+
+exports.getAdmins = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const [admins, total] = await Promise.all([
+      Admin.find({})
+        .populate('userId', userSelect)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Admin.countDocuments({})
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: admins.filter((admin) => admin.userId && !admin.userId.deletedAt),
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Admin retrieval failed', error: err.message });
+  }
+};
+
+exports.createAdminProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, adminRole = 'support-admin', permissions = ['users:read'] } = req.body;
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Please provide all required fields' });
+    }
+
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) return res.status(400).json({ success: false, message: 'User already exists' });
+
+    const user = await User.create({ firstName, lastName, email: email.toLowerCase(), password, role: 'admin' });
+    const admin = await Admin.create({
+      userId: user._id,
+      adminRole,
+      permissions,
+      createdBy: getAdminUserId(req)
+    });
+    await admin.populate('userId', userSelect);
+
+    res.status(201).json({ success: true, data: admin });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Admin creation failed', error: err.message });
+  }
+};
+
+exports.updateAdminProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const update = {};
+    ['adminRole', 'permissions', 'disabled'].forEach((field) => {
+      if (req.body[field] !== undefined) update[field] = req.body[field];
+    });
+    update.updatedBy = getAdminUserId(req);
+
+    const admin = await Admin.findByIdAndUpdate(id, { $set: update }, { new: true, runValidators: true })
+      .populate('userId', userSelect);
+    if (!admin) return res.status(404).json({ success: false, message: 'Admin profile not found' });
+
+    if (req.body.disabled !== undefined && admin.userId) {
+      await User.findByIdAndUpdate(admin.userId._id, { status: req.body.disabled ? 'suspended' : 'active' });
+    }
+
+    res.status(200).json({ success: true, data: admin });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Admin update failed', error: err.message });
+  }
+};
+
+exports.deleteAdminProfile = async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.params.id);
+    if (!admin) return res.status(404).json({ success: false, message: 'Admin profile not found' });
+    await User.findByIdAndUpdate(admin.userId, {
+      deletedAt: new Date(),
+      deletedBy: getAdminUserId(req),
+      status: 'suspended'
+    });
+    admin.disabled = true;
+    admin.updatedBy = getAdminUserId(req);
+    await admin.save();
+    res.status(200).json({ success: true, data: admin });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Admin deletion failed', error: err.message });
+  }
+};
+
+exports.addComplianceNote = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note, documentType } = req.body;
+    if (!note) return res.status(400).json({ success: false, message: 'Note is required' });
+
+    const practitioner = await Practitioner.findByIdAndUpdate(
+      id,
+      { $push: { complianceNotes: { note, createdBy: getAdminUserId(req), createdAt: new Date() } } },
+      { new: true }
+    ).select(publicPractitionerSelect).populate(practitionerUserPopulate);
+
+    if (!practitioner) return res.status(404).json({ success: false, message: 'Practitioner not found' });
+
+    await ComplianceLog.create({
+      practitionerId: id,
+      adminId: getAdminUserId(req),
+      action: 'note-added',
+      note,
+      documentType,
+      toStatus: practitioner.verificationStatus
+    });
+
+    res.status(200).json({ success: true, data: practitioner });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Compliance note failed', error: err.message });
+  }
+};
+
+exports.getComplianceLogs = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const query = {};
+    if (req.query.practitionerId) query.practitionerId = req.query.practitionerId;
+    if (req.query.action && req.query.action !== 'all') query.action = req.query.action;
+
+    const [logs, total] = await Promise.all([
+      ComplianceLog.find(query)
+        .populate('adminId', 'firstName lastName email')
+        .populate({
+          path: 'practitionerId',
+          select: 'discipline userId verificationStatus',
+          populate: { path: 'userId', select: 'firstName lastName email' }
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      ComplianceLog.countDocuments(query)
+    ]);
+
+    res.status(200).json({ success: true, data: logs, pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Compliance log retrieval failed', error: err.message });
+  }
+};
+
+exports.getSettings = async (req, res) => {
+  try {
+    const settings = await SystemSettings.findOneAndUpdate(
+      { key: 'platform' },
+      { $setOnInsert: { key: 'platform' } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+    res.status(200).json({ success: true, data: settings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Settings retrieval failed', error: err.message });
+  }
+};
+
+exports.updateSettings = async (req, res) => {
+  try {
+    const allowed = ['platform', 'bookingRules', 'featureToggles'];
+    const update = { updatedBy: getAdminUserId(req) };
+    allowed.forEach((field) => {
+      if (req.body[field] !== undefined) update[field] = req.body[field];
+    });
+
+    const settings = await SystemSettings.findOneAndUpdate(
+      { key: 'platform' },
+      { $set: update },
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+    );
+    res.status(200).json({ success: true, data: settings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Settings update failed', error: err.message });
   }
 };
