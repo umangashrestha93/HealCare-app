@@ -9,6 +9,7 @@ import { SocketProvider } from './context/SocketContext';
 import { PresenceProvider } from './context/PresenceContext';
 import { ChatProvider } from './context/ChatContext';
 import AppRoutes from './routes/AppRoutes';
+import AIAppAssistant from './components/assistant/AIAppAssistant';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
               <Router>
                 <ChatProvider>
                   <AppRoutes />
+                  <AIAppAssistant />
                 </ChatProvider>
               </Router>
             </PresenceProvider>

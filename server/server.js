@@ -66,6 +66,9 @@ const adminRoutes = require('./routes/adminRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const recommendationRoutes = require('./routes/recommendationRoutes');
+const assistantRoutes = require('./routes/assistantRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 // Mount Routers
 app.use('/api/auth', authRoutes);
@@ -75,6 +78,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/assistant', assistantRoutes);
+app.use('/api/ai', aiRoutes);
 
 
 // Root Endpoint (Lightweight / Mobile-First)
@@ -106,5 +112,3 @@ process.on('unhandledRejection', (err, promise) => {
   // Close server & exit process
   // server.close(() => process.exit(1));
 });
-
-

@@ -105,6 +105,23 @@ export const chatService = {
   sendMessage: (receiverId, content) => api.post('/chat', { receiverId, content }),
 };
 
+// --- RECOMMENDATION SERVICES ---
+export const recommendationService = {
+  getPractitioners: (params) => api.get('/recommendations/practitioners', { params }),
+};
+
+// --- APP ASSISTANT SERVICES ---
+export const assistantService = {
+  chat: (message) => api.post('/assistant/chat', { message }),
+};
+
+// --- AI HEALTHCARE ASSISTANT SERVICES ---
+export const aiService = {
+  getConversation: (conversationId) => api.get('/ai/conversation', { params: { conversationId } }),
+  createConversation: () => api.post('/ai/conversation'),
+  chat: ({ message, conversationId }) => api.post('/ai/chat', { message, conversationId }),
+};
+
 // --- REVIEW SERVICES ---
 export const reviewService = {
   createReview: (reviewData) => api.post('/reviews', reviewData),

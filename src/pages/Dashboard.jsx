@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { bookingService, reviewService } from '../services/api';
 import PractitionerDashboard from './PractitionerDashboard';
 import AdminDashboard from './AdminDashboard';
+import PractitionerRecommendations from '../components/recommendations/PractitionerRecommendations';
 
 const MotionCard = motion.create(Card);
 
@@ -195,6 +196,8 @@ const Dashboard = () => {
             </Grid>
           ))}
         </Grid>
+
+        <PractitionerRecommendations />
 
         <Grid container spacing={4}>
           <Grid item xs={12} lg={8}>
