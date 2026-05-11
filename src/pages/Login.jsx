@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Box,
@@ -17,7 +17,6 @@ import {
   Avatar,
   Chip,
   CircularProgress,
-  FormHelperText,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
@@ -86,7 +85,7 @@ const RoleOption = ({ option, selected, onSelect }) => (
 const Login = () => {
   const navigate = useNavigate();
   const { role: urlRole } = useParams();
-  const { login, user } = useAuth();
+  const { login, logout } = useAuth();
   
   // State for form fields
   const [email, setEmail] = useState('');
@@ -146,6 +145,7 @@ const Login = () => {
         loggedInUser.role !== role &&
         loggedInUser.role !== 'admin'
       ) {
+        logout();
         setError(
           `This account is registered as a ${loggedInUser.role}. Please select the correct role.`
         );
@@ -154,7 +154,7 @@ const Login = () => {
       navigate(`/dashboard/${loggedInUser.role}`);
 
     } catch (err) {
-      setError(err.message || 'Login failed');
+      setError(typeof err === 'string' ? err : err?.message || 'Login failed');
     } finally {
       setSubmitting(false);
     }
@@ -252,8 +252,7 @@ const Login = () => {
                       onClick={() => navigate('/login')}
                       sx={{ mb: 2, ml: -1 }}
                       aria-label="Change role"
-                      disabled={!!error}
-                      title={error ? 'Fix the error before changing role' : 'Change role'}
+                      title="Change role"
                     >
                       <ArrowBack />
                     </IconButton>
@@ -272,8 +271,7 @@ const Login = () => {
                         label={option.title}
                         color={role === option.id ? 'primary' : 'default'}
                         variant={role === option.id ? 'filled' : 'outlined'}
-                        onClick={() => !error && handleRoleSelect(option.id)}
-                        disabled={!!error}
+                        onClick={() => handleRoleSelect(option.id)}
                       />
                     ))}
                   </Stack>

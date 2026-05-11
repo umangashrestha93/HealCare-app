@@ -6,8 +6,12 @@ const User = require('../models/User');
 const Practitioner = require('../models/Practitioner');
 const devUserStore = require('../utils/devUserStore');
 
+const ALLOWED_REGISTRATION_ROLES = ['client', 'practitioner', 'admin'];
 const isMongoConnected = () => mongoose.connection.readyState === 1;
 const normalizeEmail = (email) => email.trim().toLowerCase();
+const getRegistrationRole = (role = 'client') => (
+  ALLOWED_REGISTRATION_ROLES.includes(role) ? role : null
+);
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -37,7 +41,11 @@ exports.register = async (req, res) => {
       }
 
       // Security Guard: Prevent unauthorized admin creation
-      let finalRole = role || 'client';
+      let finalRole = getRegistrationRole(role);
+      if (!finalRole) {
+        return res.status(400).json({ message: 'Invalid account role selected' });
+      }
+
       if (role === 'admin') {
         const ADMIN_SECRET = process.env.ADMIN_REGISTRATION_KEY || 'beyond5_secret_2026';
         if (req.body.adminSecret !== ADMIN_SECRET) {
@@ -68,7 +76,11 @@ exports.register = async (req, res) => {
     }
 
     // Security Guard: Prevent unauthorized admin creation
-    let finalRole = role || 'client';
+    let finalRole = getRegistrationRole(role);
+    if (!finalRole) {
+      return res.status(400).json({ message: 'Invalid account role selected' });
+    }
+
     if (role === 'admin') {
       const ADMIN_SECRET = process.env.ADMIN_REGISTRATION_KEY || 'beyond5_secret_2026';
       if (req.body.adminSecret !== ADMIN_SECRET) {
@@ -313,6 +325,10 @@ exports.login = async (req, res) => {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
 
+      if (user.deletedAt || user.status === 'suspended') {
+        return res.status(403).json({ message: 'This account is not active. Please contact support.' });
+      }
+
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return res.status(401).json({ message: 'Invalid credentials' });
@@ -325,6 +341,10 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email: normalizedEmail }).select('+password');
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    if (user.deletedAt || user.status === 'suspended') {
+      return res.status(403).json({ message: 'This account is not active. Please contact support.' });
     }
 
     // 3. Check if password matches

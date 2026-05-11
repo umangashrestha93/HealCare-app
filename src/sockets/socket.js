@@ -1,7 +1,8 @@
 import { io } from 'socket.io-client';
 
-const configuredApiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001';
-const SOCKET_URL = configuredApiUrl.replace('/api', '').replace('localhost', '127.0.0.1');
+const DEFAULT_API_URL = 'http://127.0.0.1:5001/api';
+const configuredApiUrl = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
+const SOCKET_URL = configuredApiUrl.replace(/\/api$/, '');
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,

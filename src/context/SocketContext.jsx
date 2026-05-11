@@ -17,8 +17,8 @@ export const SocketProvider = ({ children }) => {
   
   const { user } = useAuth();
   
-  const configuredApiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000/api';
-  const SOCKET_URL = configuredApiUrl.replace('/api', '').replace('http://localhost:5000', 'http://127.0.0.1:5000');
+  const configuredApiUrl = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/api').replace(/\/+$/, '');
+  const SOCKET_URL = configuredApiUrl.replace(/\/api$/, '');
 
   useEffect(() => {
     const currentUserId = user ? (user._id || user.id) : null;

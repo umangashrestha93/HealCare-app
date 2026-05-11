@@ -1,7 +1,12 @@
 import axios from 'axios';
 
-const configuredApiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/api';
-const API_BASE_URL = configuredApiUrl.replace('http://localhost:5001', 'http://127.0.0.1:5001');
+const DEFAULT_API_URL = 'http://127.0.0.1:5001/api';
+const normalizeApiUrl = (url) => {
+  const trimmed = (url || DEFAULT_API_URL).replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+};
+
+const API_BASE_URL = normalizeApiUrl(import.meta.env.VITE_API_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -27,7 +32,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    const message = error.response?.data?.message || 'Something went wrong';
+    const message = error.response?.data?.message
+      || (error.code === 'ERR_NETWORK'
+        ? `Unable to reach the backend at ${API_BASE_URL}. Please make sure the API server is running.`
+        : 'Something went wrong');
 
     // Auto-logout on 401 Unauthorized
     if (error.response?.status === 401) {

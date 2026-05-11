@@ -16,9 +16,11 @@ connectDB();
 const app = express();
 
 // Middleware
+const normalizeOrigin = (origin) => origin?.replace(/\/+$/, '');
+
 const configuredOrigins = (process.env.CLIENT_URL || '')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => normalizeOrigin(origin.trim()))
   .filter(Boolean);
 
 const allowedOrigins = new Set([
@@ -37,21 +39,23 @@ const allowedOrigins = new Set([
 
 const isLocalDevOrigin = (origin) => (
   process.env.NODE_ENV !== 'production'
-  && /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
+  && /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/.test(origin)
 );
 
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.has(origin) || isLocalDevOrigin(origin)) {
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (allowedOrigins.has(normalizedOrigin) || isLocalDevOrigin(normalizedOrigin)) {
       return callback(null, true);
     }
-    return callback(new Error(`Origin ${origin} is not allowed by CORS`), false);
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
@@ -93,7 +97,7 @@ app.get('/', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 const HOST = process.env.HOST || '127.0.0.1';
 
 const server = app.listen(PORT, HOST, () => {

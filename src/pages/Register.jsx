@@ -344,7 +344,7 @@ const Register = () => {
       });
       setSubmitted(true);
     } catch (err) {
-      setError(err || 'Registration failed. Please check your information.');
+      setError(typeof err === 'string' ? err : err?.message || 'Registration failed. Please check your information.');
     } finally {
       setSubmitting(false);
     }
