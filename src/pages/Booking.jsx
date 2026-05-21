@@ -2,27 +2,33 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Container, Typography, Grid, Paper, Avatar, Button, Chip,
-  Stack, Divider, Alert, IconButton, CircularProgress, Skeleton,
-  useTheme, useMediaQuery, LinearProgress
+  Stack, Divider, Alert, IconButton, CircularProgress,
+  useTheme, LinearProgress, TextField, Collapse
 } from '@mui/material';
 import {
-  CheckCircle, CalendarMonth, ArrowBack, AccessTime,
-  Videocam, LocationOn, ChevronLeft, ChevronRight,
-  Verified, Payment, Shield
+  CalendarMonth, ArrowBack, AccessTime,
+  Videocam, ChevronLeft, ChevronRight,
+  Verified, Shield, CreditCard, AccountBalanceWallet,
+  MedicalServices, LocalOffer
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
-import { clientService, bookingService } from '../services/api';
+import { AnimatePresence } from 'framer-motion';
+import { clientService, bookingService, medicareService, paymentService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 // --- HELPERS ---
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 const formatDateToISO = (year, month, day) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+const formatCurrency = (value) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(Number(value || 0));
+
+const fallbackPaymentMethods = [
+  { id: 'card', label: 'Visa / Mastercard', description: 'Secure card checkout for Visa, Mastercard, and debit cards.' },
+  { id: 'paypal', label: 'PayPal', description: 'Pay using a PayPal wallet or supported PayPal funding source.' }
+];
 
 const Booking = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const practitionerId = searchParams.get('practitioner');
@@ -35,17 +41,53 @@ const Booking = () => {
   const [loading, setLoading] = useState(true);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentMethods, setPaymentMethods] = useState(fallbackPaymentMethods);
+  const [medicareOffer, setMedicareOffer] = useState(null);
+  const [applyMedicareOffer, setApplyMedicareOffer] = useState(false);
+  const [medicareLoading, setMedicareLoading] = useState(false);
+  const [medicareError, setMedicareError] = useState('');
+  const [medicareForm, setMedicareForm] = useState({
+    holderName: '',
+    cardNumber: '',
+    referenceNumber: '',
+    expiryMonth: '',
+    expiryYear: ''
+  });
 
   // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
 
   useEffect(() => {
     if (user && user.role !== 'client') navigate('/dashboard');
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'client') return;
+
+    (async () => {
+      const [offerResult, paymentResult] = await Promise.allSettled([
+        medicareService.getOffer(),
+        paymentService.getMethods()
+      ]);
+
+      if (offerResult.status === 'fulfilled') {
+        const offer = offerResult.value?.offer;
+        setMedicareOffer(offer || null);
+        setApplyMedicareOffer(Boolean(offer?.eligible));
+      }
+
+      if (paymentResult.status === 'fulfilled' && Array.isArray(paymentResult.value?.data)) {
+        setPaymentMethods(paymentResult.value.data);
+      }
+    })();
+  }, [user]);
 
   useEffect(() => {
     if (!practitionerId) return;
@@ -82,6 +124,7 @@ const Booking = () => {
     }
   }, [practitionerId, selectedDate]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchSlots(); }, [fetchSlots]);
 
   const handleConfirm = async () => {
@@ -89,14 +132,46 @@ const Booking = () => {
     try {
       setError('');
       setBookingLoading(true);
-      await bookingService.createBooking({
-        practitionerId, appointmentDate: selectedDate, startTime: selectedSlot, serviceType
+      const bookingRes = await bookingService.createBooking({
+        practitionerId,
+        appointmentDate: selectedDate,
+        startTime: selectedSlot,
+        serviceType,
+        applyMedicareOffer
       });
-      setConfirmed(true);
+      const checkoutRes = await paymentService.createCheckout({
+        bookingId: bookingRes.data._id,
+        method: paymentMethod
+      });
+
+      if (!checkoutRes.data?.checkoutUrl) {
+        throw new Error('Payment checkout could not be started.');
+      }
+
+      window.location.assign(checkoutRes.data.checkoutUrl);
     } catch (err) {
-      setError(typeof err === 'string' ? err : 'Booking failed. Please try again.');
+      setError(typeof err === 'string' ? err : err?.message || 'Payment checkout failed. Please try again.');
     } finally {
       setBookingLoading(false);
+    }
+  };
+
+  const handleMedicareChange = (field, value) => {
+    setMedicareForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleMedicareSubmit = async () => {
+    try {
+      setMedicareError('');
+      setMedicareLoading(true);
+      const res = await medicareService.verifyCard(medicareForm);
+      setMedicareOffer(res.offer);
+      setApplyMedicareOffer(Boolean(res.offer?.eligible));
+    } catch (err) {
+      setApplyMedicareOffer(false);
+      setMedicareError(typeof err === 'string' ? err : 'Unable to verify Medicare card.');
+    } finally {
+      setMedicareLoading(false);
     }
   };
 
@@ -122,24 +197,23 @@ const Booking = () => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + offset, 1));
   };
 
+  const pricing = useMemo(() => {
+    const subtotal = Number(practitioner?.fee ?? 80);
+    const discountPercent = applyMedicareOffer && medicareOffer?.eligible ? Number(medicareOffer.percent || 0) : 0;
+    const discountAmount = Math.round(subtotal * discountPercent) / 100;
+    const total = Math.max(subtotal - discountAmount, 0);
+
+    return {
+      subtotal,
+      discountPercent,
+      discountAmount,
+      total
+    };
+  }, [applyMedicareOffer, medicareOffer, practitioner]);
+
   if (loading) return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#fff' }}>
       <CircularProgress thickness={4} size={40} />
-    </Box>
-  );
-
-  if (confirmed) return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', bgcolor: '#fcfcfc' }}>
-      <Container maxWidth="sm">
-        <Paper elevation={0} sx={{ p: 6, textAlign: 'center', borderRadius: 4, border: '1px solid #eee' }}>
-          <CheckCircle sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
-          <Typography variant="h4" fontWeight={800} gutterBottom>Confirmed!</Typography>
-          <Typography color="text.secondary" sx={{ mb: 4 }}>
-            Booking with <strong>{practitioner?.userId?.firstName}</strong> is complete. Check your dashboard for details.
-          </Typography>
-          <Button variant="contained" fullWidth size="large" onClick={() => navigate('/dashboard')} sx={{ py: 1.5, borderRadius: 2, fontWeight: 700 }}>Go to Dashboard</Button>
-        </Paper>
-      </Container>
     </Box>
   );
 
@@ -354,14 +428,177 @@ const Booking = () => {
                       sx={{ fontWeight: 800, borderRadius: 1.5, flex: 1 }}
                     />
                   </Stack>
+                  {serviceType === 'telehealth' && (
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                      <Videocam sx={{ fontSize: 16, color: 'success.main' }} />
+                      <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                        In-app video room created after payment
+                      </Typography>
+                    </Stack>
+                  )}
+                </Box>
+
+                <Box sx={{ p: 2.5, bgcolor: '#fff', border: '1px solid #eee', borderRadius: 3 }}>
+                  <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1.5 }}>
+                    <MedicalServices color="primary" fontSize="small" />
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography variant="caption" fontWeight={900} color="text.secondary" display="block">
+                        MEDICARE OFFER
+                      </Typography>
+                      <Typography variant="body2" fontWeight={900}>
+                        {medicareOffer?.eligible ? `${medicareOffer.percent}% discount available` : 'Add Medicare card to unlock offer'}
+                      </Typography>
+                    </Box>
+                    {medicareOffer?.eligible && (
+                      <Chip
+                        size="small"
+                        color={applyMedicareOffer ? 'success' : 'default'}
+                        label={applyMedicareOffer ? 'Applied' : 'Apply'}
+                        onClick={() => setApplyMedicareOffer((prev) => !prev)}
+                        sx={{ fontWeight: 900 }}
+                      />
+                    )}
+                  </Stack>
+
+                  <Collapse in={!medicareOffer?.eligible}>
+                    <Stack spacing={1.5}>
+                      <Grid container spacing={1}>
+                        <Grid item xs={12}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Name on Medicare card"
+                            value={medicareForm.holderName}
+                            onChange={(event) => handleMedicareChange('holderName', event.target.value)}
+                          />
+                        </Grid>
+                        <Grid item xs={12}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Medicare card number"
+                            value={medicareForm.cardNumber}
+                            onChange={(event) => handleMedicareChange('cardNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                            inputProps={{ inputMode: 'numeric' }}
+                          />
+                        </Grid>
+                        <Grid item xs={4}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="IRN"
+                            value={medicareForm.referenceNumber}
+                            onChange={(event) => handleMedicareChange('referenceNumber', event.target.value.replace(/\D/g, '').slice(0, 2))}
+                            inputProps={{ inputMode: 'numeric' }}
+                          />
+                        </Grid>
+                        <Grid item xs={4}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="MM"
+                            value={medicareForm.expiryMonth}
+                            onChange={(event) => handleMedicareChange('expiryMonth', event.target.value.replace(/\D/g, '').slice(0, 2))}
+                            inputProps={{ inputMode: 'numeric' }}
+                          />
+                        </Grid>
+                        <Grid item xs={4}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="YYYY"
+                            value={medicareForm.expiryYear}
+                            onChange={(event) => handleMedicareChange('expiryYear', event.target.value.replace(/\D/g, '').slice(0, 4))}
+                            inputProps={{ inputMode: 'numeric' }}
+                          />
+                        </Grid>
+                      </Grid>
+
+                      {medicareError && <Alert severity="error" sx={{ py: 0.25, borderRadius: 2 }}>{medicareError}</Alert>}
+
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        startIcon={medicareLoading ? <CircularProgress size={16} /> : <LocalOffer />}
+                        onClick={handleMedicareSubmit}
+                        disabled={medicareLoading}
+                        sx={{ borderRadius: 2, fontWeight: 900, textTransform: 'none' }}
+                      >
+                        Verify and apply offer
+                      </Button>
+                    </Stack>
+                  </Collapse>
+                </Box>
+
+                <Box>
+                  <Typography variant="caption" fontWeight={800} color="text.secondary" display="block" gutterBottom>PAYMENT METHOD</Typography>
+                  <Stack spacing={1}>
+                    {paymentMethods.map((method) => {
+                      const selected = paymentMethod === method.id;
+                      const Icon = method.id === 'paypal' ? AccountBalanceWallet : CreditCard;
+                      return (
+                        <Button
+                          key={method.id}
+                          variant={selected ? 'contained' : 'outlined'}
+                          onClick={() => setPaymentMethod(method.id)}
+                          fullWidth
+                          sx={{
+                            p: 1.4,
+                            borderRadius: 2,
+                            justifyContent: 'flex-start',
+                            textAlign: 'left',
+                            textTransform: 'none',
+                            boxShadow: 'none'
+                          }}
+                        >
+                          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, width: '100%' }}>
+                            <Icon fontSize="small" />
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography variant="body2" fontWeight={900} noWrap>
+                                {method.label}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  display: 'block',
+                                  color: selected ? 'rgba(255,255,255,0.78)' : 'text.secondary',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {method.description}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </Button>
+                      );
+                    })}
+                  </Stack>
                 </Box>
 
                 <Divider sx={{ borderStyle: 'dashed' }} />
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body1" fontWeight={700}>Grand Total</Typography>
-                  <Typography variant="h4" fontWeight={900} color="primary">${practitioner?.fee ?? 80}</Typography>
-                </Box>
+                <Stack spacing={1}>
+                  <Stack direction="row" justifyContent="space-between" spacing={2}>
+                    <Typography variant="body2" color="text.secondary">Session fee</Typography>
+                    <Typography variant="body2" fontWeight={800}>{formatCurrency(pricing.subtotal)}</Typography>
+                  </Stack>
+                  {pricing.discountAmount > 0 && (
+                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                      <Typography variant="body2" color="success.main" fontWeight={800}>
+                        Medicare offer ({pricing.discountPercent}%)
+                      </Typography>
+                      <Typography variant="body2" color="success.main" fontWeight={900}>
+                        -{formatCurrency(pricing.discountAmount)}
+                      </Typography>
+                    </Stack>
+                  )}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 0.5 }}>
+                    <Typography variant="body1" fontWeight={800}>Grand Total</Typography>
+                    <Typography variant="h4" fontWeight={900} color="primary">{formatCurrency(pricing.total)}</Typography>
+                  </Box>
+                </Stack>
 
                 {error && <Alert severity="error" sx={{ py: 0.5, borderRadius: 2, fontSize: '0.8rem', fontWeight: 700 }}>{error}</Alert>}
 
@@ -373,7 +610,7 @@ const Booking = () => {
                   onClick={handleConfirm}
                   sx={{ py: 2, borderRadius: 2, fontWeight: 800, fontSize: '1rem', textTransform: 'none' }}
                 >
-                  {bookingLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm Booking'}
+                  {bookingLoading ? <CircularProgress size={24} color="inherit" /> : `Continue to secure payment (${formatCurrency(pricing.total)})`}
                 </Button>
 
                 <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">

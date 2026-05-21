@@ -18,6 +18,7 @@ const {
   deleteAdminProfile,
   addComplianceNote,
   getComplianceLogs,
+  getAdminBookings,
   getSettings,
   updateSettings
 } = require('../controllers/adminController');
@@ -41,6 +42,7 @@ router.route('/practitioners/:id/verify').put(verifyPractitioner);
 
 // Metrics & admin management
 router.route('/metrics').get(getMarketMetrics);
+router.route('/bookings').get(getAdminBookings);
 router.route('/users').get(getUsers).post(createUser);
 router.route('/users/:id').put(updateUser).delete(deleteUser);
 router.route('/users/admin').post(createAdmin);

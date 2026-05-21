@@ -1,6 +1,5 @@
 const Review = require('../models/Review');
 const Booking = require('../models/Booking');
-const Practitioner = require('../models/Practitioner');
 
 // @desc    Create a review for a booking
 // @route   POST /api/reviews

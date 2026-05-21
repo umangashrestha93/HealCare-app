@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Admin = require('../models/Admin');
 const ComplianceLog = require('../models/ComplianceLog');
 const SystemSettings = require('../models/SystemSettings');
+require('../models/Payment');
 
 const ALLOWED_STATUSES = ['pending', 'approved', 'rejected'];
 const MAX_PAGE_SIZE = 100;
@@ -77,6 +78,72 @@ const buildUserQuery = (query) => {
 const formatPractitionerResponse = (practitioner) => practitioner.toObject
   ? practitioner.toObject()
   : practitioner;
+
+const getBookingPersonName = (user) => (
+  [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim()
+);
+
+const buildBookingQuery = (query) => {
+  const filters = {};
+
+  if (query.status && query.status !== 'all') filters.status = query.status;
+  if (query.paymentStatus && query.paymentStatus !== 'all') filters.paymentStatus = query.paymentStatus;
+  if (query.serviceType && query.serviceType !== 'all') filters.serviceType = query.serviceType;
+
+  if (query.dateFrom || query.dateTo) {
+    filters.appointmentDate = {};
+    if (query.dateFrom) {
+      const from = new Date(query.dateFrom);
+      from.setHours(0, 0, 0, 0);
+      filters.appointmentDate.$gte = from;
+    }
+    if (query.dateTo) {
+      const to = new Date(query.dateTo);
+      to.setHours(23, 59, 59, 999);
+      filters.appointmentDate.$lte = to;
+    }
+  }
+
+  return filters;
+};
+
+const formatBookingForAdmin = (booking) => {
+  const value = booking.toObject ? booking.toObject() : booking;
+  const client = value.clientId;
+  const practitionerUser = value.practitionerId?.userId;
+
+  return {
+    ...value,
+    clientName: getBookingPersonName(client) || 'Unknown client',
+    clientEmail: client?.email || '',
+    practitionerName: getBookingPersonName(practitionerUser) || 'Unknown practitioner',
+    practitionerEmail: practitionerUser?.email || '',
+    practitionerDiscipline: value.practitionerId?.discipline || '',
+    transactionId: value.payment?.receiptNumber || value.payment?.providerSessionId || value.payment?.paymentId?._id || value.payment?.paymentId || '-',
+    amount: value.pricing?.total ?? 0,
+    subtotal: value.pricing?.subtotal ?? 0,
+    discountAmount: value.pricing?.discountAmount ?? 0,
+    currency: value.pricing?.currency || 'AUD'
+  };
+};
+
+const matchesBookingSearch = (booking, search) => {
+  if (!search) return true;
+  const term = search.trim().toLowerCase();
+  if (!term) return true;
+  const haystack = [
+    booking.clientName,
+    booking.clientEmail,
+    booking.practitionerName,
+    booking.practitionerEmail,
+    booking.practitionerDiscipline,
+    booking.transactionId,
+    booking.serviceType,
+    booking.status,
+    booking.paymentStatus
+  ].join(' ').toLowerCase();
+  return haystack.includes(term);
+};
 
 // @desc    Get practitioners for admin verification workflows
 // @route   GET /api/admin/practitioners?status=pending
@@ -315,6 +382,66 @@ exports.getMarketMetrics = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Metrics retrieval failed', error: err.message });
+  }
+};
+
+// @desc    Get bookings and transaction records for admin
+// @route   GET /api/admin/bookings
+// @access  Private (Admin Only)
+exports.getAdminBookings = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const query = buildBookingQuery(req.query);
+
+    const bookings = await Booking.find(query)
+      .populate('clientId', 'firstName lastName email phone role')
+      .populate({
+        path: 'practitionerId',
+        select: 'discipline userId fee',
+        populate: { path: 'userId', select: 'firstName lastName email phone role' }
+      })
+      .populate('payment.paymentId', 'provider method status amountCents receiptNumber providerSessionId paidAt createdAt')
+      .sort({ createdAt: -1 });
+
+    const filtered = bookings
+      .map(formatBookingForAdmin)
+      .filter((booking) => matchesBookingSearch(booking, req.query.search));
+
+    const pageData = filtered.slice(skip, skip + limit);
+    const totalRevenue = filtered.reduce((sum, booking) => (
+      booking.paymentStatus === 'paid' ? sum + Number(booking.amount || 0) : sum
+    ), 0);
+
+    const stats = filtered.reduce((acc, booking) => {
+      acc.total += 1;
+      acc[booking.status] = (acc[booking.status] || 0) + 1;
+      acc.payment[booking.paymentStatus] = (acc.payment[booking.paymentStatus] || 0) + 1;
+      return acc;
+    }, {
+      total: 0,
+      confirmed: 0,
+      pending: 0,
+      cancelled: 0,
+      completed: 0,
+      payment: { paid: 0, pending: 0, unpaid: 0, failed: 0, refunded: 0 }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: pageData,
+      stats: {
+        ...stats,
+        totalRevenue
+      },
+      pagination: {
+        total: filtered.length,
+        page,
+        limit,
+        pages: Math.ceil(filtered.length / limit) || 1
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Booking transaction retrieval failed', error: err.message });
   }
 };
 

@@ -30,7 +30,7 @@ exports.protect = async (req, res, next) => {
       req.user = { ...user, id: user._id || user.id };
     }
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ message: 'Not authorized to access this route' });
   }
 };

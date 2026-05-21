@@ -23,7 +23,8 @@ import {
   Shield,
   Star,
   Schedule,
-  Person
+  Person,
+  VideoCall
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -363,7 +364,15 @@ const PractitionerDashboard = () => {
                         >
                           Chat
                         </Button>
-                        <Button variant="contained" color="secondary" size="small" sx={{ borderRadius: 2 }}>
+                        <Button
+                          variant="contained"
+                          color="secondary"
+                          size="small"
+                          startIcon={<VideoCall />}
+                          disabled={session.serviceType !== 'telehealth' || !session.telehealthRoom?.joinUrl}
+                          onClick={() => navigate(session.telehealthRoom.joinUrl)}
+                          sx={{ borderRadius: 2 }}
+                        >
                           Join Call
                         </Button>
                       </Grid>

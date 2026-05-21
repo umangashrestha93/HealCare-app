@@ -21,6 +21,23 @@ const UserSchema = new mongoose.Schema({
   deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   location: { type: String },
   phone: { type: String },
+  medicareCard: {
+    status: {
+      type: String,
+      enum: ['not_submitted', 'verified', 'expired', 'rejected'],
+      default: 'not_submitted'
+    },
+    holderName: { type: String, trim: true },
+    numberLast4: { type: String },
+    numberHash: { type: String, select: false },
+    referenceNumber: { type: String },
+    expiryMonth: { type: Number, min: 1, max: 12 },
+    expiryYear: { type: Number },
+    offerCode: { type: String },
+    offerPercent: { type: Number, default: 0 },
+    verifiedAt: { type: Date },
+    updatedAt: { type: Date }
+  },
   resetPasswordToken: { type: String },
   resetPasswordExpire: { type: Date },
   isOnline: { type: Boolean, default: false },

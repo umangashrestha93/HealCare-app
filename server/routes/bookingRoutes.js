@@ -3,7 +3,8 @@ const {
   createBooking,
   getMyBookings,
   cancelBooking,
-  getAvailableSlots
+  getAvailableSlots,
+  getTelehealthRoom
 } = require('../controllers/bookingController');
 const { protect, authorize } = require('../middleware/auth');
 const router = express.Router();
@@ -17,6 +18,8 @@ router
   .route('/')
   .get(getMyBookings)
   .post(authorize('client'), createBooking);
+
+router.get('/telehealth/:roomId', getTelehealthRoom);
 
 router
   .route('/:id')

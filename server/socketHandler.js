@@ -35,6 +35,7 @@ const initializeSocket = (server, corsOptions, app) => {
 
   io.on('connection', async (socket) => {
     const userId = socket.user.id;
+    socket.data.telehealthRooms = new Set();
     console.log(`Socket connected: ${socket.id} (User: ${userId})`);
 
     // Add to presence map
@@ -126,8 +127,41 @@ const initializeSocket = (server, corsOptions, app) => {
       }
     });
 
+    socket.on('telehealth:join', ({ roomId }) => {
+      if (!roomId) return;
+      const roomName = `telehealth:${roomId}`;
+      socket.join(roomName);
+      socket.data.telehealthRooms.add(roomName);
+      socket.to(roomName).emit('telehealth:peer-joined', {
+        userId,
+        socketId: socket.id
+      });
+    });
+
+    socket.on('telehealth:signal', ({ roomId, signal }) => {
+      if (!roomId || !signal) return;
+      const roomName = `telehealth:${roomId}`;
+      socket.to(roomName).emit('telehealth:signal', {
+        from: socket.id,
+        userId,
+        signal
+      });
+    });
+
+    socket.on('telehealth:leave', ({ roomId }) => {
+      if (!roomId) return;
+      const roomName = `telehealth:${roomId}`;
+      socket.leave(roomName);
+      socket.data.telehealthRooms.delete(roomName);
+      socket.to(roomName).emit('telehealth:peer-left', { userId, socketId: socket.id });
+    });
+
     socket.on('disconnect', async () => {
       console.log(`Socket disconnected: ${socket.id}`);
+
+      socket.data.telehealthRooms.forEach((roomName) => {
+        socket.to(roomName).emit('telehealth:peer-left', { userId, socketId: socket.id });
+      });
       
       const userSockets = onlineUsers.get(userId);
       if (userSockets) {

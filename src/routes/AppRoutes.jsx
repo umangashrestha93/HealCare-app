@@ -15,8 +15,13 @@ import AdminManagement from '../pages/AdminManagement';
 import UserManagement from '../pages/admin/UserManagement';
 import ComplianceLogsPage from '../pages/admin/ComplianceLogsPage';
 import SystemSettingsPage from '../pages/admin/SystemSettingsPage';
+import AdminBookingsPage from '../pages/admin/AdminBookingsPage';
 import ProtectedRoute from '../components/ProtectedRoute';
 import Chat from '../pages/Chat';
+import TelehealthRoom from '../pages/TelehealthRoom';
+import PaymentSuccess from '../pages/PaymentSuccess';
+import PaymentFailure from '../pages/PaymentFailure';
+import DemoPayment from '../pages/DemoPayment';
 
 const AppRoutes = () => {
   return (
@@ -59,6 +64,26 @@ const AppRoutes = () => {
             <Chat />
           </ProtectedRoute>
         } />
+        <Route path="telehealth/:roomId" element={
+          <ProtectedRoute allowedRoles={['client', 'practitioner']}>
+            <TelehealthRoom />
+          </ProtectedRoute>
+        } />
+        <Route path="payment/success" element={
+          <ProtectedRoute allowedRoles={['client']}>
+            <PaymentSuccess />
+          </ProtectedRoute>
+        } />
+        <Route path="payment/failure" element={
+          <ProtectedRoute allowedRoles={['client']}>
+            <PaymentFailure />
+          </ProtectedRoute>
+        } />
+        <Route path="payment/demo" element={
+          <ProtectedRoute allowedRoles={['client']}>
+            <DemoPayment />
+          </ProtectedRoute>
+        } />
       </Route>
 
       {/* Isolated Admin Routes */}
@@ -75,6 +100,7 @@ const AppRoutes = () => {
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="management" element={<AdminManagement />} />
         <Route path="users" element={<UserManagement />} />
+        <Route path="bookings" element={<AdminBookingsPage />} />
         <Route path="logs" element={<ComplianceLogsPage />} />
         <Route path="settings" element={<SystemSettingsPage />} />
       </Route>

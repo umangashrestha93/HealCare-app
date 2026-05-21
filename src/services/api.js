@@ -69,8 +69,24 @@ export const bookingService = {
   getBookings: () => api.get('/bookings'),
   createBooking: (bookingData) => api.post('/bookings', bookingData),
   cancelBooking: (id) => api.delete(`/bookings/${id}`),
+  getTelehealthRoom: (roomId) => api.get(`/bookings/telehealth/${roomId}`),
   getAvailableSlots: (practitionerId, date) =>
     api.get('/bookings/availability', { params: { practitionerId, date } }),
+};
+
+// --- MEDICARE OFFER SERVICES ---
+export const medicareService = {
+  getOffer: () => api.get('/medicare/offer'),
+  verifyCard: (cardData) => api.post('/medicare/verify', cardData),
+};
+
+// --- PAYMENT SERVICES ---
+export const paymentService = {
+  getMethods: () => api.get('/payments/methods'),
+  getBookingPayment: (bookingId) => api.get(`/payments/booking/${bookingId}`),
+  createCheckout: (data) => api.post('/payments/checkout', data),
+  confirmReturn: (data) => api.post('/payments/confirm', data),
+  cancelPayment: (data) => api.post('/payments/cancel', data),
 };
 
 // --- PRACTITIONER SERVICES ---
@@ -101,6 +117,7 @@ export const adminService = {
   updateAdminProfile: (id, data) => api.put(`/admin/admins/${id}`, data),
   deleteAdminProfile: (id) => api.delete(`/admin/admins/${id}`),
   getComplianceLogs: (params) => api.get('/admin/compliance-logs', { params }),
+  getBookings: (params) => api.get('/admin/bookings', { params }),
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (data) => api.put('/admin/settings', data),
 };

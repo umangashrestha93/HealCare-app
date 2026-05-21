@@ -252,6 +252,17 @@ const Dashboard = () => {
                             >
                               Chat
                             </Button>
+                            {app.serviceType === 'telehealth' && app.telehealthRoom?.joinUrl && (
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="secondary"
+                                startIcon={<VideoCameraFront />}
+                                onClick={() => navigate(app.telehealthRoom.joinUrl)}
+                              >
+                                Join
+                              </Button>
+                            )}
                             <Button
                               size="small"
                               variant="contained"

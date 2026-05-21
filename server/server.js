@@ -59,6 +59,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Stripe requires the raw request body for webhook signature verification.
+app.post(
+  '/api/payments/webhook/stripe',
+  express.raw({ type: 'application/json' }),
+  require('./controllers/paymentController').handleStripeWebhook
+);
+
 app.use(express.json());
 app.use(morgan('dev'));
 app.use('/uploads', express.static(path.resolve(__dirname, 'uploads')));
@@ -74,6 +82,8 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
 const assistantRoutes = require('./routes/assistantRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const medicareRoutes = require('./routes/medicareRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 // Mount Routers
 app.use('/api/auth', authRoutes);
@@ -86,6 +96,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/assistant', assistantRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/medicare', medicareRoutes);
+app.use('/api/payments', paymentRoutes);
 
 
 // Root Endpoint (Lightweight / Mobile-First)
@@ -112,7 +124,7 @@ server.on('error', (err) => {
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (err, promise) => {
+process.on('unhandledRejection', (err) => {
   console.log(`Error: ${err.message}`);
   // Close server & exit process
   // server.close(() => process.exit(1));

@@ -1,6 +1,12 @@
 const Booking = require('../models/Booking');
 const Practitioner = require('../models/Practitioner');
+const User = require('../models/User');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+
+const OFFER_CODE = process.env.MEDICARE_OFFER_CODE || 'MEDICARE_ACCESS';
+const DEFAULT_CURRENCY = 'AUD';
+const PAYMENT_HOLD_MINUTES = Number(process.env.PAYMENT_HOLD_MINUTES || 15);
 
 // @desc    Get available time slots for a practitioner on a given date
 // @route   GET /api/bookings/availability?practitionerId=X&date=Y
@@ -36,7 +42,7 @@ exports.getAvailableSlots = async (req, res) => {
       return res.status(200).json({ success: true, available: [], message: 'Practitioner is not available on weekends' });
     }
 
-    // Get already-booked slots for this date (confirmed only)
+    // Get already-booked slots for this date (confirmed or reserved payment-pending only)
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
@@ -45,7 +51,10 @@ exports.getAvailableSlots = async (req, res) => {
     const bookedSlots = await Booking.find({
       practitionerId,
       appointmentDate: { $gte: startOfDay, $lte: endOfDay },
-      status: 'confirmed'
+      $or: [
+        { status: 'confirmed' },
+        { status: 'pending', paymentExpiresAt: { $gt: new Date() } }
+      ]
     }).select('startTime');
 
     const bookedTimes = new Set(bookedSlots.map(b => b.startTime));
@@ -56,7 +65,8 @@ exports.getAvailableSlots = async (req, res) => {
       date,
       practitionerId,
       available,
-      fee: practitioner.fee
+      fee: practitioner.fee,
+      currency: DEFAULT_CURRENCY
     });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch available slots', error: err.message });
@@ -76,7 +86,8 @@ exports.createBooking = async (req, res) => {
       startTime,
       time,          // frontend alias
       serviceType = 'telehealth',
-      notes
+      notes,
+      applyMedicareOffer = false
     } = req.body;
 
     const resolvedDate = appointmentDate || date;
@@ -97,6 +108,10 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ message: 'Practitioner not available for booking' });
     }
 
+    if (serviceType === 'telehealth' && !practitioner.telehealth) {
+      return res.status(400).json({ message: 'This practitioner does not offer telehealth sessions' });
+    }
+
     // 2. Prevent Double Booking
     const startOfDay = new Date(resolvedDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -107,14 +122,22 @@ exports.createBooking = async (req, res) => {
       practitionerId,
       appointmentDate: { $gte: startOfDay, $lte: endOfDay },
       startTime: resolvedTime,
-      status: 'confirmed'
+      $or: [
+        { status: 'confirmed' },
+        { status: 'pending', paymentExpiresAt: { $gt: new Date() } }
+      ]
     });
 
     if (existingBooking) {
       return res.status(409).json({ message: 'This time slot is already booked. Please choose another.' });
     }
 
-    // 3. Create Booking
+    const client = await User.findById(req.user.id).select('medicareCard role');
+    const pricing = buildPricing(practitioner.fee, client, Boolean(applyMedicareOffer));
+    const telehealthRoom = serviceType === 'telehealth' ? createTelehealthRoom() : undefined;
+    const paymentExpiresAt = new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60 * 1000);
+
+    // 3. Create pending reservation. It becomes confirmed only after verified payment.
     const booking = await Booking.create({
       clientId: req.user.id,
       practitionerId,
@@ -122,7 +145,12 @@ exports.createBooking = async (req, res) => {
       startTime: resolvedTime,
       endTime: calculateEndTime(resolvedTime),
       serviceType,
-      notes
+      notes,
+      status: 'pending',
+      pricing,
+      paymentStatus: 'pending',
+      paymentExpiresAt,
+      telehealthRoom
     });
 
     const populated = await Booking.findById(booking._id)
@@ -134,10 +162,19 @@ exports.createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Booking confirmed successfully',
-      data: populated
+      message: 'Booking reserved pending payment',
+      data: populated,
+      requiresPayment: true,
+      paymentExpiresAt
     });
   } catch (err) {
+    console.error('Booking creation failed:', {
+      message: err.message,
+      code: err.code,
+      userId: req.user?.id,
+      practitionerId: req.body?.practitionerId
+    });
+
     // Unique index violation (race condition safeguard)
     if (err.code === 11000) {
       return res.status(409).json({ message: 'This time slot was just booked. Please choose another.' });
@@ -160,8 +197,8 @@ exports.getMyBookings = async (req, res) => {
       query.practitionerId = practitioner._id;
     }
 
-    // Exclude cancelled bookings from the default view
-    query.status = { $ne: 'cancelled' };
+    // Client/practitioner dashboards should show confirmed sessions only.
+    query.status = { $in: ['confirmed', 'completed'] };
 
     const bookings = await Booking.find(query)
       .populate('clientId', 'firstName lastName email')
@@ -174,6 +211,58 @@ exports.getMyBookings = async (req, res) => {
     res.status(200).json({ success: true, count: bookings.length, data: bookings });
   } catch (err) {
     res.status(500).json({ message: 'Failed to retrieve bookings', error: err.message });
+  }
+};
+
+// @desc    Get secure telehealth room details
+// @route   GET /api/bookings/telehealth/:roomId
+// @access  Private (booking client or practitioner)
+exports.getTelehealthRoom = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    if (!roomId) return res.status(400).json({ message: 'roomId is required' });
+
+    const booking = await Booking.findOne({
+      'telehealthRoom.roomId': roomId,
+      serviceType: 'telehealth',
+      status: { $ne: 'cancelled' }
+    })
+      .populate('clientId', 'firstName lastName email')
+      .populate({
+        path: 'practitionerId',
+        populate: { path: 'userId', select: 'firstName lastName email' }
+      });
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Telehealth room not found' });
+    }
+
+    const userId = req.user.id.toString();
+    const isClient = booking.clientId?._id?.toString() === userId;
+    let isPractitioner = false;
+
+    if (req.user.role === 'practitioner') {
+      const practitioner = await Practitioner.findOne({ userId: req.user.id }).select('_id');
+      isPractitioner = practitioner?._id?.toString() === booking.practitionerId?._id?.toString();
+    }
+
+    if (!isClient && !isPractitioner) {
+      return res.status(403).json({ message: 'Not authorized to join this telehealth room' });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        roomId,
+        booking,
+        joinUrl: booking.telehealthRoom.joinUrl,
+        provider: booking.telehealthRoom.provider || 'inbuilt',
+        canJoin: booking.status === 'confirmed',
+        paymentStatus: booking.paymentStatus
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load telehealth room', error: err.message });
   }
 };
 
@@ -225,7 +314,38 @@ const calculateEndTime = (startTime) => {
     const finalModifier = endHours >= 12 ? 'PM' : 'AM';
     
     return `${finalHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${finalModifier}`;
-  } catch (e) {
+  } catch {
     return startTime;
   }
+};
+
+const roundMoney = (amount) => Math.round(Number(amount || 0) * 100) / 100;
+
+const buildPricing = (fee, client, applyMedicareOffer) => {
+  const subtotal = roundMoney(fee || 80);
+  const medicareCard = client?.medicareCard;
+  const hasMedicareOffer = applyMedicareOffer && medicareCard?.status === 'verified' && Number(medicareCard.offerPercent) > 0;
+  const discountPercent = hasMedicareOffer ? Number(medicareCard.offerPercent) : 0;
+  const discountAmount = roundMoney(subtotal * (discountPercent / 100));
+  const total = roundMoney(Math.max(subtotal - discountAmount, 0));
+
+  return {
+    currency: DEFAULT_CURRENCY,
+    subtotal,
+    discountAmount,
+    total,
+    medicareOfferApplied: hasMedicareOffer,
+    discountPercent,
+    offerCode: hasMedicareOffer ? (medicareCard.offerCode || OFFER_CODE) : undefined
+  };
+};
+
+const createTelehealthRoom = () => {
+  const roomId = `b5_${crypto.randomBytes(18).toString('hex')}`;
+  return {
+    provider: 'inbuilt',
+    roomId,
+    joinUrl: `/telehealth/${roomId}`,
+    createdAt: new Date()
+  };
 };

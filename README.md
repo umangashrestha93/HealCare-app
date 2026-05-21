@@ -41,6 +41,16 @@ HOST=127.0.0.1
 MONGO_URI=mongodb://127.0.0.1:27017/beyond5
 JWT_SECRET=replace_this_with_a_long_secret
 CLIENT_URL=http://localhost:5174,http://127.0.0.1:5174
+CLIENT_APP_URL=http://localhost:5173
+PAYMENT_HOLD_MINUTES=15
+ENABLE_DEMO_PAYMENTS=true
+PAYPAL_MODE=sandbox
+STRIPE_SECRET_KEY=replace_this_with_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=replace_this_with_stripe_webhook_secret
+PAYPAL_CLIENT_ID=replace_this_with_paypal_client_id
+PAYPAL_CLIENT_SECRET=replace_this_with_paypal_client_secret
+MEDICARE_OFFER_PERCENT=15
+MEDICARE_HASH_SECRET=replace_this_with_a_long_secret
 ```
 
 ### Option 1: Local MongoDB
@@ -74,6 +84,18 @@ ADMIN_EMAIL=admin@beyond5.com.au ADMIN_PASSWORD=AdminPassword123! yarn --cwd ser
 ```
 
 If MongoDB is not connected, the backend falls back to `server/data/dev-users.json` for local development. That file is ignored by git and is only for testing.
+
+## Booking, Payments, Medicare Offers, and Telehealth
+
+The booking flow supports:
+
+- Medicare card offer verification at `POST /api/medicare/verify`. The raw Medicare number is not stored; the backend stores a secure hash plus the last four digits.
+- Pending reservations before payment. `POST /api/bookings` reserves the slot but does not confirm the booking.
+- Card checkout through Stripe Checkout and PayPal approval redirects through PayPal Orders API. `POST /api/payments/checkout` creates the provider checkout.
+- Payment verification through `/payment/success`, `POST /api/payments/confirm`, and provider webhooks. The booking becomes `confirmed` only after verified payment.
+- In-app telehealth rooms for paid telehealth bookings. Confirmed telehealth bookings receive a `/telehealth/:roomId` join link and use Socket.IO signalling with browser WebRTC.
+
+For live payments, keep raw card entry out of this app. Add real Stripe and/or PayPal credentials in `.env`, configure Stripe webhook delivery to `/api/payments/webhook/stripe`, and use PayPal sandbox/live credentials for PayPal approval and capture. Local development can use `ENABLE_DEMO_PAYMENTS=true`, but production should disable demo payments.
 
 Currently, two official plugins are available:
 
