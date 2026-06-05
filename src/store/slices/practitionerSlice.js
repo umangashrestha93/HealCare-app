@@ -15,6 +15,8 @@ export const fetchPractitioners = createAsyncThunk(
         telehealth: filters.deliveryMode === 'Telehealth' ? true : filters.deliveryMode === 'In-person' ? false : undefined,
         afterHours: filters.availability.includes('After-Hours') ? true : undefined,
         weekends: filters.availability.includes('Weekends') ? true : undefined,
+        funding: filters.funding?.length ? filters.funding.join(',') : undefined,
+        postcode: filters.postcode || undefined,
         page: filters.page || 1,
         limit: 10
       };
@@ -37,6 +39,8 @@ const initialState = {
     availability: [],
     deliveryMode: 'All',
     searchTerm: '',
+    funding: [],
+    postcode: '',
     page: 1
   }
 };

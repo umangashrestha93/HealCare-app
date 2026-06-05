@@ -408,6 +408,16 @@ const upsertPractitionerProfile = async (userId, profile) => {
       bio: profile.bio,
       yearsExp: profile.yearsExp,
       abn: profile.abn,
+      gender: profile.gender,
+      location: profile.location,
+      postcode: profile.postcode,
+      travelArea: profile.travelArea,
+      travelsToPostcodes: Array.isArray(profile.travelsToPostcodes)
+        ? profile.travelsToPostcodes
+        : String(profile.travelsToPostcodes || '').split(',').map((item) => item.trim()).filter(Boolean),
+      mobile: Boolean(profile.mobile),
+      fundingOptions: Array.isArray(profile.fundingOptions) ? profile.fundingOptions : [],
+      sploseStatus: profile.sploseStatus,
       telehealth: Boolean(profile.telehealth),
       afterHours: Boolean(profile.afterHours),
       weekends: Boolean(profile.weekends),

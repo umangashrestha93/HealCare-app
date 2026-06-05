@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link as RouterLink, useParams } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -84,9 +84,10 @@ const RoleOption = ({ option, selected, onSelect }) => (
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { role: urlRole } = useParams();
   const { login, logout } = useAuth();
-  
+
   // State for form fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -98,7 +99,7 @@ const Login = () => {
   const role = urlRole;
 
   const handleRoleSelect = (selectedRole) => {
-    navigate(`/login/${selectedRole}`);
+    navigate(`/login/${selectedRole}`, { state: location.state });
   };
 
   //   useEffect(() => {
@@ -151,7 +152,18 @@ const Login = () => {
         );
         return;
       }
-      navigate(`/dashboard/${loggedInUser.role}`);
+      const from = location.state?.from;
+      const returnPath = from?.pathname
+        ? `${from.pathname || ''}${from.search || ''}${from.hash || ''}`
+        : `/dashboard/${loggedInUser.role}`;
+
+      navigate(returnPath, {
+        replace: true,
+        state: {
+          intent: location.state?.intent,
+          practitionerId: location.state?.practitionerId,
+        },
+      });
 
     } catch (err) {
       setError(typeof err === 'string' ? err : err?.message || 'Login failed');

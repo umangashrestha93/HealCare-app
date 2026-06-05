@@ -17,7 +17,12 @@ const SUPPORTED_METHODS = [
   }
 ];
 
-const hasSecret = (value) => Boolean(value && !String(value).includes('replace-me'));
+const hasSecret = (value) => Boolean(
+  value && 
+  !String(value).includes('replace-me') && 
+  !String(value).includes('replace_with_your') &&
+  !String(value).includes('replace-with')
+);
 
 const getClientBaseUrl = () => {
   const configured = process.env.CLIENT_APP_URL || process.env.CLIENT_URL?.split(',')?.[0];

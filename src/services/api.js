@@ -98,6 +98,22 @@ export const practitionerService = {
   updateProfile: (profileData) => api.put('/practitioners/profile', profileData),
 };
 
+// --- ENQUIRY SERVICES ---
+export const enquiryService = {
+  create: async (enquiryData) => {
+    try {
+      return await api.post('/enquiries', enquiryData);
+    } catch (err) {
+      if (typeof err === 'string' && (err.includes('404') || err === 'Something went wrong')) {
+        return api.post('/client-enquiries', enquiryData);
+      }
+      throw err;
+    }
+  },
+  getMine: () => api.get('/enquiries'),
+  getAll: () => api.get('/enquiries/admin'),
+};
+
 // --- ADMIN SERVICES ---
 export const adminService = {
   getPractitioners: (params) => api.get('/admin/practitioners', { params }),

@@ -1,7 +1,22 @@
 const Review = require('../models/Review');
 const Booking = require('../models/Booking');
+const Practitioner = require('../models/Practitioner');
+const mongoose = require('mongoose');
 
-// @desc    Create a review for a booking
+// Helper: recalculate and persist practitioner rating after a review change
+const recalculatePractitionerRating = async (practitionerId) => {
+  const reviews = await Review.find({ practitionerId });
+  const totalReviews = reviews.length;
+  const averageRating = totalReviews
+    ? reviews.reduce((acc, r) => acc + r.rating, 0) / totalReviews
+    : 0;
+  await Practitioner.findByIdAndUpdate(practitionerId, {
+    averageRating: Number(averageRating.toFixed(1)),
+    totalReviews
+  });
+};
+
+// @desc    Create or update a review for a booking
 // @route   POST /api/reviews
 // @access  Private (Client only)
 exports.createReview = async (req, res) => {
@@ -9,7 +24,15 @@ exports.createReview = async (req, res) => {
     const { bookingId, rating, comment } = req.body;
     const clientId = req.user._id;
 
-    // Check if booking exists and belongs to client
+    if (!bookingId || !rating) {
+      return res.status(400).json({ success: false, error: 'bookingId and rating are required' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({ success: false, error: 'Invalid bookingId' });
+    }
+
+    // Check if booking exists and belongs to this client
     const booking = await Booking.findById(bookingId);
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
@@ -19,30 +42,25 @@ exports.createReview = async (req, res) => {
       return res.status(403).json({ success: false, error: 'Not authorized to review this booking' });
     }
 
-    // Check if booking is completed
-    // Note: In a real app, you'd check if booking status is 'completed'
-    // For now, we'll allow reviewing any booking the client has.
+    const practitionerId = booking.practitionerId;
+    const isNew = !(await Review.findOne({ bookingId }));
 
-    // Check if review already exists
-    const existingReview = await Review.findOne({ bookingId });
-    if (existingReview) {
-      return res.status(400).json({ success: false, error: 'Review already exists for this booking' });
-    }
+    // Upsert: create if first review, update if editing an existing one
+    const review = await Review.findOneAndUpdate(
+      { bookingId },
+      { $set: { clientId, practitionerId, rating, comment, updatedAt: new Date() } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
 
-    const review = await Review.create({
-      bookingId,
-      clientId,
-      practitionerId: booking.practitionerId,
-      rating,
-      comment
-    });
+    // Manually trigger rating recalculation (since findOneAndUpdate skips post-save hooks)
+    await recalculatePractitionerRating(practitionerId);
 
-    res.status(201).json({
-      success: true,
-      data: review
-    });
+    const statusCode = isNew ? 201 : 200;
+    const message = isNew ? 'Review submitted successfully' : 'Review updated successfully';
+
+    res.status(statusCode).json({ success: true, message, data: review });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -55,11 +73,8 @@ exports.getPractitionerReviews = async (req, res) => {
       .populate('clientId', 'firstName lastName')
       .sort({ createdAt: -1 });
 
-    res.status(200).json({
-      success: true,
-      data: reviews
-    });
+    res.status(200).json({ success: true, data: reviews });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };

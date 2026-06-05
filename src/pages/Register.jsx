@@ -37,6 +37,7 @@ import {
 } from '@mui/icons-material';
 import { authService } from '../services/api';
 import { validation } from '../utils/validation';
+import { DISCIPLINES, FUNDING_PATHWAYS } from '../utils/mockData';
 
 const DOCUMENTS = [
   { id: 'ahpra', label: 'AHPRA Registration', required: true },
@@ -45,16 +46,7 @@ const DOCUMENTS = [
   { id: 'id', label: 'Photo ID', required: true },
 ];
 
-const DISCIPLINE_OPTIONS = [
-  'Physiotherapy',
-  'Psychology',
-  'Occupational Therapy',
-  'Speech Pathology',
-  'Nutrition & Dietetics',
-  'Exercise Physiology',
-  'Social Work',
-  'Other',
-];
+const DISCIPLINE_OPTIONS = DISCIPLINES.filter((item) => item !== 'All');
 
 const availabilityOptions = [
   { name: 'afterHours', label: 'After hours', icon: <AccessTime /> },
@@ -95,12 +87,19 @@ const Register = () => {
     phone: '',
     password: '',
     discipline: '',
+    gender: '',
     yearsExp: '',
     location: '',
+    postcode: '',
+    travelArea: '',
+    travelsToPostcodes: '',
     abn: '',
     telehealth: false,
+    mobile: false,
     weekends: false,
     afterHours: false,
+    fundingOptions: [],
+    sploseStatus: 'Splose calendar pending integration',
     bio: '',
     languages: '',
   });
@@ -122,7 +121,7 @@ const Register = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const fieldValue = type === 'checkbox' ? checked : value;
-    
+
     setFormData((prev) => ({ ...prev, [name]: fieldValue }));
 
     // Validate field on change
@@ -165,13 +164,22 @@ const Register = () => {
     setFieldErrors((prev) => ({ ...prev, [name]: fieldError }));
   };
 
+  const handleFundingToggle = (funding) => {
+    setFormData((prev) => ({
+      ...prev,
+      fundingOptions: prev.fundingOptions.includes(funding)
+        ? prev.fundingOptions.filter((item) => item !== funding)
+        : [...prev.fundingOptions, funding],
+    }));
+  };
+
   const handleUpload = (id) => {
     setUploadedDocs((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const nextStep = () => {
     setError('');
-    
+
     // Validate current step before proceeding
     if (activeStep === 0) {
       const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password'];
@@ -326,12 +334,21 @@ const Register = () => {
         practitionerProfile: role === 'practitioner'
           ? {
             discipline: formData.discipline,
+            gender: formData.gender,
             yearsExp: Number(formData.yearsExp) || 0,
             location: formData.location,
+            postcode: formData.postcode,
+            travelArea: formData.travelArea,
+            travelsToPostcodes: formData.travelsToPostcodes
+              ? formData.travelsToPostcodes.split(',').map((item) => item.trim()).filter(Boolean)
+              : [],
             abn: formData.abn,
             telehealth: formData.telehealth,
+            mobile: formData.mobile,
             weekends: formData.weekends,
             afterHours: formData.afterHours,
+            fundingOptions: formData.fundingOptions,
+            sploseStatus: formData.sploseStatus,
             bio: formData.bio,
             specializations: formData.languages
               ? formData.languages.split(',').map((item) => item.trim()).filter(Boolean)
@@ -406,7 +423,7 @@ const Register = () => {
                 {[
                   { label: 'Role-based access', value: role === 'client' ? 'Client journey' : 'Practitioner onboarding' },
                   { label: 'Verification', value: role === 'client' ? 'Secure account' : `${Object.values(uploadedDocs).filter(Boolean).length}/${DOCUMENTS.length} documents` },
-                  { label: 'Availability', value: formData.afterHours || formData.weekends || formData.telehealth ? 'Flexible options selected' : 'Ready to configure' },
+                  { label: 'Funding', value: formData.fundingOptions.length ? `${formData.fundingOptions.length} pathways selected` : 'Ready to configure' },
                 ].map((item) => (
                   <Box key={item.label} sx={{ borderLeft: '3px solid #22c55e', pl: 2 }}>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.64)' }}>
@@ -587,6 +604,32 @@ const Register = () => {
                             disabled={submitting}
                             placeholder="11 digits"
                           />
+                          <FormControl fullWidth>
+                            <InputLabel>Gender shown on profile</InputLabel>
+                            <Select
+                              name="gender"
+                              value={formData.gender}
+                              label="Gender shown on profile"
+                              onChange={handleChange}
+                              disabled={submitting}
+                            >
+                              {['Female', 'Male', 'Non-binary', 'Prefer not to say', 'Not specified'].map((option) => (
+                                <MenuItem key={option} value={option}>{option}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          <TextField
+                            fullWidth
+                            label="Practice postcode"
+                            name="postcode"
+                            value={formData.postcode}
+                            onChange={(event) => {
+                              const value = event.target.value.replace(/\D/g, '').slice(0, 4);
+                              handleChange({ target: { name: 'postcode', value } });
+                            }}
+                            disabled={submitting}
+                            inputProps={{ inputMode: 'numeric' }}
+                          />
                           <TextField
                             fullWidth
                             label="Specialisations"
@@ -595,6 +638,27 @@ const Register = () => {
                             onChange={handleChange}
                             disabled={submitting}
                             helperText="Separate multiple items with commas."
+                          />
+                        </Box>
+
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
+                          <TextField
+                            fullWidth
+                            label="Travel area"
+                            name="travelArea"
+                            value={formData.travelArea}
+                            onChange={handleChange}
+                            disabled={submitting}
+                            helperText="Example: Travels within 20 km of Brunswick."
+                          />
+                          <TextField
+                            fullWidth
+                            label="Postcodes you will travel to"
+                            name="travelsToPostcodes"
+                            value={formData.travelsToPostcodes}
+                            onChange={handleChange}
+                            disabled={submitting}
+                            helperText="Separate postcodes with commas."
                           />
                         </Box>
 
@@ -626,8 +690,35 @@ const Register = () => {
                                 }
                               />
                             ))}
+                            <FormControlLabel
+                              control={<Checkbox checked={formData.mobile} onChange={handleChange} name="mobile" disabled={submitting} />}
+                              label={<Typography variant="body2">Mobile / travel to clients</Typography>}
+                            />
                           </Stack>
                         </Paper>
+
+                        <Paper variant="outlined" sx={{ p: 2.5 }}>
+                          <Typography fontWeight={900} gutterBottom>Funding pathways accepted</Typography>
+                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap' }}>
+                            {FUNDING_PATHWAYS.map((funding) => (
+                              <FormControlLabel
+                                key={funding}
+                                control={<Checkbox checked={formData.fundingOptions.includes(funding)} onChange={() => handleFundingToggle(funding)} disabled={submitting} />}
+                                label={<Typography variant="body2">{funding}</Typography>}
+                              />
+                            ))}
+                          </Stack>
+                        </Paper>
+
+                        <TextField
+                          fullWidth
+                          label="Splose calendar / booking availability notes"
+                          name="sploseStatus"
+                          value={formData.sploseStatus}
+                          onChange={handleChange}
+                          disabled={submitting}
+                          helperText="Use this to capture how Splose availability should be surfaced while API integration is confirmed."
+                        />
                       </Stack>
                     )}
 

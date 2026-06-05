@@ -14,6 +14,7 @@ import {
 import { AnimatePresence } from 'framer-motion';
 import { clientService, bookingService, medicareService, paymentService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { MOCK_PRACTITIONERS } from '../utils/mockData';
 
 // --- HELPERS ---
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -94,8 +95,23 @@ const Booking = () => {
     (async () => {
       try {
         setLoading(true);
-        const res = await clientService.getPractitionerDetails(practitionerId);
-        const p = res.data;
+        let p;
+        const demoPractitioner = MOCK_PRACTITIONERS.find((item) => item.id === practitionerId);
+        if (demoPractitioner) {
+          p = {
+            ...demoPractitioner,
+            _id: demoPractitioner.id,
+            avatar: demoPractitioner.image,
+            userId: {
+              firstName: demoPractitioner.name.split(' ')[0],
+              lastName: demoPractitioner.name.split(' ').slice(1).join(' '),
+              location: demoPractitioner.location,
+            },
+          };
+        } else {
+          const res = await clientService.getPractitionerDetails(practitionerId);
+          p = res.data;
+        }
         setPractitioner(p);
 
         const tomorrow = new Date();
@@ -114,6 +130,11 @@ const Booking = () => {
     if (!practitionerId || !selectedDate) return;
     try {
       setSlotsLoading(true);
+      if (practitionerId.startsWith('demo-')) {
+        setAvailableSlots(['09:00 AM', '10:30 AM', '01:00 PM', '06:00 PM']);
+        setSelectedSlot('');
+        return;
+      }
       const res = await bookingService.getAvailableSlots(practitionerId, selectedDate);
       setAvailableSlots(res.available || []);
       setSelectedSlot('');
@@ -129,6 +150,10 @@ const Booking = () => {
 
   const handleConfirm = async () => {
     if (!selectedDate || !selectedSlot) return;
+    if (practitionerId.startsWith('demo-')) {
+      setError('Demo profile selected: in production this would hand off to Splose with the selected date, time, practitioner and funding context.');
+      return;
+    }
     try {
       setError('');
       setBookingLoading(true);

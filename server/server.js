@@ -84,6 +84,7 @@ const assistantRoutes = require('./routes/assistantRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const medicareRoutes = require('./routes/medicareRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const enquiryRoutes = require('./routes/enquiryRoutes');
 
 // Mount Routers
 app.use('/api/auth', authRoutes);
@@ -98,6 +99,8 @@ app.use('/api/assistant', assistantRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/medicare', medicareRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/enquiries', enquiryRoutes);
+app.use('/api/client-enquiries', enquiryRoutes);
 
 
 // Root Endpoint (Lightweight / Mobile-First)

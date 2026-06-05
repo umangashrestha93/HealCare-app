@@ -13,7 +13,7 @@ import {
   Avatar,
   Divider
 } from '@mui/material';
-import { LocalHospital, Person, Logout } from '@mui/icons-material';
+import { Person, Logout } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 const MainLayout = () => {
@@ -47,23 +47,19 @@ const MainLayout = () => {
           <Toolbar disableGutters sx={{ justifyContent: 'space-between', height: 80 }}>
             {/* Logo */}
             <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/')}>
-              <Box sx={{
-                width: 40, height: 40, borderRadius: '50%',
-                bgcolor: 'primary.main', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', mr: 1.5
-              }}>
-                <LocalHospital sx={{ color: '#ffffff' }} />
-              </Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: '-0.02em' }}>
-                Beyond5
-              </Typography>
+              <Box
+                component="img"
+                src="/logo.png"
+                alt="Beyond5 Logo"
+                sx={{ height: 40, width: 'auto', display: 'block' }}
+              />
             </Box>
 
             {/* Nav Links */}
             <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
               {[
                 { label: 'Home', path: '/' },
-                { label: 'Find a Doctor', path: '/marketplace', roles: ['client', null] },
+                { label: 'Find a Practitioner', path: '/marketplace', roles: ['client', null] },
                 { label: 'Dashboard', path: user ? `/dashboard/${user.role}` : '/dashboard' },
               ].filter(link => !link.roles || link.roles.includes(user?.role || null)).map((link) => (
                 <Button
@@ -99,7 +95,7 @@ const MainLayout = () => {
                     onClick={() => navigate('/register')}
                     sx={{ borderRadius: '50px', px: 3, fontWeight: 700 }}
                   >
-                    Book Now
+                    Get Started
                   </Button>
                 </>
               ) : (

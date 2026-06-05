@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Box, Container, Typography, TextField, Button, 
+import {
+  Box, Container, Typography, TextField, Button,
   Card, CardContent, Alert, Stack, Avatar
 } from '@mui/material';
 import { motion } from 'framer-motion';
@@ -29,7 +29,7 @@ const AdminLogin = () => {
 
     try {
       const res = await login({ email, password });
-      
+
       if (res.user.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
@@ -41,15 +41,15 @@ const AdminLogin = () => {
   };
 
   return (
-    <Box sx={{ 
+    <Box sx={{
       bgcolor: '#0f172a', // Darker slate for admin portal
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      py: 8 
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      py: 8
     }}>
       <Container maxWidth="sm">
-        <MotionCard 
+        <MotionCard
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           sx={{ borderRadius: 4, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', bgcolor: '#1e293b', color: '#fff' }}
@@ -94,12 +94,12 @@ const AdminLogin = () => {
                   InputProps={{ disableUnderline: true, sx: { borderRadius: 2, bgcolor: '#334155', color: '#fff' } }}
                   InputLabelProps={{ sx: { color: '#94a3b8' } }}
                 />
-                
-                <Button 
-                  type="submit" 
-                  variant="contained" 
+
+                <Button
+                  type="submit"
+                  variant="contained"
                   color="secondary"
-                  fullWidth 
+                  fullWidth
                   size="large"
                   startIcon={<Lock />}
                   sx={{ py: 2, borderRadius: '12px', fontWeight: 800, textTransform: 'none', fontSize: '1.1rem' }}
@@ -107,7 +107,7 @@ const AdminLogin = () => {
                   Secure Login
                 </Button>
 
-                <Button 
+                <Button
                   startIcon={<ArrowBack />}
                   onClick={() => navigate('/')}
                   sx={{ color: '#94a3b8', textTransform: 'none' }}
@@ -118,7 +118,7 @@ const AdminLogin = () => {
             </form>
           </CardContent>
         </MotionCard>
-        
+
         <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 4, color: '#475569' }}>
           &copy; 2026 Beyond5 Healthcare Marketplace. Secure Administrator Environment.
         </Typography>

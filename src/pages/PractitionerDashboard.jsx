@@ -5,7 +5,7 @@ import {
   Avatar, Chip, Stack, Button,
   Divider,
   TextField, Switch,
-  Snackbar, Alert, Badge, CircularProgress, Rating
+  Snackbar, Alert, Badge, CircularProgress, Rating, FormControlLabel, Checkbox
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -29,6 +29,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { practitionerService, bookingService, reviewService } from '../services/api';
+import { FUNDING_PATHWAYS } from '../utils/mockData';
 
 const MotionBox = motion.create(Box);
 
@@ -110,8 +111,16 @@ const PractitionerDashboard = () => {
 
   const [profile, setProfile] = useState({
     discipline: '',
+    gender: '',
     specializations: '',
     bio: '',
+    location: '',
+    postcode: '',
+    travelArea: '',
+    travelsToPostcodes: '',
+    mobile: false,
+    fundingOptions: [],
+    sploseStatus: '',
     telehealth: false,
     afterHours: false,
     weekends: false,
@@ -138,8 +147,16 @@ const PractitionerDashboard = () => {
       if (profRes.data) {
         setProfile({
           discipline: profRes.data.discipline || '',
+          gender: profRes.data.gender || '',
           specializations: profRes.data.specializations?.join(', ') || '',
           bio: profRes.data.bio || '',
+          location: profRes.data.location || user?.location || '',
+          postcode: profRes.data.postcode || '',
+          travelArea: profRes.data.travelArea || '',
+          travelsToPostcodes: profRes.data.travelsToPostcodes?.join(', ') || '',
+          mobile: profRes.data.mobile || false,
+          fundingOptions: profRes.data.fundingOptions || [],
+          sploseStatus: profRes.data.sploseStatus || 'Splose calendar pending integration',
           telehealth: profRes.data.telehealth || false,
           afterHours: profRes.data.afterHours || false,
           weekends: profRes.data.weekends || false,
@@ -204,7 +221,8 @@ const PractitionerDashboard = () => {
       setActionLoading(true);
       await practitionerService.updateProfile({
         ...profile,
-        specializations: profile.specializations.split(',').map(s => s.trim())
+        specializations: profile.specializations.split(',').map(s => s.trim()).filter(Boolean),
+        travelsToPostcodes: profile.travelsToPostcodes.split(',').map(s => s.trim()).filter(Boolean)
       });
       showToast('Profile updated successfully!');
       fetchData();
@@ -230,6 +248,15 @@ const PractitionerDashboard = () => {
     });
   };
 
+  const handleFundingToggle = (funding) => {
+    setProfile((prev) => ({
+      ...prev,
+      fundingOptions: prev.fundingOptions.includes(funding)
+        ? prev.fundingOptions.filter((item) => item !== funding)
+        : [...prev.fundingOptions, funding],
+    }));
+  };
+
   const handleSaveAvailability = async () => {
     try {
       setActionLoading(true);
@@ -237,7 +264,8 @@ const PractitionerDashboard = () => {
         ...profile,
         fee: Number(profile.fee) || 80,
         availableSlots: AVAILABLE_SLOTS.filter((slot) => (profile.availableSlots || []).includes(slot)),
-        specializations: profile.specializations.split(',').map((item) => item.trim()).filter(Boolean)
+        specializations: profile.specializations.split(',').map((item) => item.trim()).filter(Boolean),
+        travelsToPostcodes: profile.travelsToPostcodes.split(',').map((item) => item.trim()).filter(Boolean)
       };
 
       await practitionerService.updateProfile(payload);
@@ -754,6 +782,12 @@ const PractitionerDashboard = () => {
             title: 'Weekends',
             detail: 'Show Saturday and Sunday availability',
             activeLabel: 'Weekend sessions enabled'
+          },
+          {
+            key: 'mobile',
+            title: 'Mobile visits',
+            detail: 'Show that you can travel to clients',
+            activeLabel: 'Travel-to-client enabled'
           }
         ].map((item) => {
           const checked = Boolean(profile[item.key]);
@@ -964,11 +998,61 @@ const PractitionerDashboard = () => {
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>GENDER SHOWN ON PROFILE</Typography>
+                <TextField
+                  fullWidth value={profile.gender}
+                  onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
+                  placeholder="Female, Male, Non-binary, Prefer not to say"
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>SPECIALIZATIONS</Typography>
                 <TextField
                   fullWidth value={profile.specializations}
                   onChange={(e) => setProfile({ ...profile, specializations: e.target.value })}
                   placeholder="e.g. Sports Rehab, Pediatrics"
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>LOCATION</Typography>
+                <TextField
+                  fullWidth value={profile.location}
+                  onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                  placeholder="Suburb, state"
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>POSTCODE</Typography>
+                <TextField
+                  fullWidth value={profile.postcode}
+                  onChange={(e) => setProfile({ ...profile, postcode: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  inputProps={{ inputMode: 'numeric' }}
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>TRAVEL AREA</Typography>
+                <TextField
+                  fullWidth value={profile.travelArea}
+                  onChange={(e) => setProfile({ ...profile, travelArea: e.target.value })}
+                  placeholder="Travels within 20 km"
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>POSTCODES YOU WILL TRAVEL TO</Typography>
+                <TextField
+                  fullWidth value={profile.travelsToPostcodes}
+                  onChange={(e) => setProfile({ ...profile, travelsToPostcodes: e.target.value })}
+                  placeholder="3056, 3070, 3072"
                   variant="outlined"
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
                 />
@@ -979,6 +1063,29 @@ const PractitionerDashboard = () => {
                   fullWidth multiline rows={3}
                   value={profile.bio}
                   onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: '#f8fafc' }}>
+                  <Typography variant="caption" fontWeight={900} color="text.secondary">FUNDING PATHWAYS ACCEPTED</Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap', mt: 1 }}>
+                    {FUNDING_PATHWAYS.map((funding) => (
+                      <FormControlLabel
+                        key={funding}
+                        control={<Checkbox checked={profile.fundingOptions.includes(funding)} onChange={() => handleFundingToggle(funding)} />}
+                        label={<Typography variant="body2">{funding}</Typography>}
+                      />
+                    ))}
+                  </Stack>
+                </Paper>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>SPLOSE AVAILABILITY NOTES</Typography>
+                <TextField
+                  fullWidth value={profile.sploseStatus}
+                  onChange={(e) => setProfile({ ...profile, sploseStatus: e.target.value })}
                   variant="outlined"
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
                 />

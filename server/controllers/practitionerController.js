@@ -1,4 +1,5 @@
 const Practitioner = require('../models/Practitioner');
+const User = require('../models/User');
 
 // @desc    Get all approved practitioners with filters & pagination
 // @route   GET /api/practitioners
@@ -12,6 +13,8 @@ exports.getPractitioners = async (req, res) => {
       weekends,
       location, 
       keyword,
+      funding,
+      postcode,
       page = 1,
       limit = 10 
     } = req.query;
@@ -32,11 +35,29 @@ exports.getPractitioners = async (req, res) => {
     if (afterHours === 'true') query.afterHours = true;
     if (weekends === 'true') query.weekends = true;
 
-    // Keyword Search (Search across Discipline, Bio, Specializations)
+    // Keyword Search (Search across practitioner names, discipline, bio, specializations)
     if (keyword && keyword.trim() !== '') {
       const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const searchRegex = new RegExp(escapedKeyword, 'i');
+      const matchingUsers = await User.find({
+        role: 'practitioner',
+        $or: [
+          { firstName: searchRegex },
+          { lastName: searchRegex },
+          {
+            $expr: {
+              $regexMatch: {
+                input: { $concat: ['$firstName', ' ', '$lastName'] },
+                regex: escapedKeyword,
+                options: 'i'
+              }
+            }
+          }
+        ]
+      }).select('_id').lean();
+
       query.$or = [
+        { userId: { $in: matchingUsers.map((user) => user._id) } },
         { discipline: searchRegex },
         { bio: searchRegex },
         { specializations: { $elemMatch: { $regex: searchRegex } } }
@@ -46,6 +67,24 @@ exports.getPractitioners = async (req, res) => {
     // Location filter (Now indexed and part of the main query)
     if (location && location.trim() !== '') {
       query.location = { $regex: location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    }
+
+    if (funding && funding.trim() !== '') {
+      query.fundingOptions = { $in: funding.split(',').map((item) => item.trim()).filter(Boolean) };
+    }
+
+    if (postcode && postcode.trim() !== '') {
+      const escapedPostcode = postcode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.$and = [
+        ...(query.$and || []),
+        {
+          $or: [
+            { postcode: escapedPostcode },
+            { travelsToPostcodes: escapedPostcode },
+            { location: { $regex: escapedPostcode, $options: 'i' } }
+          ]
+        }
+      ];
     }
 
     // Pagination
@@ -111,7 +150,14 @@ exports.updateMyProfile = async (req, res) => {
       bio,
       yearsExp,
       abn,
+      gender,
       location,
+      postcode,
+      travelArea,
+      travelsToPostcodes,
+      mobile,
+      fundingOptions,
+      sploseStatus,
       telehealth,
       afterHours,
       weekends,
@@ -127,7 +173,16 @@ exports.updateMyProfile = async (req, res) => {
       bio,
       yearsExp,
       abn,
+      gender,
       location,
+      postcode,
+      travelArea,
+      travelsToPostcodes: Array.isArray(travelsToPostcodes)
+        ? travelsToPostcodes
+        : String(travelsToPostcodes || '').split(',').map((item) => item.trim()).filter(Boolean),
+      mobile: Boolean(mobile),
+      fundingOptions: Array.isArray(fundingOptions) ? fundingOptions : [],
+      sploseStatus,
       telehealth: Boolean(telehealth),
       afterHours: Boolean(afterHours),
       weekends: Boolean(weekends)

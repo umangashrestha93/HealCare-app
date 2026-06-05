@@ -12,7 +12,20 @@ const PractitionerSchema = new mongoose.Schema({
   bio: { type: String },
   yearsExp: { type: Number },
   abn: { type: String },
+  gender: { type: String, default: 'Not specified' },
   location: { type: String, index: true }, // Denormalized for fast filtering
+  postcode: { type: String, index: true },
+  travelArea: { type: String },
+  travelsToPostcodes: [{ type: String, index: true }],
+  mobile: { type: Boolean, default: false },
+  fundingOptions: [{
+    type: String,
+    enum: ['NDIS', 'Medicare', 'My Aged Care', 'Private Health Fund', 'Veterans’ Affairs']
+  }],
+  sploseStatus: {
+    type: String,
+    default: 'Splose calendar pending integration'
+  },
   avatar: { type: String, default: '' },
   fee: { type: Number, default: 80 }, // Consultation fee in AUD
   
