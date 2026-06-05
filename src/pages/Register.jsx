@@ -102,6 +102,7 @@ const Register = () => {
     sploseStatus: 'Splose calendar pending integration',
     bio: '',
     languages: '',
+    avatar: '',
   });
 
   const steps = role === 'practitioner'
@@ -350,6 +351,7 @@ const Register = () => {
             fundingOptions: formData.fundingOptions,
             sploseStatus: formData.sploseStatus,
             bio: formData.bio,
+            avatar: formData.avatar,
             specializations: formData.languages
               ? formData.languages.split(',').map((item) => item.trim()).filter(Boolean)
               : [],
@@ -565,6 +567,63 @@ const Register = () => {
 
                     {role === 'practitioner' && activeStep === 1 && (
                       <Stack spacing={3}>
+                        {/* Profile Photo Upload */}
+                        <Paper variant="outlined" sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 3, borderRadius: 2 }}>
+                          <Avatar
+                            src={formData.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${formData.firstName || 'P'}`}
+                            sx={{ width: 80, height: 80, border: '1px solid #ddd' }}
+                          />
+                          <Box>
+                            <Typography variant="subtitle2" fontWeight={800} gutterBottom>
+                              Profile Photo
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
+                              Select a professional portrait. Accepted formats: JPG, PNG. Max size: 2MB.
+                            </Typography>
+                            <Stack direction="row" spacing={1}>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                component="label"
+                                startIcon={<UploadFile />}
+                                sx={{ fontWeight: 700 }}
+                              >
+                                Choose Photo
+                                <input
+                                  type="file"
+                                  hidden
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      if (file.size > 2 * 1024 * 1024) {
+                                        alert('Image size exceeds 2MB limit.');
+                                        return;
+                                      }
+                                      const reader = new FileReader();
+                                      reader.onload = (event) => {
+                                        setFormData((prev) => ({ ...prev, avatar: event.target.result }));
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                />
+                              </Button>
+                              {formData.avatar && (
+                                <Button
+                                  variant="text"
+                                  color="error"
+                                  size="small"
+                                  sx={{ fontWeight: 700 }}
+                                  onClick={() => setFormData((prev) => ({ ...prev, avatar: '' }))}
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </Stack>
+                          </Box>
+                        </Paper>
+
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
                           <FormControl fullWidth required error={!!fieldErrors.discipline}>
                             <InputLabel>Primary Discipline</InputLabel>

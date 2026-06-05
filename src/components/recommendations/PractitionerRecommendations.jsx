@@ -159,7 +159,7 @@ const PractitionerRecommendations = () => {
                 <CardContent>
                   <Stack direction="row" spacing={2} alignItems="flex-start">
                     <Avatar
-                      src={practitioner.userId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${practitioner._id}`}
+                      src={practitioner.avatar || practitioner.userId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${practitioner._id}`}
                       sx={{ width: 56, height: 56 }}
                     />
                     <Box sx={{ flex: 1, minWidth: 0 }}>

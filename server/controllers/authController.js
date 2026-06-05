@@ -421,6 +421,7 @@ const upsertPractitionerProfile = async (userId, profile) => {
       telehealth: Boolean(profile.telehealth),
       afterHours: Boolean(profile.afterHours),
       weekends: Boolean(profile.weekends),
+      avatar: profile.avatar || '',
       complianceDocs
     },
     { upsert: true, new: true, runValidators: true }

@@ -120,7 +120,7 @@ const UpcomingRow = ({ app, onCancel, onChat, onJoin }) => {
             }
           >
             <Avatar
-              src={`https://api.dicebear.com/7.x/initials/svg?seed=${name}`}
+              src={app.practitionerId?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${name}`}
               sx={{ width: 48, height: 48, fontWeight: 700 }}
             />
           </Badge>
@@ -192,7 +192,7 @@ const PastRow = ({ app, onRate }) => {
       <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={2}>
         <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
           <Avatar
-            src={`https://api.dicebear.com/7.x/initials/svg?seed=${name}`}
+            src={app.practitionerId?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${name}`}
             sx={{ width: 44, height: 44, opacity: 0.8 }}
           />
           <Box sx={{ minWidth: 0 }}>

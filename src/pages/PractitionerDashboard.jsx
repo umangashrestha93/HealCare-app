@@ -24,7 +24,9 @@ import {
   Star,
   Schedule,
   Person,
-  VideoCall
+  VideoCall,
+  UploadFile,
+  DeleteOutlined,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -959,6 +961,67 @@ const PractitionerDashboard = () => {
             <Typography variant="h6" fontWeight={800} sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1 }}>
               <Person color="primary" /> Professional Profile
             </Typography>
+
+            {/* Profile Photo Upload */}
+            <Paper variant="outlined" sx={{ p: 3, mb: 4, display: 'flex', alignItems: 'center', gap: 3, borderRadius: 3, bgcolor: '#f8fafc' }}>
+              <Avatar
+                src={profile.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user?.firstName || 'P'}`}
+                sx={{ width: 96, height: 96, border: '3px solid #fff', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}
+              />
+              <Box>
+                <Typography variant="subtitle1" fontWeight={900} gutterBottom>
+                  Profile Photo
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  This photo appears on your marketplace listing. Use a professional portrait. Accepted formats: JPG, PNG. Max 2 MB.
+                </Typography>
+                <Stack direction="row" spacing={1.5}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    component="label"
+                    startIcon={<UploadFile />}
+                    sx={{ fontWeight: 800, borderRadius: 2 }}
+                  >
+                    {profile.avatar ? 'Change Photo' : 'Upload Photo'}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 2 * 1024 * 1024) {
+                          showToast('Image exceeds 2 MB limit.', 'warning');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          setProfile((prev) => ({ ...prev, avatar: event.target.result }));
+                          showToast('Photo selected — save your profile to persist this change.');
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </Button>
+                  {profile.avatar && (
+                    <Button
+                      variant="text"
+                      color="error"
+                      size="small"
+                      startIcon={<DeleteOutlined />}
+                      sx={{ fontWeight: 700 }}
+                      onClick={() => {
+                        setProfile((prev) => ({ ...prev, avatar: '' }));
+                        showToast('Photo removed — save your profile to persist this change.');
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </Stack>
+              </Box>
+            </Paper>
 
             <Grid container spacing={2.5}>
               <Grid item xs={12} sm={6}>
