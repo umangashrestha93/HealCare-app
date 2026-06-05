@@ -37,7 +37,6 @@ import {
   FilterList,
   Info,
   LocationOn,
-  Map,
   RestartAlt,
   Search,
   Star,
@@ -48,6 +47,7 @@ import { setFilters, resetFilters, fetchPractitioners } from '../store/slices/pr
 import { useAuth } from '../context/AuthContext';
 import { MOCK_PRACTITIONERS, DISCIPLINES, FUNDING_PATHWAYS } from '../utils/mockData';
 import { enquiryService } from '../services/api';
+import PractitionerMap from '../components/map/PractitionerMap';
 
 const MotionCard = motion.create(Card);
 
@@ -74,7 +74,7 @@ const normalizePractitioner = (p) => ({
   fundingOptions: getFunding(p),
   gender: p.gender || 'Not specified',
   travelArea: p.travelArea || (p.mobile ? 'Travels locally' : 'Clinic / telehealth'),
-  sploseStatus: p.sploseStatus || 'Splose calendar pending integration',
+  sploseStatus: p.sploseStatus || p.availableSlots?.length ? 'Accepting bookings' : 'Contact for availability',
 });
 
 const Marketplace = () => {
@@ -168,7 +168,6 @@ const Marketplace = () => {
       .sort((a, b) => Number(b.localMatch || b.travelsToPostcode) - Number(a.localMatch || a.travelsToPostcode));
   }, [filters, normalizedResults, postcode, selectedFunding]);
 
-  const mapResults = filteredResults.slice(0, 6);
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -366,7 +365,7 @@ const Marketplace = () => {
           <Typography variant="overline" color="secondary.main" fontWeight={900}>Beyond5 client search</Typography>
           <Typography variant="h3" fontWeight={900}>Find allied health and therapy practitioners.</Typography>
           <Typography color="text.secondary" sx={{ maxWidth: 860 }}>
-            Search by postcode to see nearby practitioners and practitioners willing to travel to that postcode. Bookings are shown as Splose-managed pending live calendar integration.
+            Search by postcode to see nearby practitioners and those willing to travel to your area. Use the interactive map to explore by location.
           </Typography>
         </Stack>
 
@@ -405,7 +404,7 @@ const Marketplace = () => {
                   onKeyDown={(e) => { if (e.key === 'Enter') handlePostcodeSearch(); }}
                   inputProps={{ inputMode: 'numeric' }}
                 />
-                <Button variant="contained" startIcon={<Map />} onClick={handlePostcodeSearch} sx={{ height: 56, fontWeight: 900 }}>
+                <Button variant="contained" startIcon={<LocationOn />} onClick={handlePostcodeSearch} sx={{ height: 56, fontWeight: 900 }}>
                   Map search
                 </Button>
                 <Button variant="outlined" startIcon={<FilterList />} onClick={() => setMobileFilterOpen(true)} sx={{ display: { lg: 'none' }, height: 56, fontWeight: 900 }}>
@@ -421,32 +420,13 @@ const Marketplace = () => {
                     <Typography variant="h6" fontWeight={900}>Map results</Typography>
                     <Chip label={`${filteredResults.length} matches`} size="small" color="secondary" sx={{ fontWeight: 900 }} />
                   </Stack>
-                  <Box sx={{ position: 'relative', height: 420, borderRadius: 2, overflow: 'hidden', bgcolor: '#dbe8e4', border: '1px solid', borderColor: 'divider' }}>
-                    <Box sx={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(0deg, rgba(255,255,255,0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.45) 1px, transparent 1px)', backgroundSize: '42px 42px' }} />
-                    <Box sx={{ position: 'absolute', left: '12%', top: '18%', right: '8%', height: 12, bgcolor: 'rgba(13,56,55,0.18)', transform: 'rotate(-18deg)', borderRadius: 999 }} />
-                    <Box sx={{ position: 'absolute', left: '20%', top: '62%', right: '12%', height: 12, bgcolor: 'rgba(13,56,55,0.14)', transform: 'rotate(13deg)', borderRadius: 999 }} />
-                    {mapResults.map((p, index) => {
-                      const left = [18, 62, 38, 74, 28, 52][index] || 50;
-                      const top = [24, 32, 58, 68, 76, 46][index] || 50;
-                      const highlighted = p.localMatch || p.travelsToPostcode;
-                      return (
-                        <Box key={p._id} sx={{ position: 'absolute', left: `${left}%`, top: `${top}%`, transform: 'translate(-50%, -50%)' }}>
-                          <Chip
-                            icon={<LocationOn />}
-                            label={getFullName(p).split(' ')[0]}
-                            color={highlighted ? 'secondary' : 'primary'}
-                            sx={{ fontWeight: 900, boxShadow: '0 10px 24px rgba(13,56,55,0.2)' }}
-                          />
-                        </Box>
-                      );
-                    })}
-                    <Paper elevation={0} sx={{ position: 'absolute', left: 16, right: 16, bottom: 16, p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.94)' }}>
-                      <Typography fontWeight={900}>{filters.postcode ? `Searching ${filters.postcode}` : 'Enter a postcode'}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Green markers are nearby or willing to travel to the searched postcode.
-                      </Typography>
-                    </Paper>
-                  </Box>
+                  <PractitionerMap
+                    practitioners={filteredResults}
+                    searchPostcode={filters.postcode || postcode}
+                    height={460}
+                    onBook={(p) => navigate(`/booking?practitioner=${p._id}`)}
+                    onEnquire={(p) => openEnquiry(p)}
+                  />
                 </Paper>
               </Grid>
 
@@ -484,8 +464,8 @@ const Marketplace = () => {
                                   {getFunding(p).map((fund) => <Chip key={fund} label={fund} size="small" variant="outlined" />)}
                                 </Stack>
                                 <Paper variant="outlined" sx={{ mt: 1.5, p: 1.5, borderRadius: 2, bgcolor: '#f8fafc' }}>
-                                  <Typography variant="caption" color="text.secondary" fontWeight={900}>SPLOSE AVAILABILITY</Typography>
-                                  <Typography variant="body2" fontWeight={800}>{p.sploseStatus}</Typography>
+                                  <Typography variant="caption" color="text.secondary" fontWeight={900}>AVAILABILITY</Typography>
+                                  <Typography variant="body2" fontWeight={800}>{p.availableSlots?.length ? `${p.availableSlots.length} slots available` : 'Contact for availability'}</Typography>
                                 </Paper>
                               </Box>
 
@@ -530,7 +510,7 @@ const Marketplace = () => {
         <DialogContent>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
             <Alert severity="info" sx={{ borderRadius: 2 }}>
-              This will create an enquiry record for Beyond5 follow-up. Splose or email notifications can be connected later from the saved enquiry.
+              This will create an enquiry record for Beyond5 follow-up. The practitioner will be notified and can respond directly.
             </Alert>
             {enquiryError && <Alert severity="error" sx={{ borderRadius: 2 }}>{enquiryError}</Alert>}
             <TextField
