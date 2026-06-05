@@ -292,6 +292,10 @@ exports.cancelBooking = async (req, res) => {
     }
 
     booking.status = 'cancelled';
+    booking.cancellationReason = 'requested_by_customer';
+    booking.cancelReason = 'requested_by_customer';
+    booking.refundReason = 'requested_by_customer';
+    booking.reason = 'requested_by_customer';
     await booking.save();
 
     res.status(200).json({ success: true, message: 'Booking cancelled successfully', data: booking });

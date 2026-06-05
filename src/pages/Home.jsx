@@ -6,6 +6,7 @@ import {
   Button,
   Chip,
   Container,
+  Divider,
   MenuItem,
   Paper,
   Select,
@@ -18,13 +19,17 @@ import {
   AccessTime,
   ArrowForward,
   CheckCircle,
+  FavoriteBorder,
   Groups,
-  Handshake,
+  HealthAndSafety,
   LocationOn,
   Map,
   MedicalServices,
   PersonSearch,
+  Psychology,
+  SelfImprovement,
   VerifiedUser,
+  Vaccines,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
@@ -65,7 +70,7 @@ const audienceCards = [
 const journeySteps = [
   'Search by postcode, discipline or therapy type',
   'Compare profile, gender, location, travel area and funding options',
-  'View Splose-powered booking availability when integration is connected',
+  'View real-time practitioner availability and book sessions online',
   'Book or enquire through the practitioner profile',
 ];
 
@@ -142,14 +147,16 @@ const Home = () => {
                 <Button variant="contained" color="secondary" size="large" endIcon={<ArrowForward />} onClick={() => navigate('/marketplace')} sx={{ px: 4, py: 1.6, fontWeight: 900 }}>
                   Find a practitioner
                 </Button>
-                <Button
-                  variant="outlined"
-                  size="large"
-                  onClick={() => navigate('/register/practitioner')}
-                  sx={{ px: 4, py: 1.6, fontWeight: 900, color: '#fff', borderColor: 'rgba(255,255,255,0.68)' }}
-                >
-                  Apply as practitioner
-                </Button>
+                {!user && (
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={() => navigate('/register/practitioner')}
+                    sx={{ px: 4, py: 1.6, fontWeight: 900, color: '#fff', borderColor: 'rgba(255,255,255,0.68)' }}
+                  >
+                    Apply as practitioner
+                  </Button>
+                )}
               </Stack>
             </Stack>
           </MotionBox>
@@ -269,24 +276,87 @@ const Home = () => {
         </Container>
       </Box>
 
+      {/* Healthcare Wellness Section */}
       <Box sx={{ py: { xs: 7, md: 10 }, bgcolor: '#fff' }}>
         <Container maxWidth="lg">
-          <Paper elevation={0} sx={{ p: { xs: 4, md: 5 }, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr auto' }, gap: 3, alignItems: 'center' }}>
-              <Box>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Handshake color="primary" />
-                  <Typography variant="h4" fontWeight={900}>Bookings through Splose</Typography>
+          <Stack spacing={2} sx={{ mb: 6, maxWidth: 720 }}>
+            <Typography variant="overline" color="secondary.main" fontWeight={900}>Your health matters</Typography>
+            <Typography variant="h3" fontWeight={900}>Evidence-based care for every stage of life.</Typography>
+            <Typography color="text.secondary" sx={{ fontSize: '1.05rem', lineHeight: 1.8 }}>
+              Access to quality allied health support improves mental wellbeing, physical recovery and long-term quality of life. Beyond5 connects you with verified practitioners across a wide range of disciplines.
+            </Typography>
+          </Stack>
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 3, mb: 6 }}>
+            {[
+              { icon: <Psychology sx={{ fontSize: 32 }} />, stat: '1 in 5', label: 'Australians experience a mental health condition each year', color: '#004a99' },
+              { icon: <HealthAndSafety sx={{ fontSize: 32 }} />, stat: '87%', label: 'of people report improved outcomes with consistent allied health support', color: '#0d8a72' },
+              { icon: <FavoriteBorder sx={{ fontSize: 32 }} />, stat: '24/7', label: 'Access to after-hours and telehealth care when you need it most', color: '#ea580c' },
+              { icon: <Vaccines sx={{ fontSize: 32 }} />, stat: '200+', label: 'Verified practitioners across Australia ready to support you', color: '#7c3aed' },
+            ].map((item) => (
+              <Paper key={item.label} elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+                <Box sx={{ color: item.color, mb: 1.5, display: 'flex', justifyContent: 'center' }}>{item.icon}</Box>
+                <Typography variant="h4" fontWeight={900} sx={{ color: item.color, mb: 0.5 }}>{item.stat}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>{item.label}</Typography>
+              </Paper>
+            ))}
+          </Box>
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3, mb: 6 }}>
+            {[
+              {
+                icon: <SelfImprovement />,
+                title: 'Mental Health & Wellbeing',
+                tips: ['Regular sessions with a psychologist can reduce anxiety by up to 60%', 'Mindfulness-based therapy helps manage stress and burnout', 'Early intervention leads to faster and more lasting recovery'],
+                color: '#004a99',
+              },
+              {
+                icon: <MedicalServices />,
+                title: 'Physical Recovery & Rehab',
+                tips: ['Allied health support accelerates post-surgery recovery', 'Occupational therapy improves daily independence and quality of life', 'Physiotherapy reduces chronic pain without reliance on medication'],
+                color: '#0d8a72',
+              },
+              {
+                icon: <Groups />,
+                title: 'NDIS & Aged Care Support',
+                tips: ['NDIS-registered practitioners help participants reach their goals', 'Aged care allied health services support safe independent living', 'My Aged Care funding can cover a wide range of therapy disciplines'],
+                color: '#ea580c',
+              },
+            ].map((card) => (
+              <Paper key={card.title} elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+                  <Avatar sx={{ bgcolor: `${card.color}1a`, color: card.color }}>{card.icon}</Avatar>
+                  <Typography variant="h6" fontWeight={900}>{card.title}</Typography>
                 </Stack>
-                <Typography color="text.secondary" sx={{ lineHeight: 1.8 }}>
-                  Practitioner calendar visibility and booking availability are marked as Splose-managed in this MVP. The UI is ready to display live Splose availability once API credentials and field mapping are confirmed.
-                </Typography>
-              </Box>
-              <Button variant="contained" color="secondary" onClick={() => navigate('/register/practitioner')} sx={{ fontWeight: 900 }}>
-                Start practitioner application
-              </Button>
-            </Box>
-          </Paper>
+                <Divider sx={{ mb: 2 }} />
+                <Stack spacing={1.5}>
+                  {card.tips.map((tip) => (
+                    <Stack key={tip} direction="row" spacing={1.5} alignItems="flex-start">
+                      <CheckCircle sx={{ color: card.color, fontSize: 18, mt: 0.3, flexShrink: 0 }} />
+                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>{tip}</Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Paper>
+            ))}
+          </Box>
+
+          {!user && (
+            <Paper elevation={0} sx={{ p: { xs: 3, md: 4 }, borderRadius: 3, bgcolor: '#0d3837', color: '#fff', textAlign: 'center' }}>
+              <Typography variant="h5" fontWeight={900} sx={{ mb: 1 }}>Ready to find the right practitioner?</Typography>
+              <Typography sx={{ color: 'rgba(255,255,255,0.78)', mb: 3, maxWidth: 560, mx: 'auto' }}>
+                Create a free account to browse verified allied health professionals, check availability and book sessions online.
+              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+                <Button variant="contained" color="secondary" size="large" onClick={() => navigate('/register')} sx={{ fontWeight: 900, px: 4 }}>
+                  Create free account
+                </Button>
+                <Button variant="outlined" size="large" onClick={() => navigate('/marketplace')} sx={{ fontWeight: 900, px: 4, color: '#fff', borderColor: 'rgba(255,255,255,0.5)' }}>
+                  Browse practitioners
+                </Button>
+              </Stack>
+            </Paper>
+          )}
         </Container>
       </Box>
     </Box>

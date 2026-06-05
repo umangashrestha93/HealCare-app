@@ -16,6 +16,10 @@ const BookingSchema = new mongoose.Schema({
   
   serviceType: { type: String, enum: ['telehealth', 'in-person'], required: true },
   notes: { type: String },
+  cancellationReason: { type: String, default: 'requested_by_customer' },
+  cancelReason: { type: String, default: 'requested_by_customer' },
+  refundReason: { type: String, default: 'requested_by_customer' },
+  reason: { type: String, default: 'requested_by_customer' },
   
   pricing: {
     currency: { type: String, default: 'AUD' },
