@@ -68,13 +68,41 @@ export const clientService = {
 export const bookingService = {
   getBookings: () => api.get('/bookings'),
   createBooking: (bookingData) => api.post('/bookings', bookingData),
-  cancelBooking: (id) => api.delete(`/bookings/${id}`),
+  cancelBooking: async (id) => {
+    try {
+      return await api.delete(`/bookings/${id}`);
+    } catch (firstError) {
+      try {
+        return await api.patch(`/bookings/${id}/cancel`);
+      } catch {
+        try {
+          return await api.post(`/bookings/${id}/cancel`);
+        } catch {
+          throw firstError;
+        }
+      }
+    }
+  },
   getTelehealthRoom: (roomId) => api.get(`/bookings/telehealth/${roomId}`),
   getAvailableSlots: (practitionerId, date) =>
     api.get('/bookings/availability', { params: { practitionerId, date } }),
   acceptBooking: (id) => api.patch(`/bookings/${id}/accept`),
   rejectBooking: (id) => api.patch(`/bookings/${id}/reject`),
-  rescheduleBooking: (id, rescheduleData) => api.patch(`/bookings/${id}/reschedule`, rescheduleData),
+  rescheduleBooking: async (id, rescheduleData) => {
+    try {
+      return await api.patch(`/bookings/${id}/reschedule`, rescheduleData);
+    } catch (firstError) {
+      try {
+        return await api.put(`/bookings/${id}/reschedule`, rescheduleData);
+      } catch {
+        try {
+          return await api.post(`/bookings/${id}/reschedule`, rescheduleData);
+        } catch {
+          throw firstError;
+        }
+      }
+    }
+  },
 };
 
 // --- MEDICARE OFFER SERVICES ---

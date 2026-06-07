@@ -27,9 +27,13 @@ router.get('/telehealth/:roomId', getTelehealthRoom);
 router.patch('/:id/accept', authorize('practitioner'), acceptBooking);
 router.patch('/:id/reject', authorize('practitioner'), rejectBooking);
 router.patch('/:id/reschedule', rescheduleBooking);
+router.put('/:id/reschedule', rescheduleBooking);
+router.post('/:id/reschedule', rescheduleBooking);
+router.patch('/:id/cancel', cancelBooking);
+router.post('/:id/cancel', cancelBooking);
 
 router
   .route('/:id')
-  .delete(authorize('client'), cancelBooking);
+  .delete(cancelBooking);
 
 module.exports = router;

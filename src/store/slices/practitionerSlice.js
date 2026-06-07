@@ -13,9 +13,12 @@ export const fetchPractitioners = createAsyncThunk(
         keyword: filters.searchTerm,
         discipline: filters.discipline === 'All' ? undefined : filters.discipline,
         telehealth: filters.deliveryMode === 'Telehealth' ? true : filters.deliveryMode === 'In-person' ? false : undefined,
-        afterHours: filters.availability.includes('After-Hours') ? true : undefined,
-        weekends: filters.availability.includes('Weekends') ? true : undefined,
+        afterHours: filters.availability.includes('After-Hours') || filters.appointmentPreference.includes('Evenings') ? true : undefined,
+        weekends: filters.availability.includes('Weekends') || filters.appointmentPreference.includes('Weekends') ? true : undefined,
         funding: filters.funding?.length ? filters.funding.join(',') : undefined,
+        access: filters.access?.length ? filters.access.join(',') : undefined,
+        appointmentPreference: filters.appointmentPreference?.length ? filters.appointmentPreference.join(',') : undefined,
+        clientPreference: filters.clientPreference?.length ? filters.clientPreference.join(',') : undefined,
         postcode: filters.postcode || undefined,
         page: filters.page || 1,
         limit: 10
@@ -40,6 +43,9 @@ const initialState = {
     deliveryMode: 'All',
     searchTerm: '',
     funding: [],
+    access: [],
+    appointmentPreference: [],
+    clientPreference: [],
     postcode: '',
     page: 1
   }

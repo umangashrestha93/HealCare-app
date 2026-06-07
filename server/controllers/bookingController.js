@@ -270,7 +270,7 @@ exports.getTelehealthRoom = async (req, res) => {
 
 // @desc    Cancel a booking (sets status to cancelled, preserves audit trail)
 // @route   DELETE /api/bookings/:id
-// @access  Private (Client who owns the booking)
+// @access  Private (Client or assigned Practitioner)
 exports.cancelBooking = async (req, res) => {
   try {
     const { id } = req.params;
@@ -284,8 +284,15 @@ exports.cancelBooking = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Authorization: only the client who made the booking can cancel
-    if (booking.clientId.toString() !== req.user.id.toString()) {
+    const isClient = booking.clientId.toString() === req.user.id.toString();
+    let isPractitioner = false;
+
+    if (req.user.role === 'practitioner') {
+      const practitioner = await Practitioner.findOne({ userId: req.user.id }).select('_id');
+      isPractitioner = practitioner && booking.practitionerId.toString() === practitioner._id.toString();
+    }
+
+    if (!isClient && !isPractitioner) {
       return res.status(403).json({ message: 'Not authorized to cancel this booking' });
     }
 
@@ -294,10 +301,11 @@ exports.cancelBooking = async (req, res) => {
     }
 
     booking.status = 'cancelled';
-    booking.cancellationReason = 'requested_by_customer';
-    booking.cancelReason = 'requested_by_customer';
-    booking.refundReason = 'requested_by_customer';
-    booking.reason = 'requested_by_customer';
+    const reason = isPractitioner ? 'cancelled_by_practitioner' : 'requested_by_customer';
+    booking.cancellationReason = reason;
+    booking.cancelReason = reason;
+    booking.refundReason = reason;
+    booking.reason = reason;
     await booking.save();
 
     res.status(200).json({ success: true, message: 'Booking cancelled successfully', data: booking });

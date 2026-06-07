@@ -346,7 +346,9 @@ const Dashboard = () => {
     try {
       setLoadingSlots(true);
       const res = await bookingService.getAvailableSlots(practitionerId, date);
-      setAvailableSlots(res.available || []);
+      const slots = res.available || [];
+      const currentSlot = rescheduleBooking?.startTime;
+      setAvailableSlots(currentSlot && !slots.includes(currentSlot) ? [currentSlot, ...slots] : slots);
     } catch (err) {
       console.error('Failed to load slots', err);
     } finally {
@@ -519,7 +521,7 @@ const Dashboard = () => {
             <Paper elevation={0} sx={{ p: 3.5, borderRadius: 3, border: `1px solid ${C.border}`, mb: 3 }}>
               <SectionHeader
                 title="Upcoming Appointments"
-                subtitle="Your confirmed sessions — join, chat or cancel anytime."
+                subtitle="Your upcoming requests and confirmed sessions — reschedule or cancel when needed."
               />
               <Stack spacing={2}>
                 {loading ? (

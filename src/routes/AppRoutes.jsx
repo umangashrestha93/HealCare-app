@@ -5,6 +5,7 @@ import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Dashboard from '../pages/Dashboard';
 import Marketplace from '../pages/Marketplace';
+import PractitionerProfile from '../pages/PractitionerProfile';
 import Booking from '../pages/Booking';
 import AdminLogin from '../pages/AdminLogin';
 import AdminLayout from '../layouts/AdminLayout';
@@ -49,6 +50,7 @@ const AppRoutes = () => {
         } />
 
         <Route path="marketplace" element={<Marketplace />} />
+        <Route path="practitioners/:id" element={<PractitionerProfile />} />
         <Route path="booking" element={
           <ProtectedRoute allowedRoles={['client']}>
             <Booking />

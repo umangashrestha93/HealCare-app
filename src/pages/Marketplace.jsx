@@ -19,7 +19,6 @@ import {
   Drawer,
   FormControlLabel,
   FormGroup,
-  Grid,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -35,6 +34,7 @@ import {
   CalendarMonth,
   Close,
   FilterList,
+  HealthAndSafety,
   Info,
   LocationOn,
   RestartAlt,
@@ -45,13 +45,27 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { setFilters, resetFilters, fetchPractitioners } from '../store/slices/practitionerSlice';
 import { useAuth } from '../context/AuthContext';
-import { MOCK_PRACTITIONERS, DISCIPLINES, FUNDING_PATHWAYS } from '../utils/mockData';
+import {
+  ACCESS_OPTIONS,
+  APPOINTMENT_PREFERENCES,
+  CLIENT_PREFERENCES,
+  MOCK_PRACTITIONERS,
+  DISCIPLINES,
+  FUNDING_PATHWAYS,
+} from '../utils/mockData';
 import { enquiryService } from '../services/api';
 import PractitionerMap from '../components/map/PractitionerMap';
 
 const MotionCard = motion.create(Card);
 
 const deliveryOptions = ['All', 'Telehealth', 'Clinic', 'Mobile / travels to me'];
+const brandPanel = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 2,
+  bgcolor: '#fff',
+  boxShadow: '0 12px 32px rgba(11, 29, 43, 0.05)',
+};
 
 const getFullName = (p) => p.name || `${p.userId?.firstName || ''} ${p.userId?.lastName || ''}`.trim() || 'Beyond5 practitioner';
 const getAvatar = (p) => p.avatar || p.image || p.userId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p._id || p.id}`;
@@ -74,7 +88,21 @@ const normalizePractitioner = (p) => ({
   fundingOptions: getFunding(p),
   gender: p.gender || 'Not specified',
   travelArea: p.travelArea || (p.mobile ? 'Travels locally' : 'Clinic / telehealth'),
-  sploseStatus: p.sploseStatus || p.availableSlots?.length ? 'Accepting bookings' : 'Contact for availability',
+  sploseStatus: p.sploseStatus || (p.availableSlots?.length ? 'Accepting bookings' : 'Contact for availability'),
+  appointmentTypes: p.appointmentTypes || [
+    p.telehealth ? 'Telehealth' : null,
+    p.mobile ? 'In-home/mobile' : 'Clinic-based',
+  ].filter(Boolean),
+  appointmentPreferences: p.appointmentPreferences || [
+    p.afterHours ? 'Evenings' : 'Standard business hours',
+    p.weekends ? 'Weekends' : null,
+  ].filter(Boolean),
+  clientPreferences: p.clientPreferences || [
+    p.gender === 'Male' ? 'Male practitioner' : null,
+    p.gender === 'Female' ? 'Female practitioner' : null,
+    'No preference',
+  ].filter(Boolean),
+  nextAvailable: p.nextAvailable || (p.availableSlots?.length ? p.availableSlots[0] : 'Contact for availability'),
 });
 
 const Marketplace = () => {
@@ -107,6 +135,9 @@ const Marketplace = () => {
     filters.deliveryMode,
     filters.availability,
     filters.funding,
+    filters.access,
+    filters.appointmentPreference,
+    filters.clientPreference,
     filters.postcode,
     filters.searchTerm,
     filters.page,
@@ -148,6 +179,20 @@ const Marketplace = () => {
       .filter((p) => !filters.availability.includes('After-Hours') || p.afterHours)
       .filter((p) => !filters.availability.includes('Weekends') || p.weekends)
       .filter((p) => selectedFunding.length === 0 || selectedFunding.some((fund) => getFunding(p).includes(fund)))
+      .filter((p) => {
+        if (!filters.access.length) return true;
+        const activePostcode = filters.postcode || postcode;
+        return filters.access.every((option) => {
+          if (option === 'Practitioner near me') return Boolean(activePostcode && postcodeDistance(activePostcode, getPostcode(p)) !== null && postcodeDistance(activePostcode, getPostcode(p)) <= 8);
+          if (option === 'Practitioner willing to travel to my postcode') return Boolean(activePostcode && p.travelsToPostcodes?.includes(activePostcode));
+          if (option === 'Telehealth available') return Boolean(p.telehealth);
+          if (option === 'In-home/mobile appointments available') return Boolean(p.mobile);
+          if (option === 'Clinic-based appointments available') return p.appointmentTypes?.includes('Clinic-based') || !p.mobile;
+          return true;
+        });
+      })
+      .filter((p) => !filters.appointmentPreference.length || filters.appointmentPreference.some((option) => p.appointmentPreferences?.includes(option)))
+      .filter((p) => !filters.clientPreference.length || filters.clientPreference.some((option) => p.clientPreferences?.includes(option)))
       .map((p) => {
         const distance = postcodeDistance(activePostcode, getPostcode(p));
         const travelsToPostcode = Boolean(activePostcode && p.travelsToPostcodes?.includes(activePostcode));
@@ -186,11 +231,12 @@ const Marketplace = () => {
     dispatch(setFilters({ funding: nextFunding, page: 1 }));
   };
 
-  const handleAvailabilityToggle = (attr) => {
-    const nextAvailability = filters.availability.includes(attr)
-      ? filters.availability.filter((item) => item !== attr)
-      : [...filters.availability, attr];
-    dispatch(setFilters({ availability: nextAvailability, page: 1 }));
+  const handleArrayFilterToggle = (key, value) => {
+    const currentValues = filters[key] || [];
+    const nextValues = currentValues.includes(value)
+      ? currentValues.filter((item) => item !== value)
+      : [...currentValues, value];
+    dispatch(setFilters({ [key]: nextValues, page: 1 }));
   };
 
   const clearAll = () => {
@@ -199,6 +245,16 @@ const Marketplace = () => {
     dispatch(resetFilters());
     dispatch(fetchPractitioners());
   };
+
+  const activeFilters = [
+    filters.discipline !== 'All' ? filters.discipline : null,
+    ...selectedFunding,
+    ...filters.access,
+    ...filters.appointmentPreference,
+    ...filters.clientPreference,
+    filters.deliveryMode !== 'All' ? filters.deliveryMode : null,
+    filters.postcode ? `Postcode ${filters.postcode}` : null,
+  ].filter(Boolean);
 
   const openEnquiry = (practitioner) => {
     if (!user) {
@@ -321,12 +377,12 @@ const Marketplace = () => {
       <Divider />
 
       <Box>
-        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>AVAILABILITY</Typography>
+        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>LOCATION AND ACCESS</Typography>
         <FormGroup>
-          {['After-Hours', 'Weekends'].map((option) => (
+          {ACCESS_OPTIONS.map((option) => (
             <FormControlLabel
               key={option}
-              control={<Checkbox size="small" checked={filters.availability.includes(option)} onChange={() => handleAvailabilityToggle(option)} />}
+              control={<Checkbox size="small" checked={filters.access.includes(option)} onChange={() => handleArrayFilterToggle('access', option)} />}
               label={<Typography variant="body2" fontWeight={700}>{option}</Typography>}
             />
           ))}
@@ -336,7 +392,37 @@ const Marketplace = () => {
       <Divider />
 
       <Box>
-        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>SERVICE TYPE</Typography>
+        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>APPOINTMENT PREFERENCE</Typography>
+        <FormGroup>
+          {APPOINTMENT_PREFERENCES.map((option) => (
+            <FormControlLabel
+              key={option}
+              control={<Checkbox size="small" checked={filters.appointmentPreference.includes(option)} onChange={() => handleArrayFilterToggle('appointmentPreference', option)} />}
+              label={<Typography variant="body2" fontWeight={700}>{option}</Typography>}
+            />
+          ))}
+        </FormGroup>
+      </Box>
+
+      <Divider />
+
+      <Box>
+        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>CLIENT PREFERENCE</Typography>
+        <FormGroup>
+          {CLIENT_PREFERENCES.map((option) => (
+            <FormControlLabel
+              key={option}
+              control={<Checkbox size="small" checked={filters.clientPreference.includes(option)} onChange={() => handleArrayFilterToggle('clientPreference', option)} />}
+              label={<Typography variant="body2" fontWeight={700}>{option}</Typography>}
+            />
+          ))}
+        </FormGroup>
+      </Box>
+
+      <Divider />
+
+      <Box>
+        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>QUICK ACCESS</Typography>
         <Stack direction="row" gap={1} sx={{ flexWrap: 'wrap', mt: 1 }}>
           {deliveryOptions.map((mode) => (
             <Chip
@@ -359,15 +445,36 @@ const Marketplace = () => {
   );
 
   return (
-    <Box sx={{ bgcolor: '#f7fbfb', minHeight: '100vh', py: 4 }}>
+    <Box sx={{ bgcolor: '#F7FBFB', minHeight: '100vh', py: { xs: 2.5, md: 4 } }}>
       <Container maxWidth="xl">
-        <Stack spacing={1.5} sx={{ mb: 3 }}>
-          <Typography variant="overline" color="secondary.main" fontWeight={900}>Beyond5 client search</Typography>
-          <Typography variant="h3" fontWeight={900}>Find allied health and therapy practitioners.</Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 860 }}>
-            Search by postcode to see nearby practitioners and those willing to travel to your area. Use the interactive map to explore by location.
-          </Typography>
-        </Stack>
+        <Paper
+          elevation={0}
+          sx={{
+            ...brandPanel,
+            mb: 3,
+            overflow: 'hidden',
+            bgcolor: '#0B1D2B',
+            color: '#fff',
+          }}
+        >
+          <Box sx={{ p: { xs: 2.5, md: 4 } }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-end' }}>
+              <Stack spacing={1.25} sx={{ maxWidth: 820 }}>
+                <Typography variant="overline" sx={{ color: '#41C6C6', fontWeight: 900, letterSpacing: 1.2 }}>Beyond5 client search</Typography>
+                <Typography variant="h3" fontWeight={900} sx={{ color: '#fff', fontSize: { xs: '2rem', md: '3rem' } }}>
+                  Find an Allied Health Practitioner
+                </Typography>
+                <Typography sx={{ color: 'rgba(255,255,255,0.78)', maxWidth: 780, lineHeight: 1.7 }}>
+                  Search by therapy type, postcode, funding type and appointment preference to find practitioners who fit your needs.
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                <Chip label={`${filteredResults.length} matches`} color="secondary" sx={{ fontWeight: 900 }} />
+                <Chip label="Map + list view" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: '#fff', fontWeight: 800 }} />
+              </Stack>
+            </Stack>
+          </Box>
+        </Paper>
 
         {enquirySent && (
           <Alert severity="success" onClose={() => setEnquirySent('')} sx={{ mb: 3, borderRadius: 2 }}>
@@ -375,22 +482,23 @@ const Marketplace = () => {
           </Alert>
         )}
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} lg={3} sx={{ display: { xs: 'none', lg: 'block' } }}>
-            <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid', borderColor: 'divider', position: 'sticky', top: 100 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '300px minmax(0, 1fr)' }, gap: 3, alignItems: 'start' }}>
+          <Box sx={{ display: { xs: 'none', lg: 'block' } }}>
+            <Paper elevation={0} sx={{ ...brandPanel, p: 2.5, position: 'sticky', top: 100 }}>
               <Typography variant="h6" fontWeight={900} sx={{ mb: 3 }}>Refine search</Typography>
               {renderFilterSidebarContent()}
             </Paper>
-          </Grid>
+          </Box>
 
-          <Grid item xs={12} lg={9}>
-            <Paper elevation={0} sx={{ p: 1.5, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 0.8fr auto auto' }, gap: 1, alignItems: 'center' }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Paper elevation={0} sx={{ ...brandPanel, p: { xs: 1.25, md: 1.5 }, mb: 2.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) 168px', md: 'minmax(280px, 1fr) 168px 150px auto' }, gap: 1, alignItems: 'stretch' }}>
                 <TextField
                   fullWidth
-                  placeholder="Search first name, last name, full name or discipline"
+                  placeholder="Search name, discipline or special interest"
                   value={filters.searchTerm}
                   onChange={handleSearchChange}
+                  size="medium"
                   InputProps={{
                     startAdornment: <InputAdornment position="start"><Search /></InputAdornment>,
                     endAdornment: filters.searchTerm && <IconButton size="small" onClick={() => dispatch(setFilters({ searchTerm: '', page: 1 }))}><Close fontSize="small" /></IconButton>,
@@ -404,18 +512,29 @@ const Marketplace = () => {
                   onKeyDown={(e) => { if (e.key === 'Enter') handlePostcodeSearch(); }}
                   inputProps={{ inputMode: 'numeric' }}
                 />
-                <Button variant="contained" startIcon={<LocationOn />} onClick={handlePostcodeSearch} sx={{ height: 56, fontWeight: 900 }}>
+                <Button variant="contained" startIcon={<LocationOn />} onClick={handlePostcodeSearch} sx={{ minHeight: 56, fontWeight: 900, whiteSpace: 'nowrap' }}>
                   Map search
                 </Button>
-                <Button variant="outlined" startIcon={<FilterList />} onClick={() => setMobileFilterOpen(true)} sx={{ display: { lg: 'none' }, height: 56, fontWeight: 900 }}>
+                <Button variant="outlined" startIcon={<FilterList />} onClick={() => setMobileFilterOpen(true)} sx={{ display: { lg: 'none' }, minHeight: 56, fontWeight: 900 }}>
                   Filters
                 </Button>
               </Box>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: activeFilters.length ? 1.5 : 0, flexWrap: 'wrap' }}>
+                {activeFilters.slice(0, 8).map((filter) => (
+                  <Chip key={filter} label={filter} size="small" sx={{ fontWeight: 800, bgcolor: '#E9EEF2' }} />
+                ))}
+                {activeFilters.length > 8 && <Chip label={`+${activeFilters.length - 8} more`} size="small" color="secondary" sx={{ fontWeight: 900 }} />}
+                {activeFilters.length > 0 && (
+                  <Button size="small" startIcon={<RestartAlt />} onClick={clearAll} sx={{ fontWeight: 900 }}>
+                    Clear
+                  </Button>
+                )}
+              </Stack>
             </Paper>
 
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={5}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: '#fff', position: { md: 'sticky' }, top: 100 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(330px, 0.9fr) minmax(0, 1.1fr)' }, gap: 3, alignItems: 'start' }}>
+              <Box>
+                <Paper elevation={0} sx={{ ...brandPanel, p: { xs: 1.5, md: 2 }, position: { md: 'sticky' }, top: 100 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
                     <Typography variant="h6" fontWeight={900}>Map results</Typography>
                     <Chip label={`${filteredResults.length} matches`} size="small" color="secondary" sx={{ fontWeight: 900 }} />
@@ -428,56 +547,101 @@ const Marketplace = () => {
                     onEnquire={(p) => openEnquiry(p)}
                   />
                 </Paper>
-              </Grid>
+              </Box>
 
-              <Grid item xs={12} md={7}>
+              <Box sx={{ minWidth: 0 }}>
                 <AnimatePresence mode="popLayout">
                   {loading && practitioners.length === 0 ? (
                     <Stack spacing={2} key="loading-skeletons">
-                      {[1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={230} sx={{ borderRadius: 2 }} />)}
+                      {[1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={240} sx={{ borderRadius: 2 }} />)}
                     </Stack>
                   ) : filteredResults.length > 0 ? (
                     <Stack spacing={2} key="results-list">
                       {filteredResults.map((p) => (
-                        <MotionCard key={p._id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-                          <CardContent sx={{ p: 2.5 }}>
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} alignItems={{ xs: 'flex-start', sm: 'center' }}>
-                              <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={p.verificationStatus === 'approved' && <Verified color="secondary" sx={{ bgcolor: '#fff', borderRadius: '50%', fontSize: 22 }} />}>
-                                <Avatar src={getAvatar(p)} sx={{ width: 92, height: 92, border: '2px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
-                              </Badge>
+                        <MotionCard
+                          key={p._id}
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          sx={{
+                            ...brandPanel,
+                            overflow: 'hidden',
+                            transition: 'border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease',
+                            '&:hover': {
+                              borderColor: '#BDE7E6',
+                              boxShadow: '0 18px 42px rgba(11, 29, 43, 0.09)',
+                              transform: 'translateY(-1px)',
+                            },
+                          }}
+                        >
+                          <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+                            <Box
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: { xs: '1fr', sm: '104px minmax(0, 1fr)', xl: '104px minmax(0, 1fr) 168px' },
+                                gap: { xs: 2, md: 2.5 },
+                                alignItems: 'start',
+                              }}
+                            >
+                              <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1}>
+                                <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={p.verificationStatus === 'approved' && <Verified color="secondary" sx={{ bgcolor: '#fff', borderRadius: '50%', fontSize: 22 }} />}>
+                                  <Avatar src={getAvatar(p)} sx={{ width: 96, height: 96, border: '3px solid #BDE7E6', boxShadow: '0 8px 20px rgba(11,29,43,0.12)' }} />
+                                </Badge>
+                                <Chip label={p.gender} size="small" sx={{ display: { xs: 'none', sm: 'inline-flex' }, fontWeight: 800 }} />
+                              </Stack>
 
                               <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center', mb: 0.5 }}>
-                                  <Typography variant="h6" fontWeight={900}>{getFullName(p)}</Typography>
-                                  <Chip label={p.gender} size="small" />
+                                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 0.5 }}>
+                                  <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1.2 }}>{getFullName(p)}</Typography>
+                                  <Chip label={p.gender} size="small" sx={{ display: { xs: 'inline-flex', sm: 'none' }, fontWeight: 800 }} />
+                                  {p.verificationStatus === 'approved' && <Chip icon={<HealthAndSafety />} label="Verified" color="secondary" size="small" sx={{ fontWeight: 900 }} />}
                                 </Stack>
                                 <Typography variant="body2" color="primary" fontWeight={900}>{p.discipline}</Typography>
-                                <Stack direction="row" spacing={1.5} sx={{ mt: 1, flexWrap: 'wrap' }}>
-                                  <Typography variant="caption" color="text.secondary"><LocationOn sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> {getLocation(p)} {getPostcode(p)}</Typography>
-                                  <Typography variant="caption" color="text.secondary"><Star sx={{ fontSize: 14, color: '#f59e0b', verticalAlign: 'text-bottom' }} /> {p.averageRating || 'New'} ({p.totalReviews || 0})</Typography>
-                                  <Typography variant="caption" color="text.secondary"><CalendarMonth sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> {p.afterHours ? 'After hours' : 'Standard hours'}{p.weekends ? ' + weekends' : ''}</Typography>
+                                <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
+                                  <Chip size="small" variant="outlined" icon={<LocationOn />} label={`${getLocation(p)} ${getPostcode(p)}`} sx={{ maxWidth: '100%', fontWeight: 700 }} />
+                                  <Chip size="small" variant="outlined" icon={<Star sx={{ color: '#41C6C6' }} />} label={`${p.averageRating || 'New'} (${p.totalReviews || 0})`} sx={{ fontWeight: 700 }} />
+                                  <Chip size="small" variant="outlined" icon={<CalendarMonth />} label={`${p.afterHours ? 'After hours' : 'Standard hours'}${p.weekends ? ' + weekends' : ''}`} sx={{ fontWeight: 700 }} />
                                 </Stack>
                                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.7 }}>{p.bio || 'Allied health practitioner on Beyond5.'}</Typography>
-                                <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
+                                <Stack direction="row" gap={1} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
                                   <Chip label={p.distanceLabel} color={p.localMatch || p.travelsToPostcode ? 'secondary' : 'default'} size="small" sx={{ fontWeight: 800 }} />
                                   <Chip label={p.travelArea} size="small" />
-                                  {getFunding(p).map((fund) => <Chip key={fund} label={fund} size="small" variant="outlined" />)}
+                                  <Chip label={p.telehealth ? 'Telehealth: Yes' : 'Telehealth: No'} size="small" variant="outlined" />
+                                  {getFunding(p).slice(0, 3).map((fund) => <Chip key={fund} label={fund} size="small" variant="outlined" />)}
+                                  {getFunding(p).length > 3 && <Chip label={`+${getFunding(p).length - 3} funding`} size="small" />}
                                 </Stack>
-                                <Paper variant="outlined" sx={{ mt: 1.5, p: 1.5, borderRadius: 2, bgcolor: '#f8fafc' }}>
-                                  <Typography variant="caption" color="text.secondary" fontWeight={900}>AVAILABILITY</Typography>
-                                  <Typography variant="body2" fontWeight={800}>{p.availableSlots?.length ? `${p.availableSlots.length} slots available` : 'Contact for availability'}</Typography>
-                                </Paper>
                               </Box>
 
-                              <Stack spacing={1} sx={{ width: { xs: '100%', sm: 150 } }}>
-                                <Button variant="contained" color="secondary" onClick={() => navigate(`/booking?practitioner=${p._id}`)} sx={{ fontWeight: 900 }}>
-                                  Book
-                                </Button>
-                                <Button variant="outlined" onClick={() => openEnquiry(p)} sx={{ fontWeight: 900 }}>
-                                  Enquire
-                                </Button>
+                              <Stack
+                                spacing={1}
+                                sx={{
+                                  gridColumn: { xs: '1', sm: '1 / -1', xl: 'auto' },
+                                  alignSelf: 'stretch',
+                                  p: 1.25,
+                                  borderRadius: 2,
+                                  bgcolor: '#F7FBFB',
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  minWidth: 0,
+                                }}
+                              >
+                                <Box sx={{ mb: 0.25 }}>
+                                  <Typography variant="caption" color="text.secondary" fontWeight={900}>NEXT AVAILABLE</Typography>
+                                  <Typography variant="body2" fontWeight={900}>{p.nextAvailable}</Typography>
+                                </Box>
+                                <Stack direction={{ xs: 'column', sm: 'row', xl: 'column' }} spacing={1}>
+                                  <Button fullWidth variant="contained" onClick={() => navigate(`/practitioners/${p._id}`)} sx={{ fontWeight: 900, minHeight: 42 }}>
+                                    View Profile
+                                  </Button>
+                                  <Button fullWidth variant="contained" color="secondary" onClick={() => navigate(`/booking?practitioner=${p._id}`)} sx={{ fontWeight: 900, minHeight: 42 }}>
+                                    Check availability
+                                  </Button>
+                                  <Button fullWidth variant="outlined" onClick={() => openEnquiry(p)} sx={{ fontWeight: 900, minHeight: 42 }}>
+                                    Enquire
+                                  </Button>
+                                </Stack>
                               </Stack>
-                            </Stack>
+                            </Box>
                           </CardContent>
                         </MotionCard>
                       ))}
@@ -491,13 +655,13 @@ const Marketplace = () => {
                     </Paper>
                   )}
                 </AnimatePresence>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
       </Container>
 
-      <Drawer anchor="bottom" open={mobileFilterOpen} onClose={() => setMobileFilterOpen(false)} PaperProps={{ sx: { borderRadius: '20px 20px 0 0', p: 4 } }}>
+      <Drawer anchor="bottom" open={mobileFilterOpen} onClose={() => setMobileFilterOpen(false)} PaperProps={{ sx: { borderRadius: '20px 20px 0 0', p: { xs: 2.5, sm: 4 }, maxHeight: '88vh' } }}>
         <Typography variant="h6" fontWeight={900} sx={{ mb: 4 }}>Filter practitioners</Typography>
         {renderFilterSidebarContent()}
         <Button variant="contained" fullWidth sx={{ mt: 4, py: 1.5 }} onClick={() => setMobileFilterOpen(false)}>Show results</Button>

@@ -78,13 +78,13 @@ const PaymentSuccess = () => {
             <Stack spacing={2.5} alignItems="center">
               <CheckCircle sx={{ fontSize: 78, color: 'success.main' }} />
               <Box>
-                <Typography variant="h4" fontWeight={900}>Booking Confirmed</Typography>
+                <Typography variant="h4" fontWeight={900}>Booking Request Sent</Typography>
                 <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  Payment has been verified and your booking is now confirmed.
+                  Payment has been verified. The practitioner will now accept or decline this appointment request.
                 </Typography>
               </Box>
 
-              {booking?.serviceType === 'telehealth' && booking?.telehealthRoom?.joinUrl && (
+              {booking?.status === 'confirmed' && booking?.serviceType === 'telehealth' && booking?.telehealthRoom?.joinUrl && (
                 <Button
                   fullWidth
                   variant="contained"
