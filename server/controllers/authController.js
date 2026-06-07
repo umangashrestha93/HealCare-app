@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Practitioner = require('../models/Practitioner');
 const devUserStore = require('../utils/devUserStore');
+const emailService = require('../services/emailService');
 
 const ALLOWED_REGISTRATION_ROLES = ['client', 'practitioner', 'admin'];
 const isMongoConnected = () => mongoose.connection.readyState === 1;
@@ -66,6 +67,8 @@ exports.register = async (req, res) => {
         practitionerProfile: finalRole === 'practitioner' ? practitionerProfile : undefined
       };
       await devUserStore.upsertUser(user);
+      // Send welcome email asynchronously
+      emailService.sendAccountCreatedEmail(user.email, user.firstName, user.role);
       return sendTokenResponse(user, 201, res);
     }
 
@@ -109,6 +112,9 @@ exports.register = async (req, res) => {
         // Continue with registration - profile can be created later
       }
     }
+
+    // Send welcome email asynchronously
+    emailService.sendAccountCreatedEmail(user.email, user.firstName, user.role);
 
     sendTokenResponse(user, 201, res);
   } catch (err) {

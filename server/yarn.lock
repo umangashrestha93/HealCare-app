@@ -175,6 +175,7 @@ __metadata:
     mongoose: "npm:^9.6.1"
     morgan: "npm:^1.10.0"
     multer: "npm:^1.4.5-lts.1"
+    nodemailer: "npm:^8.0.10"
     nodemon: "npm:^3.1.14"
     socket.io: "npm:^4.8.3"
   languageName: unknown
@@ -1148,6 +1149,13 @@ __metadata:
   bin:
     node-gyp: bin/node-gyp.js
   checksum: 10c0/9d9032b405cbe42f72a105259d9eb679376470c102df4a2dbaa51e07d59bf741dcffb85897087ea9d8318b9cabb824a8978af51508ae142f0239ae1e6a3c2329
+  languageName: node
+  linkType: hard
+
+"nodemailer@npm:^8.0.10":
+  version: 8.0.10
+  resolution: "nodemailer@npm:8.0.10"
+  checksum: 10c0/b96fd2ea7146de58141219061e094509fd0f19aac5ac86ac35d9ce9c479dbf6c12b143fa7e7050a1be539a3542eb59520c33aabf5a119c8d28fc7d151bde329f
   languageName: node
   linkType: hard
 

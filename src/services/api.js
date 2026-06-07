@@ -72,6 +72,9 @@ export const bookingService = {
   getTelehealthRoom: (roomId) => api.get(`/bookings/telehealth/${roomId}`),
   getAvailableSlots: (practitionerId, date) =>
     api.get('/bookings/availability', { params: { practitionerId, date } }),
+  acceptBooking: (id) => api.patch(`/bookings/${id}/accept`),
+  rejectBooking: (id) => api.patch(`/bookings/${id}/reject`),
+  rescheduleBooking: (id, rescheduleData) => api.patch(`/bookings/${id}/reschedule`, rescheduleData),
 };
 
 // --- MEDICARE OFFER SERVICES ---

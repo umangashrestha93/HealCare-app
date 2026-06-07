@@ -90,10 +90,15 @@ const SectionHeader = ({ title, subtitle }) => (
 );
 
 /* ─── upcoming appointment row ─── */
-const UpcomingRow = ({ app, onCancel, onChat, onJoin }) => {
+const UpcomingRow = ({ app, onCancel, onChat, onJoin, onReschedule }) => {
   const name = `${app.practitionerId?.userId?.firstName ?? ''} ${app.practitionerId?.userId?.lastName ?? ''}`.trim();
   const discipline = app.practitionerId?.discipline ?? '—';
   const sColor = serviceColor(app.serviceType);
+
+  const statusInfo = {
+    pending_approval: { label: 'Awaiting Practitioner Acceptance', bg: `${C.amber}15`, color: C.amber },
+    confirmed: { label: 'Confirmed', bg: 'rgba(74, 222, 128, 0.15)', color: '#16a34a' }
+  }[app.status] || { label: app.status, bg: 'rgba(0,0,0,0.05)', color: C.textMuted };
 
   return (
     <MotionPaper
@@ -127,11 +132,16 @@ const UpcomingRow = ({ app, onCancel, onChat, onJoin }) => {
           <Box sx={{ minWidth: 0 }}>
             <Typography fontWeight={800} noWrap>{name || '—'}</Typography>
             <Typography variant="body2" color="text.secondary" noWrap>{discipline}</Typography>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5, flexWrap: 'wrap', gap: 1 }}>
               <Chip
                 label={app.serviceType}
                 size="small"
                 sx={{ bgcolor: `${sColor}15`, color: sColor, fontWeight: 700, textTransform: 'capitalize', height: 20, fontSize: 11 }}
+              />
+              <Chip
+                label={statusInfo.label}
+                size="small"
+                sx={{ bgcolor: statusInfo.bg, color: statusInfo.color, fontWeight: 700, height: 20, fontSize: 11 }}
               />
               <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
                 <AccessTime sx={{ fontSize: 13 }} />
@@ -163,6 +173,15 @@ const UpcomingRow = ({ app, onCancel, onChat, onJoin }) => {
               Join
             </Button>
           )}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={onReschedule}
+            startIcon={<CalendarMonth sx={{ fontSize: 16 }} />}
+            sx={{ borderRadius: 2, fontWeight: 700, px: 2, height: 34, fontSize: 12 }}
+          >
+            Reschedule
+          </Button>
           <Button
             size="small"
             variant="outlined"
@@ -252,6 +271,15 @@ const Dashboard = () => {
   const [submittingProfile, setSubmittingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess]   = useState(false);
 
+  // Reschedule States
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleBooking, setRescheduleBooking] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
+
   /* ── routing guards ── */
   useEffect(() => {
     if (user && urlRole && user.role !== urlRole) navigate(`/dashboard/${user.role}`, { replace: true });
@@ -305,6 +333,60 @@ const Dashboard = () => {
       if (res.success) { updateUser(res.user); setProfileSuccess(true); setTimeout(() => setProfileOpen(false), 800); }
     } catch (err) { alert(err || 'Profile update failed'); }
     finally { setSubmittingProfile(false); }
+  };
+
+  // Reschedule Handlers
+  useEffect(() => {
+    if (rescheduleBooking && rescheduleDate) {
+      loadSlots(rescheduleBooking.practitionerId?._id || rescheduleBooking.practitionerId, rescheduleDate);
+    }
+  }, [rescheduleDate, rescheduleBooking]);
+
+  const loadSlots = async (practitionerId, date) => {
+    try {
+      setLoadingSlots(true);
+      const res = await bookingService.getAvailableSlots(practitionerId, date);
+      setAvailableSlots(res.available || []);
+    } catch (err) {
+      console.error('Failed to load slots', err);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleOpenReschedule = (booking) => {
+    setRescheduleBooking(booking);
+    setRescheduleDate(booking.appointmentDate ? new Date(booking.appointmentDate).toISOString().split('T')[0] : '');
+    setRescheduleTime(booking.startTime || '');
+    setRescheduleOpen(true);
+  };
+
+  const handleCloseReschedule = () => {
+    setRescheduleOpen(false);
+    setRescheduleBooking(null);
+    setRescheduleDate('');
+    setRescheduleTime('');
+    setAvailableSlots([]);
+  };
+
+  const handleReschedule = async () => {
+    if (!rescheduleBooking || !rescheduleDate || !rescheduleTime) return;
+    try {
+      setRescheduling(true);
+      const res = await bookingService.rescheduleBooking(rescheduleBooking._id, {
+        date: rescheduleDate,
+        time: rescheduleTime
+      });
+      if (res.success) {
+        // Update local appointments list
+        setAppointments(prev => prev.map(a => a._id === rescheduleBooking._id ? res.data : a));
+        handleCloseReschedule();
+      }
+    } catch (err) {
+      alert(err || 'Failed to reschedule booking.');
+    } finally {
+      setRescheduling(false);
+    }
   };
 
   /* ── role routing ── */
@@ -454,6 +536,7 @@ const Dashboard = () => {
                         onCancel={() => setCancelId(app._id)}
                         onChat={() => navigate('/chat', { state: { recipient: app.practitionerId?.userId } })}
                         onJoin={() => navigate(app.telehealthRoom.joinUrl)}
+                        onReschedule={() => handleOpenReschedule(app)}
                       />
                     ))}
                   </AnimatePresence>
@@ -787,6 +870,98 @@ const Dashboard = () => {
             </Button>
           </DialogActions>
         </Box>
+      </Dialog>
+
+      {/* ══════════════════════════════════
+          RESCHEDULE DIALOG
+      ══════════════════════════════════ */}
+      <Dialog
+        open={rescheduleOpen}
+        onClose={handleCloseReschedule}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, pb: 0.5 }}>Reschedule Appointment</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Select a new date and time for your session with <strong>{rescheduleBooking?.practitionerId?.userId?.firstName} {rescheduleBooking?.practitionerId?.userId?.lastName}</strong>.
+            </Typography>
+
+            <Stack spacing={2.5}>
+              <TextField
+                type="date"
+                label="Select Date"
+                fullWidth
+                required
+                value={rescheduleDate}
+                onChange={(e) => setRescheduleDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ min: new Date().toISOString().split('T')[0] }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 1, letterSpacing: 0.5 }}>
+                  AVAILABLE SLOTS
+                </Typography>
+                
+                {loadingSlots ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : availableSlots.length > 0 ? (
+                  <Grid container spacing={1}>
+                    {availableSlots.map((slot) => {
+                      const isSelected = rescheduleTime === slot;
+                      return (
+                        <Grid item xs={4} key={slot}>
+                          <Button
+                            fullWidth
+                            variant={isSelected ? 'contained' : 'outlined'}
+                            size="small"
+                            onClick={() => setRescheduleTime(slot)}
+                            sx={{
+                              borderRadius: 2,
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              py: 0.75,
+                              color: isSelected ? '#fff' : C.primary,
+                              borderColor: isSelected ? C.primary : 'divider',
+                            }}
+                          >
+                            {slot}
+                          </Button>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                ) : (
+                  <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', bgcolor: '#fafbfc' }}>
+                    <Typography variant="body2" color="text.disabled">
+                      {rescheduleDate ? 'No available slots on this date' : 'Please select a date first'}
+                    </Typography>
+                  </Paper>
+                )}
+              </Box>
+            </Stack>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button onClick={handleCloseReschedule} disabled={rescheduling} sx={{ borderRadius: 2, fontWeight: 700 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleReschedule}
+            disabled={rescheduling || !rescheduleTime || !rescheduleDate}
+            startIcon={rescheduling ? <CircularProgress size={15} color="inherit" /> : <CalendarMonth sx={{ fontSize: 16 }} />}
+            sx={{ borderRadius: 2, fontWeight: 700, px: 3, bgcolor: C.primary }}
+          >
+            Confirm
+          </Button>
+        </DialogActions>
       </Dialog>
 
     </Box>

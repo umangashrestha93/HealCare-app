@@ -53,6 +53,7 @@ exports.getAvailableSlots = async (req, res) => {
       appointmentDate: { $gte: startOfDay, $lte: endOfDay },
       $or: [
         { status: 'confirmed' },
+        { status: 'pending_approval' },
         { status: 'pending', paymentExpiresAt: { $gt: new Date() } }
       ]
     }).select('startTime');
@@ -124,6 +125,7 @@ exports.createBooking = async (req, res) => {
       startTime: resolvedTime,
       $or: [
         { status: 'confirmed' },
+        { status: 'pending_approval' },
         { status: 'pending', paymentExpiresAt: { $gt: new Date() } }
       ]
     });
@@ -197,8 +199,8 @@ exports.getMyBookings = async (req, res) => {
       query.practitionerId = practitioner._id;
     }
 
-    // Client/practitioner dashboards should show confirmed sessions only.
-    query.status = { $in: ['confirmed', 'completed'] };
+    // Client/practitioner dashboards should show confirmed, completed, and pending approval sessions.
+    query.status = { $in: ['confirmed', 'completed', 'pending_approval'] };
 
     const bookings = await Booking.find(query)
       .populate('clientId', 'firstName lastName email')
@@ -301,6 +303,181 @@ exports.cancelBooking = async (req, res) => {
     res.status(200).json({ success: true, message: 'Booking cancelled successfully', data: booking });
   } catch (err) {
     res.status(500).json({ message: 'Cancellation failed', error: err.message });
+  }
+};
+
+// @desc    Accept a booking request (Practitioner only)
+// @route   PATCH /api/bookings/:id/accept
+// @access  Private (Practitioner)
+exports.acceptBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid booking id' });
+    }
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    
+    // Verify current user is the practitioner of the booking
+    const practitioner = await Practitioner.findOne({ userId: req.user.id });
+    if (!practitioner || booking.practitionerId.toString() !== practitioner._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to accept this booking' });
+    }
+
+    if (booking.status !== 'pending_approval') {
+      return res.status(400).json({ message: `Booking status is ${booking.status}, cannot accept` });
+    }
+
+    booking.status = 'confirmed';
+    await booking.save();
+
+    const populated = await Booking.findById(booking._id)
+      .populate('clientId', 'firstName lastName email')
+      .populate({
+        path: 'practitionerId',
+        populate: { path: 'userId', select: 'firstName lastName email' }
+      });
+
+    res.status(200).json({ success: true, message: 'Booking accepted successfully', data: populated });
+  } catch (err) {
+    res.status(500).json({ message: 'Accept failed', error: err.message });
+  }
+};
+
+// @desc    Reject/Cancel a booking request (Practitioner only)
+// @route   PATCH /api/bookings/:id/reject
+// @access  Private (Practitioner)
+exports.rejectBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid booking id' });
+    }
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Verify current user is the practitioner of the booking
+    const practitioner = await Practitioner.findOne({ userId: req.user.id });
+    if (!practitioner || booking.practitionerId.toString() !== practitioner._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to reject this booking' });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ message: 'Booking is already cancelled' });
+    }
+
+    booking.status = 'cancelled';
+    booking.cancellationReason = 'rejected_by_practitioner';
+    booking.cancelReason = 'rejected_by_practitioner';
+    booking.refundReason = 'rejected_by_practitioner';
+    booking.reason = 'rejected_by_practitioner';
+    await booking.save();
+
+    const populated = await Booking.findById(booking._id)
+      .populate('clientId', 'firstName lastName email')
+      .populate({
+        path: 'practitionerId',
+        populate: { path: 'userId', select: 'firstName lastName email' }
+      });
+
+    res.status(200).json({ success: true, message: 'Booking rejected successfully', data: populated });
+  } catch (err) {
+    res.status(500).json({ message: 'Reject failed', error: err.message });
+  }
+};
+
+// @desc    Reschedule a booking (Client or Practitioner)
+// @route   PATCH /api/bookings/:id/reschedule
+// @access  Private (Client or Practitioner)
+exports.rescheduleBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, time } = req.body;
+
+    if (!date || !time) {
+      return res.status(400).json({ message: 'Date and time are required for rescheduling' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid booking id' });
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    const isClient = booking.clientId.toString() === req.user.id.toString();
+    let isPractitioner = false;
+
+    if (req.user.role === 'practitioner') {
+      const practitioner = await Practitioner.findOne({ userId: req.user.id });
+      isPractitioner = practitioner && booking.practitionerId.toString() === practitioner._id.toString();
+    }
+
+    if (!isClient && !isPractitioner) {
+      return res.status(403).json({ message: 'Not authorized to reschedule this booking' });
+    }
+
+    if (booking.status === 'cancelled' || booking.status === 'completed') {
+      return res.status(400).json({ message: `Cannot reschedule a ${booking.status} booking` });
+    }
+
+    // Check if new slot is available (ignore the current booking's slot in the availability check!)
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const collision = await Booking.findOne({
+      _id: { $ne: booking._id }, // exclude this booking
+      practitionerId: booking.practitionerId,
+      appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+      startTime: time,
+      $or: [
+        { status: 'confirmed' },
+        { status: 'pending_approval' },
+        { status: 'pending', paymentExpiresAt: { $gt: new Date() } }
+      ]
+    });
+
+    if (collision) {
+      return res.status(409).json({ message: 'The proposed time slot is already booked. Please choose another.' });
+    }
+
+    // Update appointment slot
+    booking.appointmentDate = new Date(date);
+    booking.startTime = time;
+    booking.endTime = calculateEndTime(time);
+
+    // Rule: If client reschedules, status goes to 'pending_approval'.
+    // If practitioner reschedules, it can go straight to 'confirmed' (since practitioner did it, they accept it).
+    if (req.user.role === 'client') {
+      booking.status = 'pending_approval';
+    } else if (req.user.role === 'practitioner') {
+      booking.status = 'confirmed';
+    }
+
+    await booking.save();
+
+    const populated = await Booking.findById(booking._id)
+      .populate('clientId', 'firstName lastName email')
+      .populate({
+        path: 'practitionerId',
+        populate: { path: 'userId', select: 'firstName lastName email' }
+      });
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking rescheduled successfully',
+      data: populated
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Reschedule failed', error: err.message });
   }
 };
 

@@ -285,7 +285,7 @@ const markPaymentSucceeded = async ({ payment, providerPaymentId, receiptNumber,
     throw err;
   }
 
-  if (payment.status === 'paid' && booking.status === 'confirmed') {
+  if (payment.status === 'paid' && (booking.status === 'pending_approval' || booking.status === 'confirmed')) {
     return { booking, payment };
   }
 
@@ -304,7 +304,7 @@ const markPaymentSucceeded = async ({ payment, providerPaymentId, receiptNumber,
   payment.metadata = { ...(payment.metadata || {}), ...metadata };
   await payment.save();
 
-  booking.status = 'confirmed';
+  booking.status = 'pending_approval';
   booking.paymentStatus = 'paid';
   booking.payment = {
     provider: payment.provider,

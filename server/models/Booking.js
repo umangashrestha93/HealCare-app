@@ -10,7 +10,7 @@ const BookingSchema = new mongoose.Schema({
   
   status: { 
     type: String, 
-    enum: ['confirmed', 'cancelled', 'completed', 'pending'], 
+    enum: ['confirmed', 'cancelled', 'completed', 'pending', 'pending_approval'], 
     default: 'confirmed' 
   },
   
@@ -63,7 +63,7 @@ BookingSchema.index(
   { practitionerId: 1, appointmentDate: 1, startTime: 1 },
   {
     unique: true,
-    partialFilterExpression: { status: { $in: ['confirmed', 'pending'] } }
+    partialFilterExpression: { status: { $in: ['confirmed', 'pending', 'pending_approval'] } }
   }
 );
 
