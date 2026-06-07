@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Enquiry = require('../models/Enquiry');
 const Practitioner = require('../models/Practitioner');
+const User = require('../models/User');
 const devEnquiryStore = require('../utils/devEnquiryStore');
 
 const isMongoConnected = () => mongoose.connection.readyState === 1;
@@ -63,12 +64,15 @@ exports.createEnquiry = async (req, res) => {
       practitionerDiscipline: payload.practitionerDiscipline
     };
 
+    let practitionerEmail = '';
+
     if (isObjectId(payload.practitionerId)) {
       const practitioner = await Practitioner.findById(payload.practitionerId)
-        .populate('userId', 'firstName lastName')
+        .populate('userId', 'firstName lastName email')
         .lean();
 
       if (practitioner) {
+        practitionerEmail = practitioner.userId?.email || '';
         practitionerSnapshot = {
           practitionerName: [practitioner.userId?.firstName, practitioner.userId?.lastName].filter(Boolean).join(' ') || payload.practitionerName,
           practitionerDiscipline: practitioner.discipline || payload.practitionerDiscipline
@@ -89,7 +93,27 @@ exports.createEnquiry = async (req, res) => {
       preferredPostcode: payload.preferredPostcode
     });
 
-    res.status(201).json({ success: true, data: enquiry });
+    // Return practitionerEmail so the frontend can send a direct email notification
+    res.status(201).json({ success: true, data: enquiry, practitionerEmail });
+
+    // Asynchronously send SMTP email notifications from the backend if practitioner email exists
+    if (practitionerEmail) {
+      const emailService = require('../services/emailService');
+      const submittedAt = new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney' });
+      
+      emailService.sendEnquiryEmail({
+        practitionerEmail,
+        practitionerName: enquiry.practitionerName,
+        practitionerDiscipline: enquiry.practitionerDiscipline,
+        clientName: enquiry.name,
+        clientEmail: enquiry.email,
+        clientPhone: enquiry.phone,
+        message: enquiry.message,
+        fundingOptions: enquiry.fundingOptions,
+        preferredPostcode: enquiry.preferredPostcode,
+        submittedAt
+      }).catch((err) => console.error('[Email Service] Background enquiry email failed:', err));
+    }
   } catch (err) {
     res.status(500).json({ success: false, message: 'Enquiry submission failed', error: err.message });
   }

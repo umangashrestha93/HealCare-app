@@ -126,7 +126,7 @@ exports.getRecommendedPractitioners = async (req, res) => {
     const practitioners = await Practitioner.find({
       verificationStatus: 'approved',
     })
-      .populate('userId', 'firstName lastName avatar location')
+      .populate('userId', 'firstName lastName avatar location email')
       .limit(80)
       .lean();
 

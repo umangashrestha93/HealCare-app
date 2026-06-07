@@ -55,6 +55,32 @@ import {
 } from '../utils/mockData';
 import { enquiryService } from '../services/api';
 import PractitionerMap from '../components/map/PractitionerMap';
+import emailjs from '@emailjs/browser';
+
+// ─── EmailJS config ──────────────────────────────────────────────────────────
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+// ─── Web3Forms email helper ───────────────────────────────────────────────────
+// Access key is public-safe (client-side only, tied to your Web3Forms account).
+const WEB3FORMS_ACCESS_KEY = '0687ce52-b3cd-4d91-a402-51c94c57f7b0';
+
+/**
+ * Sends an email via Web3Forms.
+ * @param {Object} fields - Form fields to send (subject, from_name, email, message, etc.)
+ */
+const sendWeb3FormsEmail = async (fields) => {
+  const payload = { access_key: WEB3FORMS_ACCESS_KEY, ...fields };
+  const res = await fetch('https://api.web3forms.com/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.message || 'Web3Forms delivery failed');
+  return data;
+};
 
 const MotionCard = motion.create(Card);
 
@@ -287,34 +313,131 @@ const Marketplace = () => {
     setEnquiryError('');
   };
 
-  const submitEnquiry = async () => {
-    if (!selectedEnquiry) return;
+const submitEnquiry = async () => {
+  if (!selectedEnquiry) return;
 
-    try {
-      setEnquirySubmitting(true);
-      setEnquiryError('');
+  try {
+    setEnquirySubmitting(true);
+    setEnquiryError('');
 
-      const practitionerName = getFullName(selectedEnquiry);
-      await enquiryService.create({
-        practitionerId: selectedEnquiry._id,
-        practitionerName,
-        practitionerDiscipline: selectedEnquiry.discipline,
-        name: enquiryForm.name,
+    const practitionerName = getFullName(selectedEnquiry);
+    const practitionerDiscipline =
+      selectedEnquiry.discipline || 'Allied Health';
+
+    const fundingList =
+      getFunding(selectedEnquiry).join(', ') || 'Not specified';
+
+    const postcodeLabel =
+      filters.postcode || postcode || 'Not specified';
+
+    const submittedAt = new Date().toLocaleString('en-AU', {
+      timeZone: 'Australia/Sydney',
+    });
+
+    // Save enquiry and get practitioner email
+    const apiResponse = await enquiryService.create({
+      practitionerId: selectedEnquiry._id,
+      practitionerName,
+      practitionerDiscipline,
+      name: enquiryForm.name,
+      email: enquiryForm.email,
+      phone: enquiryForm.phone,
+      message: enquiryForm.message,
+      fundingOptions: getFunding(selectedEnquiry),
+      preferredPostcode: postcodeLabel,
+    });
+
+    const practitionerEmail =
+      apiResponse?.practitionerEmail || '';
+
+    console.log({
+      practitionerEmail,
+      apiResponse,
+    });
+
+    // Send practitioner notification
+    if (practitionerEmail) {
+      sendWeb3FormsEmail({
+        to: practitionerEmail,
+        subject: `New Enquiry from ${enquiryForm.name} – Beyond5`,
+        from_name: enquiryForm.name,
         email: enquiryForm.email,
-        phone: enquiryForm.phone,
-        message: enquiryForm.message,
-        fundingOptions: getFunding(selectedEnquiry),
-        preferredPostcode: filters.postcode || postcode,
-      });
+        message: `
+You have received a new client enquiry on Beyond5.
 
-      setEnquirySent(`Your enquiry for ${practitionerName} has been submitted. Beyond5 can now follow it up from the enquiry records.`);
-      setSelectedEnquiry(null);
-    } catch (err) {
-      setEnquiryError(typeof err === 'string' ? err : err?.message || 'Unable to submit enquiry. Please try again.');
-    } finally {
-      setEnquirySubmitting(false);
+CLIENT DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: ${enquiryForm.name}
+Email: ${enquiryForm.email}
+Phone: ${enquiryForm.phone || 'Not provided'}
+
+ENQUIRY DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Practitioner: ${practitionerName} (${practitionerDiscipline})
+Funding: ${fundingList}
+Postcode: ${postcodeLabel}
+Submitted: ${submittedAt}
+
+Message:
+${enquiryForm.message}
+
+Please reply directly to ${enquiryForm.email} to respond to this client.
+Beyond5 Healthcare Platform
+        `,
+      }).catch((err) =>
+        console.warn(
+          '[Web3Forms] Practitioner email failed:',
+          err
+        )
+      );
     }
-  };
+
+    // Send client confirmation
+    sendWeb3FormsEmail({
+      subject: `Your enquiry to ${practitionerName} has been received – Beyond5`,
+      from_name: 'Beyond5 Healthcare',
+      email: enquiryForm.email,
+      message: `
+Hi ${enquiryForm.name},
+
+Thank you for your enquiry. We've forwarded your message to ${practitionerName} (${practitionerDiscipline}) and they will be in touch shortly.
+
+YOUR ENQUIRY SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Practitioner: ${practitionerName}
+Discipline: ${practitionerDiscipline}
+Funding: ${fundingList}
+Postcode: ${postcodeLabel}
+Submitted: ${submittedAt}
+
+Your message:
+${enquiryForm.message}
+
+Beyond5 Healthcare Platform
+      `,
+    }).catch((err) =>
+      console.warn(
+        '[Web3Forms] Client confirmation email failed:',
+        err
+      )
+    );
+
+    setEnquirySent(
+      `Your enquiry for ${practitionerName} has been submitted — a confirmation has been sent to ${enquiryForm.email} and the practitioner has been notified.`
+    );
+
+    setSelectedEnquiry(null);
+  } catch (err) {
+    setEnquiryError(
+      typeof err === 'string'
+        ? err
+        : err?.message ||
+            'Unable to submit enquiry. Please try again.'
+    );
+  } finally {
+    setEnquirySubmitting(false);
+  }
+};
 
   useEffect(() => {
     if (

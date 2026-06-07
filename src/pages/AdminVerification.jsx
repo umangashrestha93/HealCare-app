@@ -25,6 +25,7 @@ const AdminVerification = () => {
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null); // id being acted on
+  const [fetchError, setFetchError] = useState('');
 
   // Reject dialog
   const [rejectDialog, setRejectDialog] = useState({ open: false, practitionerId: null, name: '' });
@@ -33,21 +34,24 @@ const AdminVerification = () => {
 
   const currentStatus = STATUS_TABS[activeTab];
 
-  const fetchPractitioners = async (page = 1) => {
+  const fetchPractitioners = async (status, page = 1) => {
     try {
       setLoading(true);
-      const res = await adminService.getPractitioners({ status: currentStatus, page, limit: 8 });
+      setFetchError('');
+      const res = await adminService.getPractitioners({ status, page, limit: 8 });
       setPractitioners(res.data || []);
       setPagination(res.pagination || { page: 1, pages: 1, total: 0 });
       if (res.counts) setCounts(res.counts);
     } catch (err) {
-      showToast('Failed to load practitioners', 'error');
+      const msg = typeof err === 'string' ? err : err?.message || 'Failed to load practitioners';
+      setFetchError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchPractitioners(1); }, [activeTab]);
+  useEffect(() => { fetchPractitioners(STATUS_TABS[activeTab], 1); }, [activeTab]);
 
   const showToast = (message, severity = 'success') => {
     setToast({ open: true, message, severity });
@@ -59,7 +63,7 @@ const AdminVerification = () => {
       setActionLoading(id);
       await adminService.approvePractitioner(id);
       showToast('Practitioner approved and now visible in marketplace');
-      fetchPractitioners(pagination.page);
+      fetchPractitioners(currentStatus, pagination.page);
     } catch {
       showToast('Approval failed', 'error');
     } finally {
@@ -74,7 +78,7 @@ const AdminVerification = () => {
       showToast('Practitioner application rejected');
       setRejectDialog({ open: false, practitionerId: null, name: '' });
       setRejectReason('');
-      fetchPractitioners(pagination.page);
+      fetchPractitioners(currentStatus, pagination.page);
     } catch {
       showToast('Rejection failed', 'error');
     } finally {
@@ -103,7 +107,7 @@ const AdminVerification = () => {
           <Typography variant="h4" fontWeight={900}>Verification Queue</Typography>
           <Typography color="text.secondary">Review practitioner applications before they appear in the marketplace.</Typography>
         </Box>
-        <Button startIcon={<Refresh />} variant="outlined" onClick={() => fetchPractitioners(1)} sx={{ borderRadius: 2 }}>
+        <Button startIcon={<Refresh />} variant="outlined" onClick={() => fetchPractitioners(currentStatus, 1)} sx={{ borderRadius: 2 }}>
           Refresh
         </Button>
       </Stack>
@@ -133,6 +137,12 @@ const AdminVerification = () => {
           ))}
         </Tabs>
       </Paper>
+
+      {fetchError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 3 }} onClose={() => setFetchError('')}>
+          {fetchError}
+        </Alert>
+      )}
 
       {/* Practitioner Cards */}
       <AnimatePresence mode="wait">
@@ -313,7 +323,7 @@ const AdminVerification = () => {
           <Pagination
             count={pagination.pages}
             page={pagination.page}
-            onChange={(_, v) => fetchPractitioners(v)}
+            onChange={(_, v) => fetchPractitioners(currentStatus, v)}
             color="primary"
             size="large"
             sx={{ '& .MuiPaginationItem-root': { fontWeight: 700 } }}

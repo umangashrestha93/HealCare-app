@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@emotion/is-prop-valid": "^1.4.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

@@ -91,3 +91,127 @@ exports.sendAccountCreatedEmail = async (toEmail, firstName, role) => {
     return null;
   }
 };
+
+/**
+ * Sends enquiry email notifications to both the practitioner and client.
+ */
+exports.sendEnquiryEmail = async ({
+  practitionerEmail,
+  practitionerName,
+  practitionerDiscipline,
+  clientName,
+  clientEmail,
+  clientPhone,
+  message,
+  fundingOptions,
+  preferredPostcode,
+  submittedAt
+}) => {
+  try {
+    const transporter = createTransporter();
+    if (!transporter) {
+      console.warn('[Email Service] SMTP transporter not configured. Skipping enquiry emails.');
+      return null;
+    }
+
+    const fromAddress = process.env.EMAIL_FROM || `"Beyond5" <${process.env.SMTP_USER}>`;
+    const fundingList = Array.isArray(fundingOptions) ? fundingOptions.join(', ') : 'Not specified';
+
+    // 1. Email to Practitioner
+    const practitionerMailOptions = {
+      from: fromAddress,
+      to: practitionerEmail,
+      replyTo: clientEmail,
+      subject: `New Enquiry from ${clientName} – Beyond5`,
+      text: `You have received a new client enquiry on Beyond5.\n\n` +
+            `CLIENT DETAILS\n` +
+            `Name: ${clientName}\n` +
+            `Email: ${clientEmail}\n` +
+            `Phone: ${clientPhone || 'Not provided'}\n\n` +
+            `ENQUIRY DETAILS\n` +
+            `Practitioner: ${practitionerName} (${practitionerDiscipline})\n` +
+            `Funding: ${fundingList}\n` +
+            `Postcode: ${preferredPostcode}\n` +
+            `Submitted: ${submittedAt}\n\n` +
+            `Message:\n${message}\n\n` +
+            `Please reply directly to ${clientEmail} to respond to this client.\n` +
+            `Beyond5 Healthcare Platform`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #4f46e5; color: #ffffff; padding: 20px; text-align: center;">
+            <h2 style="margin: 0; color: #ffffff;">New Enquiry Received</h2>
+          </div>
+          <div style="padding: 20px;">
+            <h3>Client Details</h3>
+            <p><strong>Name:</strong> ${clientName}</p>
+            <p><strong>Email:</strong> <a href="mailto:${clientEmail}">${clientEmail}</a></p>
+            <p><strong>Phone:</strong> ${clientPhone || 'Not provided'}</p>
+            <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;" />
+            <h3>Enquiry Details</h3>
+            <p><strong>Practitioner:</strong> ${practitionerName} (${practitionerDiscipline})</p>
+            <p><strong>Funding Options:</strong> ${fundingList}</p>
+            <p><strong>Preferred Postcode:</strong> ${preferredPostcode}</p>
+            <p><strong>Submitted:</strong> ${submittedAt}</p>
+            <p><strong>Message:</strong></p>
+            <blockquote style="background-color: #f9f9f9; border-left: 4px solid #4f46e5; padding: 15px; margin: 15px 0;">
+              ${(message || '').replace(/\n/g, '<br>')}
+            </blockquote>
+            <p style="font-size: 14px; color: #666666;">Please reply directly to this email to respond to the client at <strong>${clientEmail}</strong>.</p>
+          </div>
+        </div>
+      `
+    };
+
+    console.log(`[Email Service] Sending enquiry email to practitioner: ${practitionerEmail}...`);
+    const pInfo = await transporter.sendMail(practitionerMailOptions);
+    console.log(`[Email Service] Practitioner enquiry email sent successfully: ${pInfo.messageId}`);
+
+    // 2. Confirmation email to Client
+    const clientMailOptions = {
+      from: fromAddress,
+      to: clientEmail,
+      subject: `Your enquiry to ${practitionerName} has been received – Beyond5`,
+      text: `Hi ${clientName},\n\n` +
+            `Thank you for your enquiry! We've forwarded your message to ${practitionerName} (${practitionerDiscipline}) and they will be in touch shortly.\n\n` +
+            `YOUR ENQUIRY SUMMARY\n` +
+            `Practitioner: ${practitionerName}\n` +
+            `Discipline: ${practitionerDiscipline}\n` +
+            `Funding: ${fundingList}\n` +
+            `Postcode: ${preferredPostcode}\n` +
+            `Submitted: ${submittedAt}\n\n` +
+            `Your message:\n${message}\n\n` +
+            `Beyond5 Healthcare Platform`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #10b981; color: #ffffff; padding: 20px; text-align: center;">
+            <h2 style="margin: 0; color: #ffffff;">Enquiry Sent Successfully</h2>
+          </div>
+          <div style="padding: 20px;">
+            <p>Hi <strong>${clientName}</strong>,</p>
+            <p>Thank you for your enquiry! We've forwarded your message to <strong>${practitionerName}</strong> (${practitionerDiscipline}) and they will be in touch shortly.</p>
+            <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;" />
+            <h3>Your Enquiry Summary</h3>
+            <p><strong>Practitioner:</strong> ${practitionerName}</p>
+            <p><strong>Discipline:</strong> ${practitionerDiscipline}</p>
+            <p><strong>Funding Options:</strong> ${fundingList}</p>
+            <p><strong>Preferred Postcode:</strong> ${preferredPostcode}</p>
+            <p><strong>Submitted:</strong> ${submittedAt}</p>
+            <p><strong>Your Message:</strong></p>
+            <blockquote style="background-color: #f9f9f9; border-left: 4px solid #10b981; padding: 15px; margin: 15px 0;">
+              ${(message || '').replace(/\n/g, '<br>')}
+            </blockquote>
+          </div>
+        </div>
+      `
+    };
+
+    console.log(`[Email Service] Sending confirmation email to client: ${clientEmail}...`);
+    const cInfo = await transporter.sendMail(clientMailOptions);
+    console.log(`[Email Service] Client confirmation email sent successfully: ${cInfo.messageId}`);
+
+    return { practitionerEmailSent: true, clientEmailSent: true };
+  } catch (error) {
+    console.error('[Email Service] Error sending enquiry email:', error);
+    return null;
+  }
+};

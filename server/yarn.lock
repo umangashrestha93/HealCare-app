@@ -5,6 +5,13 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@emailjs/browser@npm:^4.4.1":
+  version: 4.4.1
+  resolution: "@emailjs/browser@npm:4.4.1"
+  checksum: 10c0/91c3d1702818dc2db61f382f5295e469ce2e6acb4d683d65239e0a12dea8b635cd8cea60ef9a83f2aa8fce857b1f8f8663e02dcd7f529cbf902f1f0e6d0d1b44
+  languageName: node
+  linkType: hard
+
 "@isaacs/fs-minipass@npm:^4.0.0":
   version: 4.0.1
   resolution: "@isaacs/fs-minipass@npm:4.0.1"
@@ -167,6 +174,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "beyond5-backend@workspace:."
   dependencies:
+    "@emailjs/browser": "npm:^4.4.1"
     bcryptjs: "npm:^3.0.3"
     cors: "npm:^2.8.6"
     dotenv: "npm:^17.4.2"

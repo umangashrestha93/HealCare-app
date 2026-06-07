@@ -30,15 +30,14 @@ router.use(protect);
 router.use(adminOnly);
 
 // Practitioner management
+// IMPORTANT: static routes MUST come before parameterized /:id routes
+router.route('/practitioners/pending').get(getPendingPractitioners);
 router.route('/practitioners').get(getPractitioners);
 router.route('/practitioners/:id').get(getSinglePractitioner);
 router.route('/practitioners/:id/approve').patch(approvePractitioner);
 router.route('/practitioners/:id/reject').patch(rejectPractitioner);
-router.route('/practitioners/:id/notes').post(addComplianceNote);
-
-// Backward-compatible routes
-router.route('/practitioners/pending').get(getPendingPractitioners);
 router.route('/practitioners/:id/verify').put(verifyPractitioner);
+router.route('/practitioners/:id/notes').post(addComplianceNote);
 
 // Metrics & admin management
 router.route('/metrics').get(getMarketMetrics);

@@ -107,6 +107,7 @@ const PractitionerDashboard = () => {
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
   const [practitionerData, setPractitionerData] = useState(null);
+  console.log({user, practitionerData});
   const [bookings, setBookings] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [complianceForms, setComplianceForms] = useState({});

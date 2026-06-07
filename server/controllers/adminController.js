@@ -44,7 +44,6 @@ const publicPractitionerSelect = [
 
 const practitionerUserPopulate = {
   path: 'userId',
-  match: { role: 'practitioner' },
   select: 'firstName lastName email phone location role createdAt'
 };
 
@@ -175,7 +174,7 @@ exports.getPractitioners = async (req, res) => {
     ]);
 
     const data = practitioners
-      .filter((practitioner) => practitioner.userId)
+      .filter((practitioner) => practitioner.userId != null)
       .map(formatPractitionerResponse);
 
     res.status(200).json({

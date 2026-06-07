@@ -94,7 +94,7 @@ exports.getPractitioners = async (req, res) => {
 
     // Fetch with populate
     const practitioners = await Practitioner.find(query)
-      .populate('userId', 'firstName lastName avatar location')
+      .populate('userId', 'firstName lastName avatar location email')
       .skip(skip)
       .limit(limitNum)
       .sort('-createdAt')
