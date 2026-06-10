@@ -83,8 +83,8 @@ exports.sendAccountCreatedEmail = async (toEmail, firstName, role) => {
     };
 
     console.log(`[Email Service] Sending registration email to ${toEmail}...`);
-    const info = await sendMailViaResend({ to: mailOptions.to, subject: mailOptions.subject, html: mailOptions.html, text: mailOptions.text });
-    console.log(`[Email Service] Email sent successfully: ${info?.id}`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`[Email Service] Email sent successfully: ${info.messageId}`);
     return info;
   } catch (error) {
     console.error('[Email Service] Error sending registration email:', error);
@@ -164,8 +164,8 @@ exports.sendEnquiryEmail = async ({
     };
 
     console.log(`[Email Service] Sending enquiry email to practitioner: ${practitionerEmail}...`);
-    const pInfo = await sendMailViaResend({ to: practitionerMailOptions.to, subject: practitionerMailOptions.subject, html: practitionerMailOptions.html, text: practitionerMailOptions.text });
-    console.log(`[Email Service] Practitioner enquiry email sent successfully: ${pInfo?.id}`);
+    const pInfo = await transporter.sendMail(practitionerMailOptions);
+    console.log(`[Email Service] Practitioner enquiry email sent successfully: ${pInfo.messageId}`);
 
     // 2. Confirmation email to Client
     const clientMailOptions = {
@@ -207,8 +207,8 @@ exports.sendEnquiryEmail = async ({
     };
 
     console.log(`[Email Service] Sending confirmation email to client: ${clientEmail}...`);
-    const cInfo = await sendMailViaResend({ to: clientMailOptions.to, subject: clientMailOptions.subject, html: clientMailOptions.html, text: clientMailOptions.text });
-    console.log(`[Email Service] Client confirmation email sent successfully: ${cInfo?.id}`);
+    const cInfo = await transporter.sendMail(clientMailOptions);
+    console.log(`[Email Service] Client confirmation email sent successfully: ${cInfo.messageId}`);
 
     return { practitionerEmailSent: true, clientEmailSent: true };
   } catch (error) {

@@ -348,6 +348,14 @@ exports.acceptBooking = async (req, res) => {
         populate: { path: 'userId', select: 'firstName lastName email' }
       });
 
+    // Trigger confirmation email
+    try {
+      const emailService = require('../services/emailService');
+      emailService.sendBookingConfirmedEmail(populated);
+    } catch (emailErr) {
+      console.error('[Booking Controller] Failed to send booking confirmed email:', emailErr);
+    }
+
     res.status(200).json({ success: true, message: 'Booking accepted successfully', data: populated });
   } catch (err) {
     res.status(500).json({ message: 'Accept failed', error: err.message });
@@ -391,6 +399,14 @@ exports.rejectBooking = async (req, res) => {
         path: 'practitionerId',
         populate: { path: 'userId', select: 'firstName lastName email' }
       });
+
+    // Trigger decline email
+    try {
+      const emailService = require('../services/emailService');
+      emailService.sendBookingDeclinedEmail(populated);
+    } catch (emailErr) {
+      console.error('[Booking Controller] Failed to send booking declined email:', emailErr);
+    }
 
     res.status(200).json({ success: true, message: 'Booking rejected successfully', data: populated });
   } catch (err) {
@@ -478,6 +494,14 @@ exports.rescheduleBooking = async (req, res) => {
         path: 'practitionerId',
         populate: { path: 'userId', select: 'firstName lastName email' }
       });
+
+    // Trigger reschedule email
+    try {
+      const emailService = require('../services/emailService');
+      emailService.sendBookingRescheduledEmail(populated, req.user.role);
+    } catch (emailErr) {
+      console.error('[Booking Controller] Failed to send booking rescheduled email:', emailErr);
+    }
 
     res.status(200).json({
       success: true,

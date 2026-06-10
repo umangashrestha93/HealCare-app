@@ -315,6 +315,22 @@ const markPaymentSucceeded = async ({ payment, providerPaymentId, receiptNumber,
   };
   await booking.save();
 
+  // Trigger email notification for new booking request (pending approval)
+  try {
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate('clientId', 'firstName lastName email')
+      .populate({
+        path: 'practitionerId',
+        populate: { path: 'userId', select: 'firstName lastName email' }
+      });
+    if (populatedBooking) {
+      const emailService = require('./emailService');
+      emailService.sendBookingRequestEmails(populatedBooking);
+    }
+  } catch (emailErr) {
+    console.error('[Payment Service] Failed to send booking request emails:', emailErr);
+  }
+
   return { booking, payment };
 };
 
