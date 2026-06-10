@@ -1,95 +1,142 @@
-const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
 
-// Create reusable transporter object using the default SMTP transport
-const createTransporter = () => {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+// ==========================================
+// RESEND EMAIL INTEGRATION & HELPERS
+// ==========================================
 
-  if (!host || !user || !pass) {
-    console.warn('WARNING: Email SMTP settings are incomplete. Emails will not be sent.');
-    return null;
+const isResendConfigured = () => {
+  const key = process.env.RESEND_API_KEY;
+  return key && !key.includes('your_api_key') && !key.includes('replace') && key.length > 10;
+};
+
+let resendClient = null;
+const getResendClient = () => {
+  if (isResendConfigured()) {
+    if (!resendClient) {
+      resendClient = new Resend(process.env.RESEND_API_KEY);
+      console.log('[Email Service] ✅ Resend client initialized');
+    }
+    return resendClient;
+  }
+  console.error('[Email Service] ❌ Resend not configured. Please set RESEND_API_KEY in .env');
+  return null;
+};
+
+const sendMailViaResend = async ({ to, subject, html, text }) => {
+  const client = getResendClient();
+  const fromAddress = process.env.RESEND_FROM || 'onboarding@resend.dev';
+
+  if (!client) {
+    throw new Error('Resend is not configured. Please set RESEND_API_KEY in your .env file');
   }
 
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465, // true for 465, false for other ports
-    auth: {
-      user,
-      pass,
-    },
-    // Optional: add timeout settings to prevent hanging connections
-    connectionTimeout: 10000, // 10s
-    greetingTimeout: 10000,
-  });
+  try {
+    console.log(`[Email Service] 📧 Sending email via Resend to ${to}...`);
+    const response = await client.emails.send({
+      from: fromAddress,
+      to: [to], // Resend expects an array
+      subject,
+      html,
+      text: text || html.replace(/<[^>]*>/g, '')
+    });
+    console.log(`[Email Service] ✅ Email sent successfully! ID: ${response.id}`);
+    return { success: true, provider: 'resend', id: response.id, to, subject };
+  } catch (err) {
+    console.error('[Email Service] ❌ Resend sending failed:', err.message);
+    if (err.response) {
+      console.error('Resend error details:', JSON.stringify(err.response.data, null, 2));
+    }
+    throw err;
+  }
 };
 
 /**
- * Sends a welcome / account created email notification to the user.
+ * Sends a welcome / account created email notification using Resend
  * @param {string} toEmail - The recipient's email address
  * @param {string} firstName - The recipient's first name
  * @param {string} role - The role of the user (e.g., 'client', 'practitioner')
  */
 exports.sendAccountCreatedEmail = async (toEmail, firstName, role) => {
   try {
-    const transporter = createTransporter();
-    if (!transporter) {
-      console.warn(`[Email Service] SMTP transporter not configured. Skipping registration email to ${toEmail}.`);
-      return null;
-    }
-
-    const fromAddress = process.env.EMAIL_FROM || `"Beyond5" <${process.env.SMTP_USER}>`;
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-
-    // Format role for display (capitalize first letter)
+    const loginPath = role === 'practitioner' ? '/login/practitioner' : '/login/client';
+    
+    const subject = role === 'practitioner' 
+      ? 'Welcome to Beyond5 - Application Received'
+      : 'Welcome to Beyond5 - Account Created Successfully';
+    
     const formattedRole = role ? role.charAt(0).toUpperCase() + role.slice(1) : 'User';
-
-    const mailOptions = {
-      from: fromAddress,
-      to: toEmail,
-      subject: 'Welcome to Beyond5 - Account Created',
-      text: `Hello ${firstName},\n\nYour account has been successfully created as a ${formattedRole} on Beyond5.\n\nWe are thrilled to have you join our platform!\n\nYou can log in to your account here: ${clientUrl}/login\n\nBest regards,\nThe Beyond5 Team`,
-      html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-          <div style="background-color: #4f46e5; color: #ffffff; padding: 30px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px; font-weight: 600;">Welcome to Beyond5!</h1>
-          </div>
-          <div style="padding: 30px; background-color: #ffffff;">
-            <p style="font-size: 16px; margin-top: 0;">Hello <strong>${firstName}</strong>,</p>
-            <p style="font-size: 15px;">Your account has been successfully created as a <strong>${formattedRole}</strong> on the Beyond5 Healthcare platform.</p>
-            <p style="font-size: 15px;">We are thrilled to welcome you to our community! You can now access your dashboard, update your profile, and start using our services.</p>
-            
-            <div style="text-align: center; margin: 35px 0;">
-              <a href="${clientUrl}/login" style="background-color: #4f46e5; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);">Log In to Your Dashboard</a>
-            </div>
-            
-            <p style="font-size: 14px; color: #666666; margin-bottom: 0;">If you did not create this account, please ignore this email or reach out to our support team.</p>
-            
-            <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 30px 0;" />
-            
-            <div style="text-align: center;">
-              <p style="font-size: 14px; font-weight: 600; color: #4f46e5; margin: 0 0 5px 0;">Beyond5 Healthcare Marketplace</p>
-              <p style="font-size: 12px; color: #999999; margin: 0;">Connecting clients with premium practitioners.</p>
-            </div>
-          </div>
-          <div style="background-color: #f9fafb; padding: 15px; text-align: center; border-top: 1px solid #eeeeee;">
-            <p style="font-size: 12px; color: #999999; margin: 0;">&copy; ${new Date().getFullYear()} Beyond5. All rights reserved.</p>
-          </div>
+    
+    const html = `
+      <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <div style="background: linear-gradient(135deg, #0f3f3c 0%, #1a5c58 100%); color: #ffffff; padding: 32px 24px; text-align: center;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.025em;">Welcome to Beyond5</h1>
+          <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9;">${role === 'practitioner' ? 'Thank you for joining our network' : 'Your healthcare journey begins here'}</p>
         </div>
-      `
-    };
-
-    console.log(`[Email Service] Sending registration email to ${toEmail}...`);
-    const info = await sendMailViaResend({ to: mailOptions.to, subject: mailOptions.subject, html: mailOptions.html, text: mailOptions.text });
-    console.log(`[Email Service] Email sent successfully: ${info?.id}`);
-    return info;
+        <div style="padding: 32px 24px; background-color: #ffffff;">
+          <p style="font-size: 16px; margin-top: 0;">Hello <strong>${firstName}</strong>,</p>
+          <p style="font-size: 15px; color: #4b5563;">
+            ${role === 'practitioner' 
+              ? `Thank you for applying to join the Beyond5 practitioner network. We've received your application and credentials for verification.`
+              : `Your account has been successfully created! You can now start booking appointments with verified allied health practitioners.`}
+          </p>
+          
+          ${role === 'practitioner' ? `
+          <div style="background-color: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <p style="font-size: 14px; color: #92400e; margin: 0;"><strong>📋 Next Steps:</strong> Your application is under review. Our team will verify your credentials within 2-3 business days. You'll receive an email once your account is approved.</p>
+          </div>
+          ` : `
+          <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <p style="font-size: 14px; color: #065f46; margin: 0;"><strong>🚀 Getting Started:</strong> Browse allied health practitioners, book appointments, and manage your healthcare journey all in one place.</p>
+          </div>
+          `}
+          
+          <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <h3 style="margin-top: 0; font-size: 15px; color: #111827;">Account Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; font-size: 14px; color: #6b7280; width: 120px;"><strong>Email:</strong></td>
+                <td style="padding: 6px 0; font-size: 14px; color: #111827;">${toEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-size: 14px; color: #6b7280;"><strong>Role:</strong></td>
+                <td style="padding: 6px 0; font-size: 14px; color: #111827; text-transform: capitalize;">${formattedRole}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="text-align: center; margin: 32px 0 24px 0;">
+            <a href="${clientUrl}${loginPath}" style="background-color: #0f3f3c; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(15, 63, 60, 0.2);">🔐 Login to Your Account</a>
+          </div>
+          
+          <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
+          <p style="font-size: 12px; color: #9ca3af; text-align: center; margin-bottom: 0;">
+            © 2024 Beyond5 Healthcare Marketplace. All rights reserved.<br/>
+            Need help? Contact our support team at <a href="mailto:support@beyond5.health" style="color: #0f3f3c;">support@beyond5.health</a>
+          </p>
+        </div>
+      </div>
+    `;
+    
+    const text = role === 'practitioner'
+      ? `Welcome to Beyond5!\n\nHello ${firstName},\n\nThank you for applying to join the Beyond5 practitioner network. We've received your application and credentials for verification.\n\nNext Steps: Your application is under review. Our team will verify your credentials within 2-3 business days.\n\nLogin to track your application status: ${clientUrl}${loginPath}\n\n© 2024 Beyond5 Healthcare Marketplace`
+      : `Welcome to Beyond5!\n\nHello ${firstName},\n\nYour account has been successfully created! You can now start booking appointments with verified allied health practitioners.\n\nLogin to start booking: ${clientUrl}${loginPath}\n\n© 2024 Beyond5 Healthcare Marketplace`;
+    
+    console.log(`[Email Service] Sending registration email to ${toEmail} via Resend...`);
+    
+    const result = await sendMailViaResend({
+      to: toEmail,
+      subject: subject,
+      html: html,
+      text: text
+    });
+    
+    console.log(`[Email Service] Registration email sent successfully:`, result);
+    return result;
+    
   } catch (error) {
     console.error('[Email Service] Error sending registration email:', error);
-    // Return null rather than throwing to avoid breaking the core registration transaction
-    return null;
+    throw error; // Throw error so it can be caught in the controller
   }
 };
 
@@ -109,242 +156,78 @@ exports.sendEnquiryEmail = async ({
   submittedAt
 }) => {
   try {
-    const transporter = createTransporter();
-    if (!transporter) {
-      console.warn('[Email Service] SMTP transporter not configured. Skipping enquiry emails.');
-      return null;
-    }
-
-    const fromAddress = process.env.EMAIL_FROM || `"Beyond5" <${process.env.SMTP_USER}>`;
     const fundingList = Array.isArray(fundingOptions) ? fundingOptions.join(', ') : 'Not specified';
 
     // 1. Email to Practitioner
-    const practitionerMailOptions = {
-      from: fromAddress,
-      to: practitionerEmail,
-      replyTo: clientEmail,
-      subject: `New Enquiry from ${clientName} – Beyond5`,
-      text: `You have received a new client enquiry on Beyond5.\n\n` +
-            `CLIENT DETAILS\n` +
-            `Name: ${clientName}\n` +
-            `Email: ${clientEmail}\n` +
-            `Phone: ${clientPhone || 'Not provided'}\n\n` +
-            `ENQUIRY DETAILS\n` +
-            `Practitioner: ${practitionerName} (${practitionerDiscipline})\n` +
-            `Funding: ${fundingList}\n` +
-            `Postcode: ${preferredPostcode}\n` +
-            `Submitted: ${submittedAt}\n\n` +
-            `Message:\n${message}\n\n` +
-            `Please reply directly to ${clientEmail} to respond to this client.\n` +
-            `Beyond5 Healthcare Platform`,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-          <div style="background-color: #4f46e5; color: #ffffff; padding: 20px; text-align: center;">
-            <h2 style="margin: 0; color: #ffffff;">New Enquiry Received</h2>
-          </div>
-          <div style="padding: 20px;">
-            <h3>Client Details</h3>
-            <p><strong>Name:</strong> ${clientName}</p>
-            <p><strong>Email:</strong> <a href="mailto:${clientEmail}">${clientEmail}</a></p>
-            <p><strong>Phone:</strong> ${clientPhone || 'Not provided'}</p>
-            <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;" />
-            <h3>Enquiry Details</h3>
-            <p><strong>Practitioner:</strong> ${practitionerName} (${practitionerDiscipline})</p>
-            <p><strong>Funding Options:</strong> ${fundingList}</p>
-            <p><strong>Preferred Postcode:</strong> ${preferredPostcode}</p>
-            <p><strong>Submitted:</strong> ${submittedAt}</p>
-            <p><strong>Message:</strong></p>
-            <blockquote style="background-color: #f9f9f9; border-left: 4px solid #4f46e5; padding: 15px; margin: 15px 0;">
-              ${(message || '').replace(/\n/g, '<br>')}
-            </blockquote>
-            <p style="font-size: 14px; color: #666666;">Please reply directly to this email to respond to the client at <strong>${clientEmail}</strong>.</p>
-          </div>
+    const practitionerHtml = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #4f46e5; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0; color: #ffffff;">New Enquiry Received</h2>
         </div>
-      `
-    };
+        <div style="padding: 20px;">
+          <h3>Client Details</h3>
+          <p><strong>Name:</strong> ${clientName}</p>
+          <p><strong>Email:</strong> <a href="mailto:${clientEmail}">${clientEmail}</a></p>
+          <p><strong>Phone:</strong> ${clientPhone || 'Not provided'}</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;" />
+          <h3>Enquiry Details</h3>
+          <p><strong>Practitioner:</strong> ${practitionerName} (${practitionerDiscipline})</p>
+          <p><strong>Funding Options:</strong> ${fundingList}</p>
+          <p><strong>Preferred Postcode:</strong> ${preferredPostcode}</p>
+          <p><strong>Submitted:</strong> ${submittedAt}</p>
+          <p><strong>Message:</strong></p>
+          <blockquote style="background-color: #f9f9f9; border-left: 4px solid #4f46e5; padding: 15px; margin: 15px 0;">
+            ${(message || '').replace(/\n/g, '<br>')}
+          </blockquote>
+          <p style="font-size: 14px; color: #666666;">Please reply directly to this email to respond to the client at <strong>${clientEmail}</strong>.</p>
+        </div>
+      </div>
+    `;
 
     console.log(`[Email Service] Sending enquiry email to practitioner: ${practitionerEmail}...`);
-    const pInfo = await sendMailViaResend({ to: practitionerMailOptions.to, subject: practitionerMailOptions.subject, html: practitionerMailOptions.html, text: practitionerMailOptions.text });
-    console.log(`[Email Service] Practitioner enquiry email sent successfully: ${pInfo?.id}`);
+    await sendMailViaResend({ 
+      to: practitionerEmail, 
+      subject: `New Enquiry from ${clientName} – Beyond5`, 
+      html: practitionerHtml 
+    });
 
     // 2. Confirmation email to Client
-    const clientMailOptions = {
-      from: fromAddress,
-      to: clientEmail,
-      subject: `Your enquiry to ${practitionerName} has been received – Beyond5`,
-      text: `Hi ${clientName},\n\n` +
-            `Thank you for your enquiry! We've forwarded your message to ${practitionerName} (${practitionerDiscipline}) and they will be in touch shortly.\n\n` +
-            `YOUR ENQUIRY SUMMARY\n` +
-            `Practitioner: ${practitionerName}\n` +
-            `Discipline: ${practitionerDiscipline}\n` +
-            `Funding: ${fundingList}\n` +
-            `Postcode: ${preferredPostcode}\n` +
-            `Submitted: ${submittedAt}\n\n` +
-            `Your message:\n${message}\n\n` +
-            `Beyond5 Healthcare Platform`,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-          <div style="background-color: #10b981; color: #ffffff; padding: 20px; text-align: center;">
-            <h2 style="margin: 0; color: #ffffff;">Enquiry Sent Successfully</h2>
-          </div>
-          <div style="padding: 20px;">
-            <p>Hi <strong>${clientName}</strong>,</p>
-            <p>Thank you for your enquiry! We've forwarded your message to <strong>${practitionerName}</strong> (${practitionerDiscipline}) and they will be in touch shortly.</p>
-            <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;" />
-            <h3>Your Enquiry Summary</h3>
-            <p><strong>Practitioner:</strong> ${practitionerName}</p>
-            <p><strong>Discipline:</strong> ${practitionerDiscipline}</p>
-            <p><strong>Funding Options:</strong> ${fundingList}</p>
-            <p><strong>Preferred Postcode:</strong> ${preferredPostcode}</p>
-            <p><strong>Submitted:</strong> ${submittedAt}</p>
-            <p><strong>Your Message:</strong></p>
-            <blockquote style="background-color: #f9f9f9; border-left: 4px solid #10b981; padding: 15px; margin: 15px 0;">
-              ${(message || '').replace(/\n/g, '<br>')}
-            </blockquote>
-          </div>
+    const clientHtml = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #10b981; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0; color: #ffffff;">Enquiry Sent Successfully</h2>
         </div>
-      `
-    };
+        <div style="padding: 20px;">
+          <p>Hi <strong>${clientName}</strong>,</p>
+          <p>Thank you for your enquiry! We've forwarded your message to <strong>${practitionerName}</strong> (${practitionerDiscipline}) and they will be in touch shortly.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;" />
+          <h3>Your Enquiry Summary</h3>
+          <p><strong>Practitioner:</strong> ${practitionerName}</p>
+          <p><strong>Discipline:</strong> ${practitionerDiscipline}</p>
+          <p><strong>Funding Options:</strong> ${fundingList}</p>
+          <p><strong>Preferred Postcode:</strong> ${preferredPostcode}</p>
+          <p><strong>Submitted:</strong> ${submittedAt}</p>
+          <p><strong>Your Message:</strong></p>
+          <blockquote style="background-color: #f9f9f9; border-left: 4px solid #10b981; padding: 15px; margin: 15px 0;">
+            ${(message || '').replace(/\n/g, '<br>')}
+          </blockquote>
+        </div>
+      </div>
+    `;
 
     console.log(`[Email Service] Sending confirmation email to client: ${clientEmail}...`);
-    const cInfo = await sendMailViaResend({ to: clientMailOptions.to, subject: clientMailOptions.subject, html: clientMailOptions.html, text: clientMailOptions.text });
-    console.log(`[Email Service] Client confirmation email sent successfully: ${cInfo?.id}`);
+    await sendMailViaResend({ 
+      to: clientEmail, 
+      subject: `Your enquiry to ${practitionerName} has been received – Beyond5`, 
+      html: clientHtml 
+    });
 
+    console.log('[Email Service] Enquiry emails sent successfully');
     return { practitionerEmailSent: true, clientEmailSent: true };
   } catch (error) {
     console.error('[Email Service] Error sending enquiry email:', error);
-    return null;
+    throw error;
   }
-};
-
-// ==========================================
-// RESEND EMAIL INTEGRATION & HELPERS
-// ==========================================
-
-const isResendConfigured = () => {
-  const key = process.env.RESEND_API_KEY;
-  return key && !key.includes('your_api_key') && !key.includes('replace');
-};
-
-let resendClient = null;
-const getResendClient = () => {
-  if (isResendConfigured()) {
-    if (!resendClient) {
-      resendClient = new Resend(process.env.RESEND_API_KEY);
-    }
-    return resendClient;
-  }
-  return null;
-};
-
-let etherealAccount = null;
-const getEtherealTransporter = async () => {
-  if (etherealAccount) {
-    return nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: etherealAccount.user,
-        pass: etherealAccount.pass
-      }
-    });
-  }
-  try {
-    console.log('[Email Service] Creating temporary Ethereal testing account for prototype fallback...');
-    etherealAccount = await nodemailer.createTestAccount();
-    console.log(`[Email Service] Ethereal testing account created:
-  User: ${etherealAccount.user}
-  Pass: ${etherealAccount.pass}
-  Login check: https://ethereal.email/
-`);
-    return nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: etherealAccount.user,
-        pass: etherealAccount.pass
-      }
-    });
-  } catch (err) {
-    console.error('[Email Service] Failed to create Ethereal account:', err);
-    return null;
-  }
-};
-
-const sendMailViaResend = async ({ to, subject, html, text }) => {
-  const client = getResendClient();
-  const fromAddress = process.env.RESEND_FROM || 'onboarding@resend.dev';
-
-  if (client) {
-    try {
-      console.log(`[Email Service] Sending email via Resend to ${to} (Subject: "${subject}")...`);
-      const response = await client.emails.send({
-        from: fromAddress,
-        to,
-        subject,
-        html,
-        text
-      });
-      console.log(`[Email Service] Resend send response:`, response);
-      return response;
-    } catch (err) {
-      console.error('[Email Service] Resend sending failed. Falling back to SMTP...', err);
-    }
-  }
-
-  // Fallback to SMTP
-  const transporter = createTransporter();
-  if (transporter) {
-    try {
-      const smtpFrom = process.env.EMAIL_FROM || `"Beyond5" <${process.env.SMTP_USER}>`;
-      console.log(`[Email Service] Sending email via SMTP fallback to ${to} (Subject: "${subject}")...`);
-      const info = await transporter.sendMail({
-        from: smtpFrom,
-        to,
-        subject,
-        html,
-        text
-      });
-      console.log(`[Email Service] Email sent successfully: ${info.messageId}`);
-      return info;
-    } catch (smtpErr) {
-      console.error('[Email Service] SMTP send failed. Falling back to Ethereal...', smtpErr);
-    }
-  }
-
-  // Ethereal Fallback for fully working prototype out-of-the-box
-  try {
-    const etherealTransporter = await getEtherealTransporter();
-    if (etherealTransporter) {
-      const info = await etherealTransporter.sendMail({
-        from: '"Beyond5 Testing" <test@beyond5.health>',
-        to,
-        subject,
-        html,
-        text
-      });
-      const previewUrl = nodemailer.getTestMessageUrl(info);
-      console.log(`\n==================================================
-[Email Service PROTOTYPE] Email sent via Ethereal!
-To: ${to}
-Subject: ${subject}
-Preview Email Link: ${previewUrl}
-==================================================\n`);
-      return info;
-    }
-  } catch (etherealErr) {
-    console.error('[Email Service] Ethereal sending failed:', etherealErr);
-  }
-
-  // Development simulation fallback
-  console.log(`[Email Service SIMULATION] (No email provider configured)
-To: ${to}
-Subject: ${subject}
-Text: ${text || 'HTML content supplied'}
-`);
-  return { simulated: true, to, subject };
 };
 
 const formatDate = (dateObj) => {
@@ -470,7 +353,7 @@ exports.sendBookingRequestEmails = async (booking) => {
       </div>
     `;
 
-    // Send emails
+    // Send emails using Resend
     if (practitionerEmail) {
       await sendMailViaResend({
         to: practitionerEmail,
@@ -486,8 +369,11 @@ exports.sendBookingRequestEmails = async (booking) => {
         html: clientHtml
       });
     }
+    
+    console.log('[Email Service] Booking request emails sent successfully');
   } catch (error) {
     console.error('[Email Service] Error in sendBookingRequestEmails:', error);
+    throw error;
   }
 };
 
@@ -496,7 +382,6 @@ exports.sendBookingRequestEmails = async (booking) => {
  */
 exports.sendBookingConfirmedEmail = async (booking) => {
   try {
-    const clientName = booking.clientId ? `${booking.clientId.firstName} ${booking.clientId.lastName}` : 'Client';
     const clientEmail = booking.clientId ? booking.clientId.email : '';
     const clientFirstName = booking.clientId ? booking.clientId.firstName : 'Client';
 
@@ -586,8 +471,11 @@ exports.sendBookingConfirmedEmail = async (booking) => {
         html
       });
     }
+    
+    console.log('[Email Service] Booking confirmation email sent successfully');
   } catch (error) {
     console.error('[Email Service] Error in sendBookingConfirmedEmail:', error);
+    throw error;
   }
 };
 
@@ -639,8 +527,11 @@ exports.sendBookingDeclinedEmail = async (booking) => {
         html
       });
     }
+    
+    console.log('[Email Service] Booking declined email sent successfully');
   } catch (error) {
     console.error('[Email Service] Error in sendBookingDeclinedEmail:', error);
+    throw error;
   }
 };
 
@@ -668,12 +559,10 @@ exports.sendBookingRescheduledEmail = async (booking, initiatorRole) => {
     let messageText = '';
 
     if (initiatorRole === 'client') {
-      // Rescheduled by Client -> Notify Practitioner
       toEmail = practitionerEmail;
       greeting = `Dr. ${practitionerFirstName}`;
       messageText = `Your client, <strong>${clientName}</strong>, has rescheduled their appointment.`;
     } else {
-      // Rescheduled by Practitioner -> Notify Client
       toEmail = clientEmail;
       greeting = clientFirstName;
       messageText = `Your practitioner, <strong>${practitionerName}</strong>, has rescheduled your appointment.`;
@@ -712,7 +601,7 @@ exports.sendBookingRescheduledEmail = async (booking, initiatorRole) => {
               ` : `
               <tr>
                 <td style="padding: 6px 0; font-size: 14px; color: #92400e;"><strong>Practitioner:</strong></td>
-                <td style="padding: 6px 0; font-size: 14px; color: #111827;">${practitionerName} (${discipline})</td>
+                <td style="padding: 6px 0; font-size: 14px; color: #111827;">${practitionerName} (${discipline})<\/td>
               </tr>
               `}
             </table>
@@ -743,7 +632,10 @@ exports.sendBookingRescheduledEmail = async (booking, initiatorRole) => {
         html
       });
     }
+    
+    console.log('[Email Service] Booking rescheduled email sent successfully');
   } catch (error) {
     console.error('[Email Service] Error in sendBookingRescheduledEmail:', error);
+    throw error;
   }
 };

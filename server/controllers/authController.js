@@ -68,7 +68,15 @@ exports.register = async (req, res) => {
       };
       await devUserStore.upsertUser(user);
       // Send welcome email asynchronously
-      emailService.sendAccountCreatedEmail(user.email, user.firstName, user.role);
+      try {
+        console.log(`[Auth] Sending welcome email to ${user.email} via Resend...`);
+        const emailResult = await emailService.sendAccountCreatedEmail(user.email, user.firstName, user.role);
+        console.log(`[Auth] ✅ Welcome email sent successfully:`, emailResult);
+      } catch (emailError) {
+        console.error(`[Auth] ❌ Failed to send welcome email:`, emailError);
+        // Don't block registration if email fails
+      }
+      
       return sendTokenResponse(user, 201, res);
     }
 
@@ -114,7 +122,14 @@ exports.register = async (req, res) => {
     }
 
     // Send welcome email asynchronously
-    emailService.sendAccountCreatedEmail(user.email, user.firstName, user.role);
+    try {
+      console.log(`[Auth] Sending welcome email to ${user.email} via Resend...`);
+      const emailResult = await emailService.sendAccountCreatedEmail(user.email, user.firstName, user.role);
+      console.log(`[Auth] ✅ Welcome email sent successfully! ID: ${emailResult.id || emailResult.messageId}`);
+    } catch (emailError) {
+      console.error(`[Auth] ❌ Failed to send welcome email:`, emailError);
+      // Email failure shouldn't stop registration
+    }
 
     sendTokenResponse(user, 201, res);
   } catch (err) {
