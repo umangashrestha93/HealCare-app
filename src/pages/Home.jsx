@@ -60,13 +60,13 @@ const audienceCards = [
     title: 'Referrers and support teams',
     copy: 'Search by postcode, discipline, location, travel area, funding options and availability before helping someone connect.',
     icon: <PersonSearch />,
-    accentColor: '#6B8EE8',
+    accentColor: '#41C6C6',
   },
   {
     title: 'Practitioners',
     copy: 'Apply to join the Beyond5 network, build a clear profile and submit documents for behind-the-scenes approval.',
     icon: <MedicalServices />,
-    accentColor: '#E87D6B',
+    accentColor: '#41C6C6',
   },
 ];
 
@@ -138,7 +138,7 @@ const wellnessCards = [
       'Occupational therapy improves daily independence and quality of life',
       'Physiotherapy reduces chronic pain without reliance on medication',
     ],
-    color: '#6B8EE8',
+    color: '#41C6C6',
   },
   {
     icon: <Groups />,
@@ -148,7 +148,7 @@ const wellnessCards = [
       'Aged care allied health services support safe independent living',
       'My Aged Care funding can cover a wide range of therapy disciplines',
     ],
-    color: '#E87D6B',
+    color: '#41C6C6',
   },
 ];
 
@@ -782,10 +782,10 @@ const Home = () => {
                       bgcolor: 'rgba(107,142,232,0.08)',
                     }}
                   >
-                    <MedicalServices sx={{ fontSize: 16, color: '#6B8EE8' }} />
+                    <MedicalServices sx={{ fontSize: 16, color: '#41C6C6' }} />
                     <Typography
                       variant="overline"
-                      sx={{ color: '#6B8EE8', fontWeight: 900, letterSpacing: '0.1em', lineHeight: 1 }}
+                      sx={{ color: '#41C6C6', fontWeight: 900, letterSpacing: '0.1em', lineHeight: 1 }}
                     >
                       Practitioner journey
                     </Typography>
@@ -802,7 +802,7 @@ const Home = () => {
                 </MotionBox>
                 <Stack spacing={2.5}>
                   {practitionerSteps.map((step, i) => (
-                    <NumberedStep key={step} number={i + 1} text={step} accentColor="#6B8EE8" />
+                    <NumberedStep key={step} number={i + 1} text={step} accentColor="#41C6C6" />
                   ))}
                 </Stack>
               </Box>
@@ -853,9 +853,9 @@ const Home = () => {
             >
               {[
                 { icon: <Psychology sx={{ fontSize: 28 }} />, stat: 'Search', label: 'by therapy type, postcode, funding and appointment preference', color: '#41C6C6' },
-                { icon: <HealthAndSafety sx={{ fontSize: 28 }} />, stat: 'Compare', label: 'verified profiles, travel area, telehealth and next availability', color: '#6B8EE8' },
-                { icon: <FavoriteBorder sx={{ fontSize: 28 }} />, stat: 'Connect', label: 'through booking, enquiry or a waitlist pathway when ready', color: '#E87D6B' },
-                { icon: <Vaccines sx={{ fontSize: 28 }} />, stat: 'Manage', label: 'saved practitioners, messages, enquiries and support preferences', color: '#7BC67E' },
+                { icon: <HealthAndSafety sx={{ fontSize: 28 }} />, stat: 'Compare', label: 'verified profiles, travel area, telehealth and next availability', color: '#41C6C6' },
+                { icon: <FavoriteBorder sx={{ fontSize: 28 }} />, stat: 'Connect', label: 'through booking, enquiry or a waitlist pathway when ready', color: '#41C6C6' },
+                { icon: <Vaccines sx={{ fontSize: 28 }} />, stat: 'Manage', label: 'saved practitioners, messages, enquiries and support preferences', color: '#41C6C6' },
               ].map((item, i) => (
                 <MotionPaper
                   key={item.stat}
@@ -1130,7 +1130,7 @@ const Home = () => {
           >
             <path
               d="M0,120 C360,0 720,200 1080,120 C1260,80 1380,60 1440,120 L1440,200 L0,200 Z"
-              fill="#6B8EE8"
+              fill="#41C6C6"
             />
           </Box>
         </Box>

@@ -48,7 +48,7 @@ const roleOptions = [
     subtitle: 'Find and book flexible allied health support.',
     icon: <Person fontSize="small" />,
     color: 'primary.main',
-    rawColor: '#004A99',
+    rawColor: '#41C6C6',
   },
   {
     id: 'practitioner',
@@ -56,7 +56,7 @@ const roleOptions = [
     subtitle: 'Manage onboarding, availability, and referrals.',
     icon: <MedicalServices fontSize="small" />,
     color: 'secondary.main',
-    rawColor: '#00897B',
+    rawColor: '#13283B',
   },
 ];
 

@@ -24,9 +24,9 @@ const MotionPaper = motion.create(Paper);
 
 /* ─── colour palette ─── */
 const C = {
-  primary:   '#13283B',
+  primary:   '#41C6C6',
   secondary: '#41C6C6',
-  amber:     '#f59e0b',
+  amber:     '#41C6C6',
   red:       '#ef4444',
   bg:        '#f0f4f8',
   surface:   '#ffffff',
@@ -775,8 +775,8 @@ const Dashboard = () => {
         <Grid container spacing={2.5}>
           {[
             { icon: <CalendarMonth sx={{ fontSize: 26 }} />, value: upcoming.length, label: 'Upcoming Sessions',  color: C.secondary, delay: 0 },
-            { icon: <History sx={{ fontSize: 26 }} />,       value: past.length,     label: 'Completed Sessions', color: '#818cf8',   delay: 0.07 },
-            { icon: <HealthAndSafety sx={{ fontSize: 26 }} />, value: '24 / 7',      label: 'Care Access',        color: '#f59e0b',   delay: 0.14 },
+            { icon: <History sx={{ fontSize: 26 }} />,       value: past.length,     label: 'Completed Sessions', color: '#41C6C6',   delay: 0.07 },
+            { icon: <HealthAndSafety sx={{ fontSize: 26 }} />, value: '24 / 7',      label: 'Care Access',        color: '#41C6C6',   delay: 0.14 },
           ].map((s) => (
             <Grid item xs={12} sm={4} key={s.label}>
               <StatCard {...s} />
