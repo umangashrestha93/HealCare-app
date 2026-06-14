@@ -7,7 +7,8 @@ import {
   TextField, Switch,
   Snackbar, Alert, Badge, CircularProgress, Rating, FormControlLabel, Checkbox,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  FormControl, InputLabel, Select, MenuItem
+  FormControl, InputLabel, Select, MenuItem,
+  IconButton
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -30,6 +31,7 @@ import {
   UploadFile,
   DeleteOutlined,
   Cancel,
+  AddPhotoAlternate,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -142,7 +144,8 @@ const PractitionerDashboard = () => {
     availableSlots: [],
     avatar: '',
     sex: '',
-    age: ''
+    age: '',
+    photos: []
   });
 
   const showToast = (message, severity = 'success') => {
@@ -180,7 +183,8 @@ const PractitionerDashboard = () => {
           availableSlots: profRes.data.availableSlots || [],
           avatar: profRes.data.avatar || '',
           sex: profRes.data.userId?.sex || user?.sex || '',
-          age: profRes.data.userId?.age ?? user?.age ?? ''
+          age: profRes.data.userId?.age ?? user?.age ?? '',
+          photos: profRes.data.photos || []
         });
 
         // Fetch reviews
@@ -1204,6 +1208,100 @@ const PractitionerDashboard = () => {
                   )}
                 </Stack>
               </Box>
+            </Paper>
+
+            {/* Portfolio Photos & Gallery Upload */}
+            <Paper variant="outlined" sx={{ p: 3, mb: 4, borderRadius: 3, bgcolor: '#f8fafc' }}>
+              <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={900}>
+                    Portfolio Gallery ({(profile.photos || []).length} / 6)
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Upload up to 6 photos of your workspace, therapy rooms, tools, or materials. Max 2 MB per image.
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  component="label"
+                  startIcon={<AddPhotoAlternate />}
+                  disabled={profile.photos?.length >= 6}
+                  sx={{ fontWeight: 800, borderRadius: 2 }}
+                >
+                  Upload Photo
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if ((profile.photos || []).length >= 6) {
+                        showToast('You can upload up to 6 portfolio photos.', 'warning');
+                        return;
+                      }
+                      if (file.size > 2 * 1024 * 1024) {
+                        showToast('Image exceeds 2 MB limit.', 'warning');
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setProfile((prev) => ({
+                          ...prev,
+                          photos: [...(prev.photos || []), event.target.result]
+                        }));
+                        showToast('Portfolio photo added — save profile to persist.');
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </Button>
+              </Box>
+
+              {(!profile.photos || profile.photos.length === 0) ? (
+                <Box sx={{ py: 3, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2, bgcolor: '#fff' }}>
+                  <Typography variant="body2" color="text.disabled" fontWeight={700}>
+                    No portfolio photos uploaded yet. Click "Upload Photo" to begin.
+                  </Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={2}>
+                  {profile.photos.map((photo, index) => (
+                     <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
+                       <Box sx={{ position: 'relative', height: 110, borderRadius: 2, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                         <Box
+                           component="img"
+                           src={photo}
+                           alt={`Portfolio photo ${index + 1}`}
+                           sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                         />
+                         <IconButton
+                           size="small"
+                           onClick={() => {
+                             setProfile((prev) => ({
+                               ...prev,
+                               photos: prev.photos.filter((_, i) => i !== index)
+                             }));
+                             showToast('Photo removed — save profile to persist.', 'info');
+                           }}
+                           sx={{
+                             position: 'absolute',
+                             top: 4,
+                             right: 4,
+                             bgcolor: 'rgba(255,255,255,0.9)',
+                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                             color: 'error.main',
+                             '&:hover': { bgcolor: 'error.main', color: '#fff' }
+                           }}
+                         >
+                           <DeleteOutlined sx={{ fontSize: 16 }} />
+                         </IconButton>
+                       </Box>
+                     </Grid>
+                  ))}
+                </Grid>
+              )}
             </Paper>
 
             <Grid container spacing={2.5}>
