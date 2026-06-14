@@ -27,6 +27,7 @@ const PractitionerSchema = new mongoose.Schema({
     default: 'Splose calendar pending integration'
   },
   avatar: { type: String, default: '' },
+  photos: { type: [String], default: [] },
   fee: { type: Number, default: 80 }, // Consultation fee in AUD
   
   // Verification System
