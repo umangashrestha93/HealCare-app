@@ -23,8 +23,10 @@ import {
   Stepper,
   TextField,
   Typography,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   AccessTime,
   AssignmentTurnedIn,
@@ -34,6 +36,13 @@ import {
   ShieldOutlined,
   UploadFile,
   VerifiedUser,
+  Visibility,
+  VisibilityOff,
+  Email,
+  Phone,
+  LocationOn,
+  Lock,
+  Badge,
 } from '@mui/icons-material';
 import { authService } from '../services/api';
 import { validation } from '../utils/validation';
@@ -49,9 +58,9 @@ const DOCUMENTS = [
 const DISCIPLINE_OPTIONS = DISCIPLINES.filter((item) => item !== 'All');
 
 const availabilityOptions = [
-  { name: 'afterHours', label: 'After hours', icon: <AccessTime /> },
-  { name: 'weekends', label: 'Weekends', icon: <AssignmentTurnedIn /> },
-  { name: 'telehealth', label: 'Telehealth', icon: <MedicalServices /> },
+  { name: 'afterHours', label: 'After hours', icon: <AccessTime sx={{ fontSize: 16 }} /> },
+  { name: 'weekends', label: 'Weekends', icon: <AssignmentTurnedIn sx={{ fontSize: 16 }} /> },
+  { name: 'telehealth', label: 'Telehealth', icon: <MedicalServices sx={{ fontSize: 16 }} /> },
 ];
 
 const roleCards = [
@@ -79,6 +88,7 @@ const Register = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -390,19 +400,57 @@ const Register = () => {
 
   if (submitted) {
     return (
-      <Box sx={{ bgcolor: '#f3faf7', minHeight: '100vh', display: 'flex', alignItems: 'center', py: 8 }}>
+      <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', display: 'flex', alignItems: 'center', py: 8 }}>
         <Container maxWidth="sm">
-          <Paper sx={{ p: { xs: 4, md: 6 }, textAlign: 'center', borderRadius: 2 }}>
-            <CheckCircle color="secondary" sx={{ fontSize: 72, mb: 3 }} />
-            <Typography variant="h4" fontWeight={900} gutterBottom>
-              {role === 'practitioner' ? 'Application received' : 'Account created successfully'}
+          <Paper
+            elevation={0}
+            component={motion.div}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            sx={{
+              p: { xs: 5, md: 7 },
+              textAlign: 'center',
+              borderRadius: 5,
+              border: '1px solid #E2E8F0',
+              boxShadow: '0 12px 30px rgba(11,29,43,0.04)'
+            }}
+          >
+            <Box
+              sx={{
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                bgcolor: 'success.light',
+                color: 'success.main',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 3
+              }}
+            >
+              <CheckCircle sx={{ fontSize: 48 }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800} gutterBottom color="primary.main">
+              {role === 'practitioner' ? 'Application Received' : 'Account Created Successfully'}
             </Typography>
-            <Typography color="text.secondary" sx={{ mb: 4 }}>
+            <Typography color="text.secondary" sx={{ mb: 4, lineHeight: 1.6 }}>
               {role === 'practitioner'
-                ? 'Your application is under review. Please login to track your verification status.'
-                : 'Your account is ready. Please login to start booking allied health services.'}
+                ? 'Your application is under review. Please log in to track your verification status.'
+                : 'Your account is ready. Please log in to start booking allied health services.'}
             </Typography>
-            <Button variant="contained" fullWidth size="large" onClick={() => navigate(`/login/${role}`)} sx={{ py: 1.6, fontWeight: 900 }}>
+            <Button
+              variant="contained"
+              fullWidth
+              size="large"
+              onClick={() => navigate(`/login/${role}`)}
+              sx={{
+                py: 1.8,
+                fontWeight: 800,
+                borderRadius: 3,
+                fontSize: '1rem'
+              }}
+            >
               Go to Login
             </Button>
           </Paper>
@@ -412,62 +460,88 @@ const Register = () => {
   }
 
   return (
-    <Box sx={{ bgcolor: '#f3faf7', minHeight: '100vh', py: { xs: 4, md: 8 } }}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', display: 'flex', alignItems: 'center', py: { xs: 4, md: 8 } }}>
       <Container maxWidth="lg">
         <Paper
+          elevation={0}
           component={motion.div}
-          initial={{ opacity: 0, y: 18 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          sx={{ overflow: 'hidden', borderRadius: 2 }}
+          sx={{
+            overflow: 'hidden',
+            borderRadius: 6,
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 12px 40px rgba(11,29,43,0.03)'
+          }}
         >
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '0.86fr 1.14fr' } }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '0.82fr 1.18fr' } }}>
+            {/* Left Brand Panel */}
             <Box
               sx={{
-                p: { xs: 4, md: 6 },
-                bgcolor: '#13283B',
+                p: { xs: 5, md: 7 },
+                bgcolor: 'primary.main',
                 color: '#fff',
+                position: 'relative',
+                backgroundImage: 'radial-gradient(rgba(65, 198, 198, 0.12) 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
               }}
             >
-              <Chip
-                icon={<ShieldOutlined />}
-                label="Beyond5 onboarding"
-                sx={{ bgcolor: 'rgba(255,255,255,0.14)', color: '#fff', mb: 3 }}
-              />
-              <Typography variant="h3" fontWeight={900} gutterBottom sx={{ color: '#fff' }}>
-                Join a flexible allied health marketplace
-              </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,0.78)', mb: 5 }}>
-                Create the right account for your role and build the foundations for search, booking, verification, and dashboards.
-              </Typography>
+              <Box>
+                <Chip
+                  icon={<ShieldOutlined sx={{ color: 'secondary.main !important', fontSize: '14px' }} />}
+                  label="Beyond5 Onboarding"
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    mb: 4,
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}
+                />
+                <Typography variant="h3" fontWeight={800} gutterBottom sx={{ color: '#fff', letterSpacing: '-0.02em', mb: 2 }}>
+                  Join the Future of Allied Health
+                </Typography>
+                <Typography sx={{ color: 'rgba(255,255,255,0.72)', mb: 6, lineHeight: 1.6 }}>
+                  Create an account to search verified practitioners, request custom bookings, and manage care pathways seamlessly.
+                </Typography>
+              </Box>
 
-              <Stack spacing={2.5}>
+              <Stack spacing={3}>
                 {[
-                  { label: 'Role-based access', value: role === 'client' ? 'Client journey' : 'Practitioner onboarding' },
-                  { label: 'Verification', value: role === 'client' ? 'Secure account' : `${Object.values(uploadedDocs).filter(Boolean).length}/${DOCUMENTS.length} documents` },
-                  { label: 'Funding', value: formData.fundingOptions.length ? `${formData.fundingOptions.length} pathways selected` : 'Ready to configure' },
+                  { label: 'Role-Based Journeys', value: role === 'client' ? 'Direct client search & bookings' : 'Structured practitioner onboarding' },
+                  { label: 'Compliance & Safety', value: role === 'client' ? '100% verified practitioners' : `${Object.values(uploadedDocs).filter(Boolean).length} of ${DOCUMENTS.length} requirements checked` },
+                  { label: 'Funding Access', value: formData.fundingOptions.length ? `${formData.fundingOptions.length} pathways supported` : 'Configurable on profile' },
                 ].map((item) => (
-                  <Box key={item.label} sx={{ borderLeft: '3px solid #41C6C6', pl: 2 }}>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.64)' }}>
+                  <Box key={item.label} sx={{ borderLeft: '3px solid #41C6C6', pl: 2.5 }}>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700, letterSpacing: 0.5, display: 'block', mb: 0.25 }}>
                       {item.label}
                     </Typography>
-                    <Typography fontWeight={800}>{item.value}</Typography>
+                    <Typography fontWeight={700} sx={{ color: '#fff', fontSize: '0.95rem' }}>
+                      {item.value}
+                    </Typography>
                   </Box>
                 ))}
               </Stack>
             </Box>
 
-            <Box sx={{ p: { xs: 3, md: 5 } }}>
+            {/* Right Form Panel */}
+            <Box sx={{ p: { xs: 4, sm: 5, md: 7 }, bgcolor: 'background.paper' }}>
               <Stack spacing={4}>
                 <Box>
-                  <Typography variant="h4" fontWeight={900} gutterBottom>
-                    Create account
+                  <Typography variant="h4" fontWeight={800} color="primary.main" gutterBottom>
+                    Create Account
                   </Typography>
-                  <Typography color="text.secondary">
-                    Select your role and complete the required details.
+                  <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
+                    Select your registration type and fill out your profile details.
                   </Typography>
                 </Box>
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                {/* Role Switcher */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                   {roleCards.map((item) => (
                     <Paper
                       key={item.id}
@@ -478,36 +552,53 @@ const Register = () => {
                         p: 2.5,
                         textAlign: 'left',
                         cursor: 'pointer',
-                        border: '1px solid',
+                        borderRadius: 3,
+                        border: '1.5px solid',
                         borderColor: role === item.id ? 'primary.main' : 'divider',
-                        bgcolor: role === item.id ? 'rgba(0, 74, 153, 0.04)' : 'background.paper',
+                        bgcolor: role === item.id ? 'rgba(65, 198, 198, 0.06)' : 'background.paper',
+                        transition: 'all 0.18s ease',
+                        display: 'flex',
+                        gap: 2,
+                        alignItems: 'center',
+                        outline: 'none',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          transform: 'translateY(-1px)'
+                        }
                       }}
                     >
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar sx={{ bgcolor: role === item.id ? 'primary.main' : 'text.secondary' }}>
-                          {item.icon}
-                        </Avatar>
-                        <Box>
-                          <Typography fontWeight={900}>{item.title}</Typography>
-                          <Typography variant="body2" color="text.secondary">{item.subtitle}</Typography>
-                        </Box>
-                      </Stack>
+                      <Avatar
+                        sx={{
+                          bgcolor: role === item.id ? 'primary.main' : 'grey.200',
+                          color: role === item.id ? '#fff' : 'text.secondary',
+                          width: 40,
+                          height: 40
+                        }}
+                      >
+                        {item.icon}
+                      </Avatar>
+                      <Box>
+                        <Typography fontWeight={800} color="text.primary" sx={{ fontSize: '0.95rem' }}>{item.title}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>{item.subtitle}</Typography>
+                      </Box>
                     </Paper>
                   ))}
                 </Box>
 
-                <Stepper activeStep={activeStep} alternativeLabel={role === 'practitioner'}>
+                {/* Stepper UI (MUI Standard with customization) */}
+                <Stepper activeStep={activeStep} alternativeLabel={role === 'practitioner'} sx={{ '& .MuiStepIcon-root.Mui-active': { color: 'secondary.main' }, '& .MuiStepIcon-root.Mui-completed': { color: 'primary.main' } }}>
                   {steps.map((label) => (
                     <Step key={label}>
-                      <StepLabel>{label}</StepLabel>
+                      <StepLabel sx={{ '& .MuiStepLabel-label': { fontWeight: 700, fontSize: '0.8rem' } }}>{label}</StepLabel>
                     </Step>
                   ))}
                 </Stepper>
 
-                {error && <Alert severity="error">{error}</Alert>}
+                {error && <Alert severity="error" sx={{ borderRadius: 3, fontWeight: 600 }}>{error}</Alert>}
 
                 <Box component="form" onSubmit={handleSubmit}>
-                  <Stack spacing={3}>
+                  <Stack spacing={3.5}>
+                    {/* STEP 0: Account Details */}
                     {activeStep === 0 && (
                       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
                         <TextField
@@ -520,6 +611,7 @@ const Register = () => {
                           error={!!fieldErrors.firstName}
                           helperText={fieldErrors.firstName}
                           disabled={submitting}
+                          InputProps={{ sx: { borderRadius: 2.5 } }}
                         />
                         <TextField
                           fullWidth
@@ -531,6 +623,7 @@ const Register = () => {
                           error={!!fieldErrors.lastName}
                           helperText={fieldErrors.lastName}
                           disabled={submitting}
+                          InputProps={{ sx: { borderRadius: 2.5 } }}
                         />
                         <TextField
                           fullWidth
@@ -543,7 +636,12 @@ const Register = () => {
                           error={!!fieldErrors.email}
                           helperText={fieldErrors.email}
                           disabled={submitting}
-                          placeholder="your.email@example.com"
+                          placeholder="name@example.com"
+                          InputProps={{
+                            startAdornment: <InputAdornment position="start"><Email color="action" /></InputAdornment>,
+                            sx: { borderRadius: 2.5 },
+                            autoComplete: 'email'
+                          }}
                         />
                         <TextField
                           fullWidth
@@ -555,11 +653,15 @@ const Register = () => {
                           error={!!fieldErrors.phone}
                           helperText={fieldErrors.phone}
                           disabled={submitting}
-                          placeholder="+61 2 xxxx xxxx"
+                          placeholder="+61 400 000 000"
+                          InputProps={{
+                            startAdornment: <InputAdornment position="start"><Phone color="action" /></InputAdornment>,
+                            sx: { borderRadius: 2.5 }
+                          }}
                         />
                         <TextField
                           fullWidth
-                          label="Location"
+                          label="Location (Suburb, State)"
                           name="location"
                           required
                           value={formData.location}
@@ -567,6 +669,11 @@ const Register = () => {
                           error={!!fieldErrors.location}
                           helperText={fieldErrors.location}
                           disabled={submitting}
+                          placeholder="e.g. Melbourne, VIC"
+                          InputProps={{
+                            startAdornment: <InputAdornment position="start"><LocationOn color="action" /></InputAdornment>,
+                            sx: { borderRadius: 2.5 }
+                          }}
                         />
                         <FormControl fullWidth required error={!!fieldErrors.sex} disabled={submitting}>
                           <InputLabel>Sex</InputLabel>
@@ -575,6 +682,7 @@ const Register = () => {
                             value={formData.sex}
                             label="Sex"
                             onChange={handleChange}
+                            sx={{ borderRadius: 2.5 }}
                           >
                             <MenuItem value="Male">Male</MenuItem>
                             <MenuItem value="Female">Female</MenuItem>
@@ -594,47 +702,73 @@ const Register = () => {
                           disabled={submitting}
                           placeholder="e.g. 28"
                           inputProps={{ min: 0, max: 120 }}
+                          InputProps={{ sx: { borderRadius: 2.5 } }}
                         />
                         <TextField
                           fullWidth
                           label="Password"
                           name="password"
-                          type="password"
+                          type={showPassword ? 'text' : 'password'}
                           required
                           value={formData.password}
                           onChange={handleChange}
                           error={!!fieldErrors.password}
-                          helperText={fieldErrors.password || 'Use at least 6 characters.'}
+                          helperText={fieldErrors.password || 'At least 6 characters'}
                           disabled={submitting}
                           placeholder="••••••••"
+                          InputProps={{
+                            startAdornment: <InputAdornment position="start"><Lock color="action" /></InputAdornment>,
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
+                                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                                </IconButton>
+                              </InputAdornment>
+                            ),
+                            sx: { borderRadius: 2.5 },
+                            autoComplete: 'new-password'
+                          }}
                         />
                       </Box>
                     )}
 
+                    {/* STEP 1: Practice Details (Practitioners Only) */}
                     {role === 'practitioner' && activeStep === 1 && (
-                      <Stack spacing={3}>
-                        {/* Profile Photo Upload */}
-                        <Paper variant="outlined" sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 3, borderRadius: 2 }}>
+                      <Stack spacing={3.5}>
+                        {/* Profile Photo Upload card */}
+                        <Paper
+                          variant="outlined"
+                          sx={{
+                            p: 3,
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            alignItems: 'center',
+                            gap: 3,
+                            borderRadius: 4,
+                            borderColor: 'divider',
+                            bgcolor: 'grey.50'
+                          }}
+                        >
                           <Avatar
                             src={formData.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${formData.firstName || 'P'}`}
-                            sx={{ width: 80, height: 80, border: '1px solid #ddd' }}
+                            sx={{ width: 88, height: 88, border: '4px solid #fff', boxShadow: '0 4px 14px rgba(0,0,0,0.06)' }}
                           />
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight={800} gutterBottom>
-                              Profile Photo
+                          <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+                            <Typography variant="subtitle2" fontWeight={800} color="primary.main" gutterBottom>
+                              Profile Portrait
                             </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
-                              Select a professional portrait. Accepted formats: JPG, PNG. Max size: 2MB.
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2, lineHeight: 1.4 }}>
+                              Select a professional photo. Accepted formats: JPG, PNG. Max 2MB.
                             </Typography>
-                            <Stack direction="row" spacing={1}>
+                            <Stack direction="row" spacing={1} justifyContent={{ xs: 'center', sm: 'flex-start' }}>
                               <Button
                                 variant="outlined"
                                 size="small"
                                 component="label"
                                 startIcon={<UploadFile />}
-                                sx={{ fontWeight: 700 }}
+                                sx={{ fontWeight: 700, borderRadius: 2 }}
                               >
-                                Choose Photo
+                                Upload file
                                 <input
                                   type="file"
                                   hidden
@@ -679,6 +813,7 @@ const Register = () => {
                               label="Primary Discipline"
                               onChange={handleChange}
                               disabled={submitting}
+                              sx={{ borderRadius: 2.5 }}
                             >
                               {DISCIPLINE_OPTIONS.map((option) => (
                                 <MenuItem key={option} value={option}>{option}</MenuItem>
@@ -697,10 +832,11 @@ const Register = () => {
                             helperText={fieldErrors.yearsExp}
                             disabled={submitting}
                             inputProps={{ min: 0, max: 70 }}
+                            InputProps={{ sx: { borderRadius: 2.5 } }}
                           />
                           <TextField
                             fullWidth
-                            label="ABN"
+                            label="ABN (Business Registration)"
                             name="abn"
                             value={formData.abn}
                             onChange={handleChange}
@@ -708,15 +844,20 @@ const Register = () => {
                             helperText={fieldErrors.abn}
                             disabled={submitting}
                             placeholder="11 digits"
+                            InputProps={{
+                              startAdornment: <InputAdornment position="start"><Badge color="action" /></InputAdornment>,
+                              sx: { borderRadius: 2.5 }
+                            }}
                           />
                           <FormControl fullWidth>
-                            <InputLabel>Gender shown on profile</InputLabel>
+                            <InputLabel>Gender (for public profile)</InputLabel>
                             <Select
                               name="gender"
                               value={formData.gender}
-                              label="Gender shown on profile"
+                              label="Gender (for public profile)"
                               onChange={handleChange}
                               disabled={submitting}
+                              sx={{ borderRadius: 2.5 }}
                             >
                               {['Female', 'Male', 'Non-binary', 'Prefer not to say', 'Not specified'].map((option) => (
                                 <MenuItem key={option} value={option}>{option}</MenuItem>
@@ -725,7 +866,7 @@ const Register = () => {
                           </FormControl>
                           <TextField
                             fullWidth
-                            label="Practice postcode"
+                            label="Practice Postcode"
                             name="postcode"
                             value={formData.postcode}
                             onChange={(event) => {
@@ -734,36 +875,45 @@ const Register = () => {
                             }}
                             disabled={submitting}
                             inputProps={{ inputMode: 'numeric' }}
+                            InputProps={{
+                              startAdornment: <InputAdornment position="start"><LocationOn color="action" /></InputAdornment>,
+                              sx: { borderRadius: 2.5 }
+                            }}
                           />
                           <TextField
                             fullWidth
-                            label="Specialisations"
+                            label="Clinical Specialisations"
                             name="languages"
                             value={formData.languages}
                             onChange={handleChange}
                             disabled={submitting}
-                            helperText="Separate multiple items with commas."
+                            helperText="Separate multiple specialisations with commas."
+                            InputProps={{ sx: { borderRadius: 2.5 } }}
                           />
                         </Box>
 
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
                           <TextField
                             fullWidth
-                            label="Travel area"
+                            label="Travel Area Tagline"
                             name="travelArea"
                             value={formData.travelArea}
                             onChange={handleChange}
                             disabled={submitting}
-                            helperText="Example: Travels within 20 km of Brunswick."
+                            placeholder="e.g. Travels within 20 km of Richmond"
+                            helperText="Brief summary of travel capacity."
+                            InputProps={{ sx: { borderRadius: 2.5 } }}
                           />
                           <TextField
                             fullWidth
-                            label="Postcodes you will travel to"
+                            label="Postcodes Serviced"
                             name="travelsToPostcodes"
                             value={formData.travelsToPostcodes}
                             onChange={handleChange}
                             disabled={submitting}
-                            helperText="Separate postcodes with commas."
+                            placeholder="e.g. 3121, 3122, 3141"
+                            helperText="Comma separated numerical list."
+                            InputProps={{ sx: { borderRadius: 2.5 } }}
                           />
                         </Box>
 
@@ -771,108 +921,187 @@ const Register = () => {
                           fullWidth
                           multiline
                           rows={4}
-                          label="Professional Bio"
+                          label="Professional Biography"
                           name="bio"
                           value={formData.bio}
                           onChange={handleChange}
                           error={!!fieldErrors.bio}
-                          helperText={fieldErrors.bio || `${formData.bio.length}/500 characters`}
+                          helperText={fieldErrors.bio || `${formData.bio.length}/500 chars`}
                           disabled={submitting}
+                          InputProps={{ sx: { borderRadius: 2.5 } }}
                         />
 
-                        <Paper variant="outlined" sx={{ p: 2.5 }}>
-                          <Typography fontWeight={900} gutterBottom>Availability</Typography>
-                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                        {/* Availability Checklist */}
+                        <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, borderColor: 'divider' }}>
+                          <Typography fontWeight={800} color="primary.main" variant="subtitle2" sx={{ mb: 2 }}>
+                            Availability
+                          </Typography>
+                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ flexWrap: 'wrap' }}>
                             {availabilityOptions.map((option) => (
                               <FormControlLabel
                                 key={option.name}
-                                control={<Checkbox checked={formData[option.name]} onChange={handleChange} name={option.name} disabled={submitting} />}
+                                control={
+                                  <Checkbox
+                                    checked={formData[option.name]}
+                                    onChange={handleChange}
+                                    name={option.name}
+                                    disabled={submitting}
+                                    sx={{ color: 'divider', '&.Mui-checked': { color: 'secondary.main' } }}
+                                  />
+                                }
                                 label={
                                   <Stack direction="row" spacing={0.75} alignItems="center">
                                     {option.icon}
-                                    <Typography variant="body2">{option.label}</Typography>
+                                    <Typography variant="body2" fontWeight={600} color="text.secondary">{option.label}</Typography>
                                   </Stack>
                                 }
                               />
                             ))}
                             <FormControlLabel
-                              control={<Checkbox checked={formData.mobile} onChange={handleChange} name="mobile" disabled={submitting} />}
-                              label={<Typography variant="body2">Mobile / travel to clients</Typography>}
+                              control={
+                                <Checkbox
+                                  checked={formData.mobile}
+                                  onChange={handleChange}
+                                  name="mobile"
+                                  disabled={submitting}
+                                  sx={{ color: 'divider', '&.Mui-checked': { color: 'secondary.main' } }}
+                                />
+                              }
+                              label={<Typography variant="body2" fontWeight={600} color="text.secondary">Mobile / travel to clients</Typography>}
                             />
                           </Stack>
                         </Paper>
 
-                        <Paper variant="outlined" sx={{ p: 2.5 }}>
-                          <Typography fontWeight={900} gutterBottom>Funding pathways accepted</Typography>
-                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap' }}>
+                        {/* Funding Checklist */}
+                        <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, borderColor: 'divider' }}>
+                          <Typography fontWeight={800} color="primary.main" variant="subtitle2" sx={{ mb: 2 }}>
+                            Funding Pathways Supported
+                          </Typography>
+                          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
                             {FUNDING_PATHWAYS.map((funding) => (
                               <FormControlLabel
                                 key={funding}
-                                control={<Checkbox checked={formData.fundingOptions.includes(funding)} onChange={() => handleFundingToggle(funding)} disabled={submitting} />}
-                                label={<Typography variant="body2">{funding}</Typography>}
+                                control={
+                                  <Checkbox
+                                    checked={formData.fundingOptions.includes(funding)}
+                                    onChange={() => handleFundingToggle(funding)}
+                                    disabled={submitting}
+                                    sx={{ color: 'divider', '&.Mui-checked': { color: 'secondary.main' } }}
+                                  />
+                                }
+                                label={<Typography variant="body2" fontWeight={600} color="text.secondary">{funding}</Typography>}
                               />
                             ))}
-                          </Stack>
+                          </Box>
                         </Paper>
 
                         <TextField
                           fullWidth
-                          label="Splose calendar / booking availability notes"
+                          label="Booking Notes / Platform Preference"
                           name="sploseStatus"
                           value={formData.sploseStatus}
                           onChange={handleChange}
                           disabled={submitting}
-                          helperText="Use this to capture how Splose availability should be surfaced while API integration is confirmed."
+                          helperText="Indicate any calendar sync preference or booking limitations."
+                          InputProps={{ sx: { borderRadius: 2.5 } }}
                         />
                       </Stack>
                     )}
 
+                    {/* STEP 2: Compliance Checklist (Practitioners Only) */}
                     {role === 'practitioner' && activeStep === 2 && (
-                      <Stack spacing={2}>
-                        <Alert severity="info">
-                          Required documents are marked before submission; real file upload can be connected to storage later.
+                      <Stack spacing={3}>
+                        <Alert severity="info" sx={{ borderRadius: 3, fontWeight: 600 }}>
+                          Mark compliance requirements. In production, real file uploads can be connected to document cloud storage.
                         </Alert>
-                        {DOCUMENTS.map((doc) => (
-                          <Paper
-                            key={doc.id}
-                            variant="outlined"
-                            sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}
-                          >
-                            <Stack direction="row" spacing={1.5} alignItems="center">
-                              <Avatar sx={{ bgcolor: uploadedDocs[doc.id] ? 'secondary.main' : 'grey.200', color: uploadedDocs[doc.id] ? '#fff' : 'text.secondary' }}>
-                                {uploadedDocs[doc.id] ? <CheckCircle /> : <VerifiedUser />}
-                              </Avatar>
-                              <Box>
-                                <Typography fontWeight={900}>{doc.label}</Typography>
-                                <Typography variant="caption" color={doc.required ? 'error' : 'text.secondary'}>
-                                  {doc.required ? 'Required' : 'Optional'}
-                                </Typography>
-                              </Box>
-                            </Stack>
-                            <Button
-                              variant={uploadedDocs[doc.id] ? 'contained' : 'outlined'}
-                              color={uploadedDocs[doc.id] ? 'secondary' : 'primary'}
-                              startIcon={uploadedDocs[doc.id] ? <CheckCircle /> : <UploadFile />}
-                              onClick={() => handleUpload(doc.id)}
+                        <Stack spacing={2}>
+                          {DOCUMENTS.map((doc) => (
+                            <Paper
+                              key={doc.id}
+                              variant="outlined"
+                              sx={{
+                                p: 2.5,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                gap: 2.5,
+                                borderRadius: 3.5,
+                                border: '1.5px solid',
+                                borderColor: uploadedDocs[doc.id] ? 'secondary.main' : 'divider',
+                                bgcolor: uploadedDocs[doc.id] ? 'rgba(65, 198, 198, 0.04)' : 'background.paper',
+                                transition: 'all 0.15s ease'
+                              }}
                             >
-                              {uploadedDocs[doc.id] ? 'Ready' : 'Mark ready'}
-                            </Button>
-                          </Paper>
-                        ))}
+                              <Stack direction="row" spacing={2} alignItems="center">
+                                <Avatar
+                                  sx={{
+                                    bgcolor: uploadedDocs[doc.id] ? 'secondary.main' : 'grey.100',
+                                    color: uploadedDocs[doc.id] ? '#fff' : 'text.disabled',
+                                    width: 44,
+                                    height: 44
+                                  }}
+                                >
+                                  {uploadedDocs[doc.id] ? <CheckCircle /> : <VerifiedUser />}
+                                </Avatar>
+                                <Box>
+                                  <Typography fontWeight={800} color="primary.main" sx={{ fontSize: '0.95rem' }}>
+                                    {doc.label}
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color={doc.required ? 'error' : 'text.secondary'}
+                                    fontWeight={700}
+                                  >
+                                    {doc.required ? 'Required for verification' : 'Optional requirement'}
+                                  </Typography>
+                                </Box>
+                              </Stack>
+                              <Button
+                                variant={uploadedDocs[doc.id] ? 'contained' : 'outlined'}
+                                color={uploadedDocs[doc.id] ? 'secondary' : 'primary'}
+                                startIcon={uploadedDocs[doc.id] ? <CheckCircle /> : <UploadFile />}
+                                onClick={() => handleUpload(doc.id)}
+                                sx={{
+                                  borderRadius: 2.5,
+                                  fontWeight: 700,
+                                  fontSize: '0.8rem',
+                                  px: 2.5,
+                                  boxShadow: 'none',
+                                  '&:hover': { boxShadow: 'none' }
+                                }}
+                              >
+                                {uploadedDocs[doc.id] ? 'Selected' : 'Mark Ready'}
+                              </Button>
+                            </Paper>
+                          ))}
+                        </Stack>
                       </Stack>
                     )}
 
                     <Divider />
 
+                    {/* Form Controls */}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-                      <Button disabled={activeStep === 0 || submitting} onClick={prevStep}>
+                      <Button
+                        disabled={activeStep === 0 || submitting}
+                        onClick={prevStep}
+                        sx={{ fontWeight: 700, borderRadius: 2.5, px: 3 }}
+                      >
                         Back
                       </Button>
+
                       {role === 'practitioner' && activeStep < steps.length - 1 ? (
                         <Button
                           variant="contained"
                           onClick={nextStep}
                           disabled={submitting || Object.values(fieldErrors).some((e) => e !== '')}
+                          sx={{
+                            fontWeight: 800,
+                            borderRadius: 2.5,
+                            px: 4,
+                            boxShadow: 'none',
+                            '&:hover': { boxShadow: 'none' }
+                          }}
                         >
                           Continue
                         </Button>
@@ -883,9 +1112,19 @@ const Register = () => {
                           type="submit"
                           disabled={submitting || Object.values(fieldErrors).some((e) => e !== '')}
                           startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : <CheckCircle />}
-                          sx={{ fontWeight: 900 }}
+                          sx={{
+                            fontWeight: 800,
+                            borderRadius: 2.5,
+                            px: 4.5,
+                            color: 'primary.contrastText',
+                            boxShadow: 'none',
+                            '&:hover': {
+                              bgcolor: '#35b5b5',
+                              boxShadow: 'none',
+                            }
+                          }}
                         >
-                          {submitting ? 'Creating...' : role === 'practitioner' ? 'Submit Application' : 'Create Account'}
+                          {submitting ? 'Registering...' : role === 'practitioner' ? 'Submit Application' : 'Create Account'}
                         </Button>
                       )}
                     </Box>

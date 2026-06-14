@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Container, Typography, Grid, Paper,
   Avatar, Chip, Stack, Button,
@@ -103,11 +103,18 @@ const writeComplianceDrafts = (userId, drafts) => {
 
 const PractitionerDashboard = () => {
   const navigate = useNavigate();
+  const routerLocation = useLocation();
   const { user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+
+  useEffect(() => {
+    if (routerLocation.state?.activeTab !== undefined) {
+      setActiveTab(routerLocation.state.activeTab);
+    }
+  }, [routerLocation.state]);
 
   const [practitionerData, setPractitionerData] = useState(null);
   console.log({user, practitionerData});

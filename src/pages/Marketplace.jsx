@@ -29,6 +29,9 @@ import {
   TextField,
   Typography,
   Alert,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import {
   CalendarMonth,
@@ -41,6 +44,8 @@ import {
   Search,
   Star,
   Verified,
+  ExpandMore,
+  SearchOff,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setFilters, resetFilters, fetchPractitioners } from '../store/slices/practitionerSlice';
@@ -57,21 +62,10 @@ import { enquiryService } from '../services/api';
 import PractitionerMap from '../components/map/PractitionerMap';
 import usePostcodeCoords from '../hooks/usePostcodeCoords';
 import { haversineKm, NEARBY_RADIUS_KM } from '../utils/postcodeCoords';
-import emailjs from '@emailjs/browser';
-
-// ─── EmailJS config ──────────────────────────────────────────────────────────
-const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
 // ─── Web3Forms email helper ───────────────────────────────────────────────────
-// Access key is public-safe (client-side only, tied to your Web3Forms account).
 const WEB3FORMS_ACCESS_KEY = '0687ce52-b3cd-4d91-a402-51c94c57f7b0';
 
-/**
- * Sends an email via Web3Forms.
- * @param {Object} fields - Form fields to send (subject, from_name, email, message, etc.)
- */
 const sendWeb3FormsEmail = async (fields) => {
   const payload = { access_key: WEB3FORMS_ACCESS_KEY, ...fields };
   const res = await fetch('https://api.web3forms.com/submit', {
@@ -87,13 +81,6 @@ const sendWeb3FormsEmail = async (fields) => {
 const MotionCard = motion.create(Card);
 
 const deliveryOptions = ['All', 'Telehealth', 'Clinic', 'Mobile / travels to me'];
-const brandPanel = {
-  border: '1px solid',
-  borderColor: 'divider',
-  borderRadius: 2,
-  bgcolor: '#fff',
-  boxShadow: '0 12px 32px rgba(11, 29, 43, 0.05)',
-};
 
 const getFullName = (p) => p.name || `${p.userId?.firstName || ''} ${p.userId?.lastName || ''}`.trim() || 'Beyond5 practitioner';
 const getAvatar = (p) => p.avatar || p.image || p.userId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p._id || p.id}`;
@@ -101,7 +88,6 @@ const getPostcode = (p) => p.postcode || p.locationPostcode || p.userId?.postcod
 const getLocation = (p) => p.location || p.userId?.location || 'Location available on profile';
 const getFunding = (p) => Array.isArray(p.fundingOptions) && p.fundingOptions.length ? p.fundingOptions : [];
 const getAge = (p) => p.age || p.userId?.age || null;
-
 
 const postcodeDistanceKm = (searchCoords, practitionerPostcode, coordsMap) => {
   if (!searchCoords || !practitionerPostcode) return null;
@@ -257,7 +243,6 @@ const Marketplace = () => {
       .sort((a, b) => Number(b.localMatch || b.travelsToPostcode) - Number(a.localMatch || a.travelsToPostcode));
   }, [filters, normalizedResults, postcode, selectedFunding, activePostcode, searchCoords, coordsMap]);
 
-
   const handleSearchChange = (e) => {
     const value = e.target.value;
     dispatch(setFilters({ searchTerm: value, page: 1 }));
@@ -331,56 +316,40 @@ const Marketplace = () => {
     setEnquiryError('');
   };
 
-const submitEnquiry = async () => {
-  if (!selectedEnquiry) return;
+  const submitEnquiry = async () => {
+    if (!selectedEnquiry) return;
 
-  try {
-    setEnquirySubmitting(true);
-    setEnquiryError('');
+    try {
+      setEnquirySubmitting(true);
+      setEnquiryError('');
 
-    const practitionerName = getFullName(selectedEnquiry);
-    const practitionerDiscipline =
-      selectedEnquiry.discipline || 'Allied Health';
+      const practitionerName = getFullName(selectedEnquiry);
+      const practitionerDiscipline = selectedEnquiry.discipline || 'Allied Health';
+      const fundingList = getFunding(selectedEnquiry).join(', ') || 'Not specified';
+      const postcodeLabel = filters.postcode || postcode || 'Not specified';
+      const submittedAt = new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney' });
 
-    const fundingList =
-      getFunding(selectedEnquiry).join(', ') || 'Not specified';
-
-    const postcodeLabel =
-      filters.postcode || postcode || 'Not specified';
-
-    const submittedAt = new Date().toLocaleString('en-AU', {
-      timeZone: 'Australia/Sydney',
-    });
-
-    // Save enquiry and get practitioner email
-    const apiResponse = await enquiryService.create({
-      practitionerId: selectedEnquiry._id,
-      practitionerName,
-      practitionerDiscipline,
-      name: enquiryForm.name,
-      email: enquiryForm.email,
-      phone: enquiryForm.phone,
-      message: enquiryForm.message,
-      fundingOptions: getFunding(selectedEnquiry),
-      preferredPostcode: postcodeLabel,
-    });
-
-    const practitionerEmail =
-      apiResponse?.practitionerEmail || '';
-
-    console.log({
-      practitionerEmail,
-      apiResponse,
-    });
-
-    // Send practitioner notification
-    if (practitionerEmail) {
-      sendWeb3FormsEmail({
-        to: practitionerEmail,
-        subject: `New Enquiry from ${enquiryForm.name} – Beyond5`,
-        from_name: enquiryForm.name,
+      const apiResponse = await enquiryService.create({
+        practitionerId: selectedEnquiry._id,
+        practitionerName,
+        practitionerDiscipline,
+        name: enquiryForm.name,
         email: enquiryForm.email,
-        message: `
+        phone: enquiryForm.phone,
+        message: enquiryForm.message,
+        fundingOptions: getFunding(selectedEnquiry),
+        preferredPostcode: postcodeLabel,
+      });
+
+      const practitionerEmail = apiResponse?.practitionerEmail || '';
+
+      if (practitionerEmail) {
+        sendWeb3FormsEmail({
+          to: practitionerEmail,
+          subject: `New Enquiry from ${enquiryForm.name} – Beyond5`,
+          from_name: enquiryForm.name,
+          email: enquiryForm.email,
+          message: `
 You have received a new client enquiry on Beyond5.
 
 CLIENT DETAILS
@@ -402,20 +371,14 @@ ${enquiryForm.message}
 Please reply directly to ${enquiryForm.email} to respond to this client.
 Beyond5 Healthcare Platform
         `,
-      }).catch((err) =>
-        console.warn(
-          '[Web3Forms] Practitioner email failed:',
-          err
-        )
-      );
-    }
+        }).catch((err) => console.warn('[Web3Forms] Practitioner email failed:', err));
+      }
 
-    // Send client confirmation
-    sendWeb3FormsEmail({
-      subject: `Your enquiry to ${practitionerName} has been received – Beyond5`,
-      from_name: 'Beyond5 Healthcare',
-      email: enquiryForm.email,
-      message: `
+      sendWeb3FormsEmail({
+        subject: `Your enquiry to ${practitionerName} has been received – Beyond5`,
+        from_name: 'Beyond5 Healthcare',
+        email: enquiryForm.email,
+        message: `
 Hi ${enquiryForm.name},
 
 Thank you for your enquiry. We've forwarded your message to ${practitionerName} (${practitionerDiscipline}) and they will be in touch shortly.
@@ -433,36 +396,25 @@ ${enquiryForm.message}
 
 Beyond5 Healthcare Platform
       `,
-    }).catch((err) =>
-      console.warn(
-        '[Web3Forms] Client confirmation email failed:',
-        err
-      )
-    );
+      }).catch((err) => console.warn('[Web3Forms] Client confirmation email failed:', err));
 
-    setEnquirySent(
-      `Your enquiry for ${practitionerName} has been submitted — a confirmation has been sent to ${enquiryForm.email} and the practitioner has been notified.`
-    );
-
-    setSelectedEnquiry(null);
-  } catch (err) {
-    setEnquiryError(
-      typeof err === 'string'
-        ? err
-        : err?.message ||
-            'Unable to submit enquiry. Please try again.'
-    );
-  } finally {
-    setEnquirySubmitting(false);
-  }
-};
+      setEnquirySent(
+        `Your enquiry for ${practitionerName} has been submitted — a confirmation has been sent to ${enquiryForm.email} and the practitioner has been notified.`
+      );
+      setSelectedEnquiry(null);
+    } catch (err) {
+      setEnquiryError(typeof err === 'string' ? err : err?.message || 'Unable to submit enquiry. Please try again.');
+    } finally {
+      setEnquirySubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (
-      user?.role !== 'client'
-      || location.state?.intent !== 'enquiry'
-      || !location.state?.practitionerId
-      || selectedEnquiry
+      user?.role !== 'client' ||
+      location.state?.intent !== 'enquiry' ||
+      !location.state?.practitionerId ||
+      selectedEnquiry
     ) {
       return;
     }
@@ -485,85 +437,217 @@ Beyond5 Healthcare Platform
   }, [location.pathname, location.state, navigate, normalizedResults, selectedEnquiry, user]);
 
   const renderFilterSidebarContent = () => (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>DISCIPLINE</Typography>
-        <Select
-          fullWidth
-          size="small"
-          value={filters.discipline}
-          onChange={(e) => dispatch(setFilters({ discipline: e.target.value, page: 1 }))}
-        >
-          {DISCIPLINES.map((discipline) => (
-            <MenuItem key={discipline} value={discipline}>{discipline}</MenuItem>
-          ))}
-        </Select>
-      </Box>
+    <Stack spacing={2.5}>
+      <Accordion
+        elevation={0}
+        disableGutters
+        defaultExpanded
+        sx={{
+          bgcolor: 'transparent',
+          '&:before': { display: 'none' },
+          '& .MuiAccordionSummary-root': { p: 0, minHeight: 0, '&.Mui-expanded': { minHeight: 0 } },
+          '& .MuiAccordionSummary-content': { my: 1, '&.Mui-expanded': { my: 1 } },
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Typography variant="subtitle2" fontWeight={800} color="primary">
+            DISCIPLINE
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0, pt: 1, pb: 1.5 }}>
+          <Select
+            fullWidth
+            size="small"
+            value={filters.discipline}
+            onChange={(e) => dispatch(setFilters({ discipline: e.target.value, page: 1 }))}
+            sx={{
+              borderRadius: 2.5,
+              bgcolor: 'background.paper',
+            }}
+          >
+            {DISCIPLINES.map((discipline) => (
+              <MenuItem key={discipline} value={discipline}>{discipline}</MenuItem>
+            ))}
+          </Select>
+        </AccordionDetails>
+      </Accordion>
+
+      <Divider />
+
+      <Accordion
+        elevation={0}
+        disableGutters
+        defaultExpanded
+        sx={{
+          bgcolor: 'transparent',
+          '&:before': { display: 'none' },
+          '& .MuiAccordionSummary-root': { p: 0, minHeight: 0, '&.Mui-expanded': { minHeight: 0 } },
+          '& .MuiAccordionSummary-content': { my: 1, '&.Mui-expanded': { my: 1 } },
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="subtitle2" fontWeight={800} color="primary">
+              FUNDING PATHWAYS
+            </Typography>
+            {selectedFunding.length > 0 && (
+              <Chip label={selectedFunding.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 900 }} />
+            )}
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0, pt: 1, pb: 1.5 }}>
+          <FormGroup>
+            {FUNDING_PATHWAYS.map((funding) => (
+              <FormControlLabel
+                key={funding}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={selectedFunding.includes(funding)}
+                    onChange={() => handleFundingToggle(funding)}
+                    sx={{ color: 'divider', '&.Mui-checked': { color: 'secondary.main' } }}
+                  />
+                }
+                label={<Typography variant="body2" color="text.secondary" fontWeight={600}>{funding}</Typography>}
+              />
+            ))}
+          </FormGroup>
+        </AccordionDetails>
+      </Accordion>
+
+      <Divider />
+
+      <Accordion
+        elevation={0}
+        disableGutters
+        defaultExpanded
+        sx={{
+          bgcolor: 'transparent',
+          '&:before': { display: 'none' },
+          '& .MuiAccordionSummary-root': { p: 0, minHeight: 0, '&.Mui-expanded': { minHeight: 0 } },
+          '& .MuiAccordionSummary-content': { my: 1, '&.Mui-expanded': { my: 1 } },
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="subtitle2" fontWeight={800} color="primary">
+              LOCATION AND ACCESS
+            </Typography>
+            {filters.access.length > 0 && (
+              <Chip label={filters.access.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 900 }} />
+            )}
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0, pt: 1, pb: 1.5 }}>
+          <FormGroup>
+            {ACCESS_OPTIONS.map((option) => (
+              <FormControlLabel
+                key={option}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={filters.access.includes(option)}
+                    onChange={() => handleArrayFilterToggle('access', option)}
+                    sx={{ color: 'divider', '&.Mui-checked': { color: 'secondary.main' } }}
+                  />
+                }
+                label={<Typography variant="body2" color="text.secondary" fontWeight={600}>{option}</Typography>}
+              />
+            ))}
+          </FormGroup>
+        </AccordionDetails>
+      </Accordion>
+
+      <Divider />
+
+      <Accordion
+        elevation={0}
+        disableGutters
+        sx={{
+          bgcolor: 'transparent',
+          '&:before': { display: 'none' },
+          '& .MuiAccordionSummary-root': { p: 0, minHeight: 0, '&.Mui-expanded': { minHeight: 0 } },
+          '& .MuiAccordionSummary-content': { my: 1, '&.Mui-expanded': { my: 1 } },
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="subtitle2" fontWeight={800} color="primary">
+              APPOINTMENT PREFERENCE
+            </Typography>
+            {filters.appointmentPreference.length > 0 && (
+              <Chip label={filters.appointmentPreference.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 900 }} />
+            )}
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0, pt: 1, pb: 1.5 }}>
+          <FormGroup>
+            {APPOINTMENT_PREFERENCES.map((option) => (
+              <FormControlLabel
+                key={option}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={filters.appointmentPreference.includes(option)}
+                    onChange={() => handleArrayFilterToggle('appointmentPreference', option)}
+                    sx={{ color: 'divider', '&.Mui-checked': { color: 'secondary.main' } }}
+                  />
+                }
+                label={<Typography variant="body2" color="text.secondary" fontWeight={600}>{option}</Typography>}
+              />
+            ))}
+          </FormGroup>
+        </AccordionDetails>
+      </Accordion>
+
+      <Divider />
+
+      <Accordion
+        elevation={0}
+        disableGutters
+        sx={{
+          bgcolor: 'transparent',
+          '&:before': { display: 'none' },
+          '& .MuiAccordionSummary-root': { p: 0, minHeight: 0, '&.Mui-expanded': { minHeight: 0 } },
+          '& .MuiAccordionSummary-content': { my: 1, '&.Mui-expanded': { my: 1 } },
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="subtitle2" fontWeight={800} color="primary">
+              CLIENT PREFERENCE
+            </Typography>
+            {filters.clientPreference.length > 0 && (
+              <Chip label={filters.clientPreference.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 900 }} />
+            )}
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0, pt: 1, pb: 1.5 }}>
+          <FormGroup>
+            {CLIENT_PREFERENCES.map((option) => (
+              <FormControlLabel
+                key={option}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={filters.clientPreference.includes(option)}
+                    onChange={() => handleArrayFilterToggle('clientPreference', option)}
+                    sx={{ color: 'divider', '&.Mui-checked': { color: 'secondary.main' } }}
+                  />
+                }
+                label={<Typography variant="body2" color="text.secondary" fontWeight={600}>{option}</Typography>}
+              />
+            ))}
+          </FormGroup>
+        </AccordionDetails>
+      </Accordion>
 
       <Divider />
 
       <Box>
-        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>FUNDING PATHWAY</Typography>
-        <FormGroup>
-          {FUNDING_PATHWAYS.map((funding) => (
-            <FormControlLabel
-              key={funding}
-              control={<Checkbox size="small" checked={selectedFunding.includes(funding)} onChange={() => handleFundingToggle(funding)} />}
-              label={<Typography variant="body2" fontWeight={700}>{funding}</Typography>}
-            />
-          ))}
-        </FormGroup>
-      </Box>
-
-      <Divider />
-
-      <Box>
-        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>LOCATION AND ACCESS</Typography>
-        <FormGroup>
-          {ACCESS_OPTIONS.map((option) => (
-            <FormControlLabel
-              key={option}
-              control={<Checkbox size="small" checked={filters.access.includes(option)} onChange={() => handleArrayFilterToggle('access', option)} />}
-              label={<Typography variant="body2" fontWeight={700}>{option}</Typography>}
-            />
-          ))}
-        </FormGroup>
-      </Box>
-
-      <Divider />
-
-      <Box>
-        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>APPOINTMENT PREFERENCE</Typography>
-        <FormGroup>
-          {APPOINTMENT_PREFERENCES.map((option) => (
-            <FormControlLabel
-              key={option}
-              control={<Checkbox size="small" checked={filters.appointmentPreference.includes(option)} onChange={() => handleArrayFilterToggle('appointmentPreference', option)} />}
-              label={<Typography variant="body2" fontWeight={700}>{option}</Typography>}
-            />
-          ))}
-        </FormGroup>
-      </Box>
-
-      <Divider />
-
-      <Box>
-        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>CLIENT PREFERENCE</Typography>
-        <FormGroup>
-          {CLIENT_PREFERENCES.map((option) => (
-            <FormControlLabel
-              key={option}
-              control={<Checkbox size="small" checked={filters.clientPreference.includes(option)} onChange={() => handleArrayFilterToggle('clientPreference', option)} />}
-              label={<Typography variant="body2" fontWeight={700}>{option}</Typography>}
-            />
-          ))}
-        </FormGroup>
-      </Box>
-
-      <Divider />
-
-      <Box>
-        <Typography variant="subtitle2" fontWeight={900} color="primary" gutterBottom>QUICK ACCESS</Typography>
+        <Typography variant="subtitle2" fontWeight={800} color="primary" gutterBottom>
+          QUICK ACCESS
+        </Typography>
         <Stack direction="row" gap={1} sx={{ flexWrap: 'wrap', mt: 1 }}>
           {deliveryOptions.map((mode) => (
             <Chip
@@ -573,128 +657,341 @@ Beyond5 Healthcare Platform
               color={filters.deliveryMode === mode ? 'primary' : 'default'}
               variant={filters.deliveryMode === mode ? 'filled' : 'outlined'}
               size="small"
-              sx={{ fontWeight: 800 }}
+              sx={{
+                fontWeight: 700,
+                borderRadius: 2.5,
+                transition: 'all 0.15s ease',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  bgcolor: filters.deliveryMode === mode ? 'primary.main' : 'rgba(11,29,43,0.04)',
+                }
+              }}
             />
           ))}
         </Stack>
       </Box>
 
-      <Button variant="outlined" startIcon={<RestartAlt />} onClick={clearAll} fullWidth sx={{ fontWeight: 800 }}>
-        Reset filters
+      <Button
+        variant="outlined"
+        startIcon={<RestartAlt />}
+        onClick={clearAll}
+        fullWidth
+        sx={{
+          fontWeight: 700,
+          borderRadius: 2.5,
+          py: 1,
+          borderColor: 'divider',
+          '&:hover': {
+            borderColor: 'primary.main',
+            bgcolor: 'rgba(11,29,43,0.04)',
+          }
+        }}
+      >
+        Reset Filters
       </Button>
     </Stack>
   );
 
   return (
-    <Box sx={{ bgcolor: '#F7FBFB', minHeight: '100vh', py: { xs: 2.5, md: 4 } }}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', py: { xs: 3, md: 5 } }}>
       <Container maxWidth="xl">
+        {/* Top Header Banner */}
         <Paper
           elevation={0}
           sx={{
-            ...brandPanel,
-            mb: 3,
+            position: 'relative',
+            mb: 4,
+            borderRadius: { xs: 0, md: 4 },
             overflow: 'hidden',
-            bgcolor: '#0B1D2B',
+            bgcolor: 'primary.main',
             color: '#fff',
+            backgroundImage: `radial-gradient(rgba(65, 198, 198, 0.15) 1px, transparent 1px), radial-gradient(rgba(65, 198, 198, 0.15) 1px, transparent 1px)`,
+            backgroundSize: '24px 24px',
+            backgroundPosition: '0 0, 12px 12px',
+            border: '1px solid rgba(255,255,255,0.05)',
           }}
         >
-          <Box sx={{ p: { xs: 2.5, md: 4 } }}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-end' }}>
-              <Stack spacing={1.25} sx={{ maxWidth: 820 }}>
-                <Typography variant="overline" sx={{ color: '#41C6C6', fontWeight: 900, letterSpacing: 1.2 }}>Beyond5 client search</Typography>
-                <Typography variant="h3" fontWeight={900} sx={{ color: '#fff', fontSize: { xs: '2rem', md: '3rem' } }}>
-                  Find an Allied Health Practitioner
+          <Box sx={{ p: { xs: 4, md: 6 }, position: 'relative', zIndex: 2 }}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={3}
+              justifyContent="space-between"
+              alignItems={{ xs: 'stretch', md: 'flex-end' }}
+            >
+              <Stack spacing={1.5} sx={{ maxWidth: 820 }}>
+                <Chip
+                  label="BEYOND5 CLIENT SEARCH"
+                  size="small"
+                  sx={{
+                    bgcolor: 'rgba(65, 198, 198, 0.14)',
+                    color: 'secondary.main',
+                    fontWeight: 800,
+                    width: 'fit-content',
+                    fontSize: '0.75rem',
+                    letterSpacing: 1.2,
+                    py: 1.5,
+                    px: 0.5
+                  }}
+                />
+                <Typography
+                  variant="h3"
+                  fontWeight={800}
+                  sx={{
+                    color: '#fff',
+                    fontSize: { xs: '2.25rem', md: '3.25rem' },
+                    letterSpacing: '-0.02em',
+                    lineHeight: 1.15
+                  }}
+                >
+                  Find Your Perfect Allied Health Practitioner
                 </Typography>
-                <Typography sx={{ color: 'rgba(255,255,255,0.78)', maxWidth: 780, lineHeight: 1.7 }}>
-                  Search by therapy type, postcode, funding type and appointment preference to find practitioners who fit your needs.
+                <Typography sx={{ color: 'rgba(255,255,255,0.75)', maxWidth: 780, fontSize: '1.05rem', lineHeight: 1.6 }}>
+                  Filter by clinical discipline, localized postcode, NDIS/Medicare funding options, and scheduling preferences to connect instantly.
                 </Typography>
               </Stack>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                <Chip label={`${filteredResults.length} matches`} color="secondary" sx={{ fontWeight: 900 }} />
-                <Chip label="Map + list view" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: '#fff', fontWeight: 800 }} />
+              <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', shrink: 0 }}>
+                <Chip
+                  label={`${filteredResults.length} practitioners matched`}
+                  color="secondary"
+                  sx={{ fontWeight: 800, fontSize: '0.85rem', py: 2, px: 0.5 }}
+                />
+                <Chip
+                  label="Map + List View"
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    py: 2
+                  }}
+                />
               </Stack>
             </Stack>
           </Box>
         </Paper>
 
         {enquirySent && (
-          <Alert severity="success" onClose={() => setEnquirySent('')} sx={{ mb: 3, borderRadius: 2 }}>
+          <Alert severity="success" onClose={() => setEnquirySent('')} sx={{ mb: 4, borderRadius: 3, fontWeight: 600 }}>
             {enquirySent}
           </Alert>
         )}
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '300px minmax(0, 1fr)' }, gap: 3, alignItems: 'start' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '280px minmax(0, 1fr)' }, gap: 4, alignItems: 'start' }}>
+          {/* Desktop Filter Sidebar */}
           <Box sx={{ display: { xs: 'none', lg: 'block' } }}>
-            <Paper elevation={0} sx={{ ...brandPanel, p: 2.5, position: 'sticky', top: 100 }}>
-              <Typography variant="h6" fontWeight={900} sx={{ mb: 3 }}>Refine search</Typography>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: 4,
+                border: '1px solid #E2E8F0',
+                position: 'sticky',
+                top: 90,
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                <Typography variant="h6" fontWeight={800} color="primary">
+                  Refine Search
+                </Typography>
+                {activeFilters.length > 0 && (
+                  <Button size="small" onClick={clearAll} sx={{ fontWeight: 700, minWidth: 0, p: 0 }}>
+                    Reset
+                  </Button>
+                )}
+              </Stack>
               {renderFilterSidebarContent()}
             </Paper>
           </Box>
 
+          {/* Search Bar & Results Area */}
           <Box sx={{ minWidth: 0 }}>
-            <Paper elevation={0} sx={{ ...brandPanel, p: { xs: 1.25, md: 1.5 }, mb: 2.5 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) 168px', md: 'minmax(280px, 1fr) 168px 150px auto' }, gap: 1, alignItems: 'stretch' }}>
+            {/* Search inputs bar */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 4,
+                border: '1px solid #E2E8F0',
+                mb: 3,
+                boxShadow: '0 4px 20px rgba(11,29,43,0.02)',
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: '1fr auto',
+                    md: 'minmax(0, 1fr) 180px 150px auto'
+                  },
+                  gap: 1.5,
+                  alignItems: 'stretch'
+                }}
+              >
                 <TextField
                   fullWidth
-                  placeholder="Search name, discipline or special interest"
+                  placeholder="Search by name, discipline, specialisation..."
                   value={filters.searchTerm}
                   onChange={handleSearchChange}
-                  size="medium"
                   InputProps={{
-                    startAdornment: <InputAdornment position="start"><Search /></InputAdornment>,
-                    endAdornment: filters.searchTerm && <IconButton size="small" onClick={() => dispatch(setFilters({ searchTerm: '', page: 1 }))}><Close fontSize="small" /></IconButton>,
+                    startAdornment: <InputAdornment position="start"><Search color="action" /></InputAdornment>,
+                    endAdornment: filters.searchTerm && (
+                      <IconButton size="small" onClick={() => dispatch(setFilters({ searchTerm: '', page: 1 }))}>
+                        <Close fontSize="small" />
+                      </IconButton>
+                    ),
+                    sx: { borderRadius: 3 }
                   }}
                 />
                 <TextField
                   fullWidth
-                  label="Postcode"
+                  placeholder="Postcode"
                   value={postcode}
                   onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   onKeyDown={(e) => { if (e.key === 'Enter') handlePostcodeSearch(); }}
-                  inputProps={{ inputMode: 'numeric' }}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><LocationOn color="action" /></InputAdornment>,
+                    inputMode: 'numeric',
+                    sx: { borderRadius: 3 }
+                  }}
                 />
-                <Button variant="contained" startIcon={<LocationOn />} onClick={handlePostcodeSearch} sx={{ minHeight: 56, fontWeight: 900, whiteSpace: 'nowrap' }}>
-                  Map search
+                <Button
+                  variant="contained"
+                  onClick={handlePostcodeSearch}
+                  sx={{
+                    borderRadius: 3,
+                    fontWeight: 700,
+                    px: 3,
+                    height: 56,
+                  }}
+                >
+                  Map Search
                 </Button>
-                <Button variant="outlined" startIcon={<FilterList />} onClick={() => setMobileFilterOpen(true)} sx={{ display: { lg: 'none' }, minHeight: 56, fontWeight: 900 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<FilterList />}
+                  onClick={() => setMobileFilterOpen(true)}
+                  sx={{
+                    display: { lg: 'none' },
+                    borderRadius: 3,
+                    fontWeight: 700,
+                    height: 56,
+                  }}
+                >
                   Filters
                 </Button>
               </Box>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: activeFilters.length ? 1.5 : 0, flexWrap: 'wrap' }}>
-                {activeFilters.slice(0, 8).map((filter) => (
-                  <Chip key={filter} label={filter} size="small" sx={{ fontWeight: 800, bgcolor: '#E9EEF2' }} />
-                ))}
-                {activeFilters.length > 8 && <Chip label={`+${activeFilters.length - 8} more`} size="small" color="secondary" sx={{ fontWeight: 900 }} />}
-                {activeFilters.length > 0 && (
-                  <Button size="small" startIcon={<RestartAlt />} onClick={clearAll} sx={{ fontWeight: 900 }}>
-                    Clear
+
+              {/* Active filter chips */}
+              {activeFilters.length > 0 && (
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2, flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="caption" fontWeight={700} color="text.secondary">
+                    ACTIVE FILTERS:
+                  </Typography>
+                  {activeFilters.slice(0, 6).map((filter) => (
+                    <Chip
+                      key={filter}
+                      label={filter}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        bgcolor: 'rgba(11,29,43,0.04)',
+                        color: 'primary.main',
+                        borderRadius: 2,
+                      }}
+                    />
+                  ))}
+                  {activeFilters.length > 6 && (
+                    <Chip
+                      label={`+${activeFilters.length - 6} more`}
+                      size="small"
+                      color="secondary"
+                      sx={{ fontWeight: 800, borderRadius: 2 }}
+                    />
+                  )}
+                  <Button
+                    size="small"
+                    startIcon={<RestartAlt />}
+                    onClick={clearAll}
+                    sx={{ fontWeight: 700, fontSize: '0.75rem' }}
+                  >
+                    Clear All
                   </Button>
-                )}
-              </Stack>
+                </Stack>
+              )}
             </Paper>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(330px, 0.9fr) minmax(0, 1.1fr)' }, gap: 3, alignItems: 'start' }}>
+            {/* Split layout: Map results & Card list */}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '1fr 1.15fr' },
+                gap: 3,
+                alignItems: 'start'
+              }}
+            >
+              {/* Map Panel (Sticky) */}
               <Box>
-                <Paper elevation={0} sx={{ ...brandPanel, p: { xs: 1.5, md: 2 }, position: { md: 'sticky' }, top: 100 }}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 4,
+                    border: '1px solid #E2E8F0',
+                    position: { md: 'sticky' },
+                    top: 90,
+                    bgcolor: 'background.paper',
+                    boxShadow: '0 4px 20px rgba(11,29,43,0.01)',
+                  }}
+                >
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                    <Typography variant="h6" fontWeight={900}>Map results</Typography>
-                    <Chip label={`${filteredResults.length} matches`} size="small" color="secondary" sx={{ fontWeight: 900 }} />
+                    <Typography variant="h6" fontWeight={800} color="primary">
+                      Map View
+                    </Typography>
+                    <Chip
+                      label={`${filteredResults.length} pins`}
+                      size="small"
+                      color="secondary"
+                      sx={{ fontWeight: 800, height: 22 }}
+                    />
                   </Stack>
-                  <PractitionerMap
-                    practitioners={filteredResults}
-                    searchPostcode={filters.postcode || postcode}
-                    height={460}
-                    onBook={(p) => navigate(`/booking?practitioner=${p._id}`)}
-                    onEnquire={(p) => openEnquiry(p)}
-                  />
+                  <Box sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid #E2E8F0' }}>
+                    <PractitionerMap
+                      practitioners={filteredResults}
+                      searchPostcode={filters.postcode || postcode}
+                      height={480}
+                      onBook={(p) => navigate(`/booking?practitioner=${p._id}`)}
+                      onEnquire={(p) => openEnquiry(p)}
+                    />
+                  </Box>
                 </Paper>
               </Box>
 
+              {/* Card List Panel */}
               <Box sx={{ minWidth: 0 }}>
                 <AnimatePresence mode="popLayout">
                   {loading && practitioners.length === 0 ? (
-                    <Stack spacing={2} key="loading-skeletons">
-                      {[1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={240} sx={{ borderRadius: 2 }} />)}
+                    <Stack spacing={3} key="loading-skeletons">
+                      {[1, 2, 3].map((i) => (
+                        <Paper
+                          key={i}
+                          sx={{
+                            p: 3,
+                            borderRadius: 4,
+                            border: '1px solid #E2E8F0',
+                          }}
+                        >
+                          <Stack direction="row" spacing={3} alignItems="center">
+                            <Skeleton variant="circular" width={80} height={80} />
+                            <Stack spacing={1} sx={{ flex: 1 }}>
+                              <Skeleton variant="text" width="60%" height={32} />
+                              <Skeleton variant="text" width="40%" height={20} />
+                              <Skeleton variant="text" width="90%" height={20} />
+                            </Stack>
+                          </Stack>
+                        </Paper>
+                      ))}
                     </Stack>
                   ) : filteredResults.length > 0 ? (
                     <Stack spacing={3} key="results-list">
@@ -702,125 +999,228 @@ Beyond5 Healthcare Platform
                         <MotionCard
                           key={p._id}
                           layout
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: 15 }}
                           animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -15 }}
+                          transition={{ duration: 0.2 }}
                           sx={{
-                            ...brandPanel,
+                            borderRadius: 4,
+                            border: '1px solid #E2E8F0',
                             overflow: 'hidden',
-                            transition: 'border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease',
+                            boxShadow: '0 4px 20px rgba(11,29,43,0.01)',
+                            position: 'relative',
+                            transition: 'all 0.2s ease',
                             '&:hover': {
-                              borderColor: '#BDE7E6',
-                              boxShadow: '0 18px 42px rgba(11, 29, 43, 0.09)',
-                              transform: 'translateY(-1px)',
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 12px 30px rgba(11,29,43,0.08)',
+                              borderColor: 'transparent',
+                              '&::before': { opacity: 1 }
                             },
+                            '&::before': {
+                              content: '""',
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: 4,
+                              bgcolor: 'secondary.main',
+                              opacity: 0,
+                              transition: 'opacity 0.2s ease',
+                            }
                           }}
                         >
-                          <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+                          <CardContent sx={{ p: { xs: 3, md: 3.5 } }}>
                             <Box
                               sx={{
                                 display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: '120px minmax(0, 1fr)' },
-                                gap: { xs: 3, md: 4 },
+                                gridTemplateColumns: { xs: '1fr', sm: '100px minmax(0, 1fr)' },
+                                gap: 3.5,
                                 alignItems: 'start',
                               }}
                             >
-                              <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.5}>
-                                <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={p.verificationStatus === 'approved' && <Verified color="secondary" sx={{ bgcolor: '#fff', borderRadius: '50%', fontSize: 22 }} />}>
-                                  <Avatar src={getAvatar(p)} sx={{ width: 120, height: 120, border: '3px solid #BDE7E6', boxShadow: '0 8px 20px rgba(11,29,43,0.12)' }} />
+                              {/* Avatar column */}
+                              <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.5} sx={{ position: 'relative' }}>
+                                <Badge
+                                  overlap="circular"
+                                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                  badgeContent={
+                                    p.verificationStatus === 'approved' && (
+                                      <Verified
+                                        color="secondary"
+                                        sx={{
+                                          bgcolor: '#fff',
+                                          borderRadius: '50%',
+                                          fontSize: 22,
+                                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                        }}
+                                      />
+                                    )
+                                  }
+                                >
+                                  <Avatar
+                                    src={getAvatar(p)}
+                                    sx={{
+                                      width: 100,
+                                      height: 100,
+                                      border: '3.5px solid #fff',
+                                      boxShadow: '0 8px 24px rgba(11,29,43,0.09)'
+                                    }}
+                                  />
                                 </Badge>
                                 <Stack direction="row" spacing={0.5} sx={{ display: { xs: 'none', sm: 'flex' }, flexWrap: 'wrap', justifyContent: 'center', gap: 0.5 }}>
-                                  <Chip label={p.gender} size="small" sx={{ fontWeight: 800 }} />
-                                  {getAge(p) && <Chip label={`${getAge(p)} yrs`} size="small" sx={{ fontWeight: 800 }} />}
+                                  <Chip label={p.gender} size="small" sx={{ fontWeight: 700, fontSize: '0.7rem', height: 20 }} />
+                                  {getAge(p) && <Chip label={`${getAge(p)} yrs`} size="small" sx={{ fontWeight: 700, fontSize: '0.7rem', height: 20 }} />}
                                 </Stack>
                               </Stack>
 
+                              {/* Details column */}
                               <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
                                 <Box>
-                                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 0.5, gap: 0.5 }}>
-                                    <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1.2 }}>{getFullName(p)}</Typography>
+                                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 0.5, gap: 0.75 }}>
+                                    <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2, color: 'primary.main' }}>
+                                      {getFullName(p)}
+                                    </Typography>
                                     <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 0.5, flexWrap: 'wrap' }}>
-                                      <Chip label={p.gender} size="small" sx={{ fontWeight: 800 }} />
-                                      {getAge(p) && <Chip label={`${getAge(p)} yrs`} size="small" sx={{ fontWeight: 800 }} />}
+                                      <Chip label={p.gender} size="small" sx={{ fontWeight: 700, height: 20 }} />
+                                      {getAge(p) && <Chip label={`${getAge(p)} yrs`} size="small" sx={{ fontWeight: 700, height: 20 }} />}
                                     </Box>
-                                    {p.verificationStatus === 'approved' && <Chip icon={<HealthAndSafety />} label="Verified" color="secondary" size="small" sx={{ fontWeight: 900 }} />}
+                                    {p.verificationStatus === 'approved' && (
+                                      <Chip
+                                        icon={<HealthAndSafety sx={{ fontSize: '14px !important' }} />}
+                                        label="Verified"
+                                        color="success"
+                                        variant="light"
+                                        size="small"
+                                        sx={{ fontWeight: 800, height: 20, fontSize: '0.7rem' }}
+                                      />
+                                    )}
                                   </Stack>
-                                  <Typography variant="body2" color="primary" fontWeight={900}>{p.discipline}</Typography>
+                                  <Typography variant="body2" color="primary.main" fontWeight={700}>
+                                    {p.discipline}
+                                  </Typography>
                                 </Box>
+
                                 <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                                  <Chip size="small" variant="outlined" icon={<LocationOn />} label={`${getLocation(p)} ${getPostcode(p)}`} sx={{ maxWidth: '100%', fontWeight: 700 }} />
-                                  <Chip size="small" variant="outlined" icon={<Star sx={{ color: '#41C6C6' }} />} label={`${p.averageRating || 'New'} (${p.totalReviews || 0})`} sx={{ fontWeight: 700 }} />
-                                  <Chip size="small" variant="outlined" icon={<CalendarMonth />} label={`${p.afterHours ? 'After hours' : 'Standard hours'}${p.weekends ? ' + weekends' : ''}`} sx={{ fontWeight: 700 }} />
+                                  <Chip size="small" variant="outlined" icon={<LocationOn sx={{ fontSize: '14px !important' }} />} label={`${getLocation(p)} ${getPostcode(p)}`} sx={{ fontWeight: 600, height: 22 }} />
+                                  <Chip size="small" variant="outlined" icon={<Star sx={{ color: 'secondary.main', fontSize: '14px !important' }} />} label={`${p.averageRating || 'New'} (${p.totalReviews || 0})`} sx={{ fontWeight: 600, height: 22 }} />
+                                  <Chip size="small" variant="outlined" icon={<CalendarMonth sx={{ fontSize: '14px !important' }} />} label={`${p.afterHours ? 'Evenings' : 'Business hours'}${p.weekends ? ' + weekends' : ''}`} sx={{ fontWeight: 600, height: 22 }} />
                                 </Stack>
-                                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>{p.bio || 'Allied health practitioner on Beyond5.'}</Typography>
-                                <Stack direction="row" gap={1} sx={{ flexWrap: 'wrap' }}>
-                                  <Chip label={p.distanceLabel} color={p.localMatch || p.travelsToPostcode ? 'secondary' : 'default'} size="small" sx={{ fontWeight: 800 }} />
-                                  <Chip label={p.travelArea} size="small" />
-                                  <Chip label={p.telehealth ? 'Telehealth: Yes' : 'Telehealth: No'} size="small" variant="outlined" />
-                                  {getFunding(p).slice(0, 3).map((fund) => <Chip key={fund} label={fund} size="small" variant="outlined" />)}
-                                  {getFunding(p).length > 3 && <Chip label={`+${getFunding(p).length - 3} funding`} size="small" />}
+
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{
+                                    lineHeight: 1.6,
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                  }}
+                                >
+                                  {p.bio || 'Allied health practitioner on Beyond5.'}
+                                </Typography>
+
+                                <Stack direction="row" gap={0.75} sx={{ flexWrap: 'wrap', pt: 0.5 }}>
+                                  <Chip
+                                    label={p.distanceLabel}
+                                    color={p.localMatch || p.travelsToPostcode ? 'secondary' : 'default'}
+                                    size="small"
+                                    sx={{ fontWeight: 700, height: 22 }}
+                                  />
+                                  <Chip label={p.travelArea} size="small" sx={{ fontWeight: 600, height: 22 }} />
+                                  <Chip label={p.telehealth ? 'Telehealth' : 'In-clinic'} size="small" variant="outlined" sx={{ fontWeight: 600, height: 22 }} />
+                                  {getFunding(p).slice(0, 2).map((fund) => (
+                                    <Chip key={fund} label={fund} size="small" variant="outlined" sx={{ fontWeight: 600, height: 22 }} />
+                                  ))}
+                                  {getFunding(p).length > 2 && (
+                                    <Chip label={`+${getFunding(p).length - 2} more`} size="small" sx={{ fontWeight: 600, height: 22 }} />
+                                  )}
                                 </Stack>
                               </Stack>
 
+                              {/* Bottom Action Bar */}
                               <Stack
                                 direction={{ xs: 'column', md: 'row' }}
                                 justifyContent="space-between"
                                 alignItems={{ xs: 'stretch', md: 'center' }}
-                                spacing={2.5}
+                                spacing={2}
                                 sx={{
                                   gridColumn: '1 / -1',
                                   alignSelf: 'stretch',
-                                  p: { xs: 2, md: 2.5 },
-                                  borderRadius: 2,
-                                  bgcolor: '#F7FBFB',
+                                  p: 2,
+                                  borderRadius: 3,
+                                  bgcolor: 'grey.50',
                                   border: '1px solid',
                                   borderColor: 'divider',
                                   minWidth: 0,
                                 }}
                               >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                                   <Box
                                     sx={{
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      width: 44,
-                                      height: 44,
-                                      borderRadius: '50%',
-                                      bgcolor: 'rgba(65, 198, 198, 0.1)',
+                                      width: 38,
+                                      height: 38,
+                                      borderRadius: 2.5,
+                                      bgcolor: 'rgba(65, 198, 198, 0.12)',
                                       color: 'secondary.main',
                                       flexShrink: 0,
                                     }}
                                   >
-                                    <CalendarMonth fontSize="medium" />
+                                    <CalendarMonth sx={{ fontSize: 20 }} />
                                   </Box>
                                   <Box>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ display: 'block', letterSpacing: 0.8, mb: 0.25 }}>
-                                      NEXT AVAILABLE
+                                    <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ display: 'block', letterSpacing: 0.6, mb: 0.25 }}>
+                                      NEXT AVAILABILITY
                                     </Typography>
-                                    <Typography variant="body2" fontWeight={900} color="text.primary">
+                                    <Typography variant="body2" fontWeight={800} color="primary.main">
                                       {p.nextAvailable}
                                     </Typography>
                                   </Box>
                                 </Box>
-                                <Box
-                                  sx={{
-                                    display: 'flex',
-                                    flexDirection: { xs: 'column', sm: 'row' },
-                                    gap: 1.5,
-                                    width: { xs: '100%', md: 'auto' },
-                                  }}
+
+                                <Stack
+                                  direction={{ xs: 'column', sm: 'row' }}
+                                  gap={1}
+                                  sx={{ width: { xs: '100%', md: 'auto' } }}
                                 >
                                   <Button
                                     variant="outlined"
                                     onClick={() => openEnquiry(p)}
-                                    sx={{ fontWeight: 900, minHeight: 42, px: { sm: 3 }, width: { xs: '100%', sm: 'auto' } }}
+                                    sx={{
+                                      fontWeight: 700,
+                                      minHeight: 40,
+                                      px: 2.5,
+                                      borderRadius: 2.5,
+                                      fontSize: '0.85rem',
+                                      borderColor: 'divider',
+                                      color: 'primary.main',
+                                      '&:hover': {
+                                        borderColor: 'primary.main',
+                                        bgcolor: 'rgba(11,29,43,0.04)',
+                                      }
+                                    }}
                                   >
                                     Enquire
                                   </Button>
                                   <Button
-                                    variant="contained"
+                                    variant="outlined"
                                     onClick={() => navigate(`/practitioners/${p._id}`)}
-                                    sx={{ fontWeight: 900, minHeight: 42, px: { sm: 3 }, width: { xs: '100%', sm: 'auto' } }}
+                                    sx={{
+                                      fontWeight: 700,
+                                      minHeight: 40,
+                                      px: 2.5,
+                                      borderRadius: 2.5,
+                                      fontSize: '0.85rem',
+                                      borderColor: 'divider',
+                                      color: 'primary.main',
+                                      '&:hover': {
+                                        borderColor: 'primary.main',
+                                        bgcolor: 'rgba(11,29,43,0.04)',
+                                      }
+                                    }}
                                   >
                                     View Profile
                                   </Button>
@@ -828,11 +1228,23 @@ Beyond5 Healthcare Platform
                                     variant="contained"
                                     color="secondary"
                                     onClick={() => navigate(`/booking?practitioner=${p._id}`)}
-                                    sx={{ fontWeight: 900, minHeight: 42, px: { sm: 3 }, color: 'white', width: { xs: '100%', sm: 'auto' } }}
+                                    sx={{
+                                      fontWeight: 800,
+                                      minHeight: 40,
+                                      px: 2.5,
+                                      borderRadius: 2.5,
+                                      fontSize: '0.85rem',
+                                      color: 'primary.contrastText',
+                                      boxShadow: 'none',
+                                      '&:hover': {
+                                        bgcolor: '#35b5b5',
+                                        boxShadow: 'none',
+                                      }
+                                    }}
                                   >
-                                    Check availability
+                                    Book Now
                                   </Button>
-                                </Box>
+                                </Stack>
                               </Stack>
                             </Box>
                           </CardContent>
@@ -840,11 +1252,32 @@ Beyond5 Healthcare Platform
                       ))}
                     </Stack>
                   ) : (
-                    <Paper key="no-results" sx={{ p: 6, textAlign: 'center', borderRadius: 2, bgcolor: '#fff', border: '1px solid', borderColor: 'divider' }}>
-                      <Info sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-                      <Typography variant="h6" fontWeight={900}>No practitioners found</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Try another postcode, discipline or funding pathway.</Typography>
-                      <Button variant="outlined" onClick={clearAll}>Reset all</Button>
+                    <Paper
+                      key="no-results"
+                      sx={{
+                        p: 6,
+                        textAlign: 'center',
+                        borderRadius: 4,
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        boxShadow: '0 4px 20px rgba(11,29,43,0.01)',
+                      }}
+                    >
+                      <SearchOff sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                      <Typography variant="h6" fontWeight={800} color="primary" gutterBottom>
+                        No Practitioners Found
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 360, mx: 'auto' }}>
+                        We couldn't find matches matching your filter selection. Try adjusting your postcode, discipline, or funding pathways.
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        onClick={clearAll}
+                        sx={{ borderRadius: 2.5, fontWeight: 700 }}
+                      >
+                        Reset All Filters
+                      </Button>
                     </Paper>
                   )}
                 </AnimatePresence>
@@ -854,28 +1287,118 @@ Beyond5 Healthcare Platform
         </Box>
       </Container>
 
-      <Drawer anchor="bottom" open={mobileFilterOpen} onClose={() => setMobileFilterOpen(false)} PaperProps={{ sx: { borderRadius: '20px 20px 0 0', p: { xs: 2.5, sm: 4 }, maxHeight: '88vh' } }}>
-        <Typography variant="h6" fontWeight={900} sx={{ mb: 4 }}>Filter practitioners</Typography>
-        {renderFilterSidebarContent()}
-        <Button variant="contained" fullWidth sx={{ mt: 4, py: 1.5 }} onClick={() => setMobileFilterOpen(false)}>Show results</Button>
+      {/* Mobile filter drawer */}
+      <Drawer
+        anchor="bottom"
+        open={mobileFilterOpen}
+        onClose={() => setMobileFilterOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '24px 24px 0 0',
+            p: 3.5,
+            maxHeight: '88vh',
+            display: 'flex',
+            flexDirection: 'column',
+          }
+        }}
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+          <Typography variant="h6" fontWeight={800} color="primary">
+            Filter Practitioners
+          </Typography>
+          <IconButton size="small" onClick={() => setMobileFilterOpen(false)}>
+            <Close />
+          </IconButton>
+        </Stack>
+
+        <Box sx={{ flex: 1, overflowY: 'auto', pr: 0.5, pb: 4 }}>
+          {renderFilterSidebarContent()}
+        </Box>
+
+        <Box
+          sx={{
+            position: 'sticky',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            bgcolor: 'background.paper',
+            pt: 2,
+            borderTop: '1px solid #E2E8F0',
+          }}
+        >
+          <Button
+            variant="contained"
+            fullWidth
+            size="large"
+            onClick={() => setMobileFilterOpen(false)}
+            sx={{
+              borderRadius: 3,
+              fontWeight: 800,
+              py: 1.5,
+            }}
+          >
+            Show Results ({filteredResults.length})
+          </Button>
+        </Box>
       </Drawer>
 
-      <Dialog open={Boolean(selectedEnquiry)} onClose={closeEnquiry} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ fontWeight: 900 }}>
-          Enquire about {selectedEnquiry ? getFullName(selectedEnquiry) : 'practitioner'}
+      {/* Enquiry Dialog */}
+      <Dialog
+        open={Boolean(selectedEnquiry)}
+        onClose={closeEnquiry}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            p: 1.5,
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: 'primary.main', pb: 1 }}>
+          Send Enquiry
         </DialogTitle>
         <DialogContent>
-          <Stack spacing={2.5} sx={{ pt: 1 }}>
-            <Alert severity="info" sx={{ borderRadius: 2 }}>
-              This will create an enquiry record for Beyond5 follow-up. The practitioner will be notified and can respond directly.
+          <Stack spacing={2.5} sx={{ pt: 1.5 }}>
+            {selectedEnquiry && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.75,
+                  borderRadius: 3,
+                  bgcolor: 'grey.50',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                }}
+              >
+                <Avatar src={getAvatar(selectedEnquiry)} sx={{ width: 44, height: 44, border: '2.5px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} />
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={800} color="primary.main">
+                    {getFullName(selectedEnquiry)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                    {selectedEnquiry.discipline}
+                  </Typography>
+                </Box>
+              </Paper>
+            )}
+
+            <Alert severity="info" sx={{ borderRadius: 3, fontSize: '0.825rem' }}>
+              Your message will be sent to the practitioner. They will respond directly via email or phone.
             </Alert>
-            {enquiryError && <Alert severity="error" sx={{ borderRadius: 2 }}>{enquiryError}</Alert>}
+
+            {enquiryError && <Alert severity="error" sx={{ borderRadius: 3 }}>{enquiryError}</Alert>}
+
             <TextField
               fullWidth
               label="Your name"
               value={enquiryForm.name}
               onChange={(event) => setEnquiryForm((prev) => ({ ...prev, name: event.target.value }))}
               disabled={enquirySubmitting}
+              InputProps={{ sx: { borderRadius: 2.5 } }}
             />
             <TextField
               fullWidth
@@ -883,6 +1406,7 @@ Beyond5 Healthcare Platform
               value={enquiryForm.email}
               onChange={(event) => setEnquiryForm((prev) => ({ ...prev, email: event.target.value }))}
               disabled={enquirySubmitting}
+              InputProps={{ sx: { borderRadius: 2.5 } }}
             />
             <TextField
               fullWidth
@@ -890,22 +1414,43 @@ Beyond5 Healthcare Platform
               value={enquiryForm.phone}
               onChange={(event) => setEnquiryForm((prev) => ({ ...prev, phone: event.target.value }))}
               disabled={enquirySubmitting}
+              InputProps={{ sx: { borderRadius: 2.5 } }}
             />
             <TextField
               fullWidth
               multiline
-              minRows={4}
+              minRows={3}
               label="Message"
               value={enquiryForm.message}
               onChange={(event) => setEnquiryForm((prev) => ({ ...prev, message: event.target.value }))}
               disabled={enquirySubmitting}
+              InputProps={{ sx: { borderRadius: 2.5 } }}
             />
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={closeEnquiry} disabled={enquirySubmitting}>Cancel</Button>
-          <Button variant="contained" color="secondary" onClick={submitEnquiry} disabled={enquirySubmitting || !enquiryForm.name || !enquiryForm.email || !enquiryForm.message} sx={{ fontWeight: 900 }}>
-            {enquirySubmitting ? 'Sending...' : 'Send enquiry'}
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={closeEnquiry}
+            disabled={enquirySubmitting}
+            sx={{ fontWeight: 700 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={submitEnquiry}
+            disabled={enquirySubmitting || !enquiryForm.name || !enquiryForm.email || !enquiryForm.message}
+            sx={{
+              fontWeight: 800,
+              borderRadius: 2.5,
+              px: 3,
+              color: 'primary.contrastText',
+              boxShadow: 'none',
+              '&:hover': { boxShadow: 'none' }
+            }}
+          >
+            {enquirySubmitting ? 'Sending...' : 'Send Enquiry'}
           </Button>
         </DialogActions>
       </Dialog>

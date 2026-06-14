@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const Practitioner = require('../models/Practitioner');
 const User = require('../models/User');
 
@@ -266,14 +267,40 @@ exports.uploadDocument = async (req, res) => {
 // @access  Public
 exports.getPractitioner = async (req, res) => {
   try {
-    const practitioner = await Practitioner.findOne({
-      _id: req.params.id,
-      verificationStatus: 'approved',
-      isVerified: true
-    }).populate('userId', 'firstName lastName email location phone sex age');
+    const practitioner = await Practitioner.findById(req.params.id)
+      .populate('userId', 'firstName lastName email location phone sex age');
 
     if (!practitioner) {
-      return res.status(404).json({ message: 'Practitioner not found or not yet approved' });
+      return res.status(404).json({ message: 'Practitioner not found' });
+    }
+
+    // Check if the requester is the owner of this profile or an admin
+    let reqUserId = null;
+    let reqUserRole = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      const token = req.headers.authorization.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+        reqUserId = decoded.id;
+        
+        // Find user to verify role
+        const user = await User.findById(reqUserId);
+        if (user) {
+          reqUserRole = user.role;
+        }
+      } catch (e) {
+        // Ignore invalid token
+      }
+    }
+
+    const isOwner = reqUserId && practitioner.userId && (practitioner.userId._id || practitioner.userId).toString() === reqUserId.toString();
+    const isAdmin = reqUserRole === 'admin';
+
+    // If practitioner is not approved or not verified, only allow owner or admin
+    if (practitioner.verificationStatus !== 'approved' || !practitioner.isVerified) {
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ message: 'This practitioner profile is pending review and is not publicly accessible.' });
+      }
     }
 
     res.status(200).json({
