@@ -45,28 +45,28 @@ const AdminDashboard = () => {
       value: metrics?.activeSupply || '0', 
       change: `${metrics?.verificationCounts?.approved || 0} approved`, 
       icon: <MedicalServices />, 
-      color: '#0ea5e9' 
+      color: '#233236' 
     },
     { 
       label: 'Confirmed Bookings', 
       value: metrics?.totalBookings || '0', 
       change: 'Live count', 
       icon: <TrendingUp />, 
-      color: '#10b981' 
+      color: '#233236' 
     },
     { 
       label: 'Market Utilization', 
       value: `${(metrics?.marketUtilization || 0).toFixed(1)}%`, 
       change: 'Confirmed only', 
       icon: <People />, 
-      color: '#6366f1' 
+      color: '#233236' 
     },
     { 
       label: 'Pending Verification', 
       value: metrics?.pendingVerifications || '0', 
       change: `${metrics?.rejectedPractitioners || 0} rejected`, 
       icon: <VerifiedUser />, 
-      color: '#f59e0b' 
+      color: '#233236' 
     },
   ];
 
@@ -109,13 +109,13 @@ const AdminDashboard = () => {
               Manage platform health, practitioner verification, and marketplace performance from one central command center.
             </Typography>
           </Box>
-          <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
+          {/* <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
             {quickActions.map((action) => (
               <Button key={action.label} variant={action.variant} sx={{ borderRadius: 3, px: 3, py: 1.5, fontWeight: 700 }}>
                 {action.label}
               </Button>
             ))}
-          </Stack>
+          </Stack> */}
         </Stack>
 
         <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -284,7 +284,7 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
 
-            <Card sx={{ borderRadius: 4, bgcolor: '#1e293b', color: '#fff' }}>
+            {/* <Card sx={{ borderRadius: 4, bgcolor: '#1e293b', color: '#fff' }}>
               <CardContent sx={{ p: 4 }}>
                 <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 3 }}>
                   <Avatar sx={{ bgcolor: 'secondary.main', width: 56, height: 56 }}>
@@ -303,7 +303,7 @@ const AdminDashboard = () => {
                   Send New Broadcast
                 </Button>
               </CardContent>
-            </Card>
+            </Card> */}
           </Grid>
         </Grid>
       </Container>
