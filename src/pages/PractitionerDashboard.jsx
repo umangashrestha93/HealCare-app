@@ -141,7 +141,8 @@ const PractitionerDashboard = () => {
     fee: 80,
     availableSlots: [],
     avatar: '',
-    sex: ''
+    sex: '',
+    age: ''
   });
 
   const showToast = (message, severity = 'success') => {
@@ -178,7 +179,8 @@ const PractitionerDashboard = () => {
           fee: profRes.data.fee || 80,
           availableSlots: profRes.data.availableSlots || [],
           avatar: profRes.data.avatar || '',
-          sex: profRes.data.userId?.sex || user?.sex || ''
+          sex: profRes.data.userId?.sex || user?.sex || '',
+          age: profRes.data.userId?.age ?? user?.age ?? ''
         });
 
         // Fetch reviews
@@ -1251,20 +1253,19 @@ const PractitionerDashboard = () => {
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
                 />
               </Grid>
+
               <Grid item xs={12} sm={6}>
-                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>SEX</Typography>
-                <FormControl fullWidth variant="outlined">
-                  <Select
-                    value={profile.sex || ''}
-                    onChange={(e) => setProfile({ ...profile, sex: e.target.value })}
-                    displayEmpty
-                    sx={{ borderRadius: 3, bgcolor: '#f8fafc' }}
-                  >
-                    <MenuItem value=""><em>Select sex</em></MenuItem>
-                    <MenuItem value="male">Male</MenuItem>
-                    <MenuItem value="female">Female</MenuItem>
-                  </Select>
-                </FormControl>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>AGE</Typography>
+                <TextField
+                  fullWidth
+                  type="number"
+                  value={profile.age || ''}
+                  onChange={(e) => setProfile({ ...profile, age: e.target.value })}
+                  placeholder="e.g. 32"
+                  variant="outlined"
+                  inputProps={{ min: 0, max: 120 }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
+                />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>SPECIALIZATIONS</Typography>

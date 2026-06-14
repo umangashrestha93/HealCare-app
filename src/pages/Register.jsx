@@ -87,6 +87,7 @@ const Register = () => {
     phone: '',
     password: '',
     sex: '',
+    age: '',
     discipline: '',
     gender: '',
     yearsExp: '',
@@ -187,7 +188,7 @@ const Register = () => {
 
     // Validate current step before proceeding
     if (activeStep === 0) {
-      const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password', 'sex'];
+      const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password', 'sex', 'age'];
       const errors = {};
       let hasError = false;
 
@@ -214,6 +215,9 @@ const Register = () => {
             break;
           case 'sex':
             error = validation.required(formData.sex, 'Sex');
+            break;
+          case 'age':
+            error = validation.required(formData.age, 'Age');
             break;
           default:
             break;
@@ -274,7 +278,7 @@ const Register = () => {
     setError('');
 
     // Validate all required fields for the role
-    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password', 'sex'];
+    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password', 'sex', 'age'];
     if (role === 'practitioner') {
       requiredFields.push('discipline', 'yearsExp');
     }
@@ -305,6 +309,9 @@ const Register = () => {
           break;
         case 'sex':
           error = validation.required(formData.sex, 'Sex');
+          break;
+        case 'age':
+          error = validation.required(formData.age, 'Age');
           break;
         case 'discipline':
           error = validation.discipline(formData.discipline);
@@ -342,6 +349,7 @@ const Register = () => {
         location: formData.location,
         password: formData.password,
         sex: formData.sex,
+        age: formData.age ? Number(formData.age) : undefined,
         role,
         practitionerProfile: role === 'practitioner'
           ? {
@@ -573,6 +581,20 @@ const Register = () => {
                           </Select>
                           {fieldErrors.sex && <FormHelperText>{fieldErrors.sex}</FormHelperText>}
                         </FormControl>
+                        <TextField
+                          fullWidth
+                          label="Age"
+                          name="age"
+                          type="number"
+                          required
+                          value={formData.age}
+                          onChange={handleChange}
+                          error={!!fieldErrors.age}
+                          helperText={fieldErrors.age}
+                          disabled={submitting}
+                          placeholder="e.g. 28"
+                          inputProps={{ min: 0, max: 120 }}
+                        />
                         <TextField
                           fullWidth
                           label="Password"

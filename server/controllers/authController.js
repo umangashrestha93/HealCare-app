@@ -26,6 +26,7 @@ exports.register = async (req, res) => {
       location,
       password,
       sex,
+      age,
       role,
       practitionerProfile
     } = req.body;
@@ -64,6 +65,7 @@ exports.register = async (req, res) => {
         phone,
         location,
         sex,
+        age,
         password: await bcrypt.hash(password, 10),
         role: finalRole,
         practitionerProfile: finalRole === 'practitioner' ? practitionerProfile : undefined
@@ -110,6 +112,7 @@ exports.register = async (req, res) => {
       phone,
       location,
       sex,
+      age,
       password,
       role: finalRole
     });
@@ -208,7 +211,7 @@ exports.getUserById = async (req, res) => {
 // @route   PUT /api/auth/profile
 exports.updateProfile = async (req, res) => {
   try {
-    const allowedUserFields = ['firstName', 'lastName', 'phone', 'location', 'sex'];
+    const allowedUserFields = ['firstName', 'lastName', 'phone', 'location', 'sex', 'age'];
     const userUpdates = {};
     allowedUserFields.forEach((field) => {
       if (req.body[field] !== undefined) userUpdates[field] = req.body[field];
@@ -411,6 +414,7 @@ const sanitizeUser = (user) => ({
   phone: user.phone,
   location: user.location,
   sex: user.sex,
+  age: user.age,
   role: user.role
 });
 

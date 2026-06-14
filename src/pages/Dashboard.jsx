@@ -267,7 +267,7 @@ const Dashboard = () => {
   const [submittingRating, setSubmittingRating] = useState(false);
 
   const [profileOpen, setProfileOpen]         = useState(false);
-  const [profileForm, setProfileForm]         = useState({ firstName: '', lastName: '', phone: '', location: '', sex: '' });
+  const [profileForm, setProfileForm]         = useState({ firstName: '', lastName: '', phone: '', location: '', sex: '', age: '' });
   const [submittingProfile, setSubmittingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess]   = useState(false);
 
@@ -326,7 +326,7 @@ const Dashboard = () => {
   };
 
   const handleOpenProfile = () => {
-    setProfileForm({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '', location: user?.location ?? '', sex: user?.sex ?? '' });
+    setProfileForm({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '', location: user?.location ?? '', sex: user?.sex ?? '', age: user?.age ?? '' });
     setProfileSuccess(false);
     setProfileOpen(true);
   };
@@ -612,6 +612,7 @@ const Dashboard = () => {
                   {[
                     { icon: <Person sx={{ fontSize: 16 }} />, label: 'Name',     value: `${user.firstName} ${user.lastName}` },
                     { icon: <Person sx={{ fontSize: 16 }} />, label: 'Sex',      value: user.sex ? user.sex.charAt(0).toUpperCase() + user.sex.slice(1) : 'Not specified' },
+                    { icon: <Person sx={{ fontSize: 16 }} />, label: 'Age',      value: user.age ? `${user.age} yrs` : 'Not specified' },
                     { icon: <Email sx={{ fontSize: 16 }} />,  label: 'Email',    value: user.email },
                     { icon: <Phone sx={{ fontSize: 16 }} />,  label: 'Phone',    value: user.phone || 'Not provided' },
                     { icon: <LocationOn sx={{ fontSize: 16 }} />, label: 'Location', value: user.location || 'Not provided' },
@@ -868,6 +869,17 @@ const Dashboard = () => {
                   <MenuItem value="Female">Female</MenuItem>
                 </Select>
               </FormControl>
+              <TextField
+                label="Age"
+                fullWidth
+                size="small"
+                type="number"
+                value={profileForm.age}
+                onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })}
+                placeholder="e.g. 28"
+                inputProps={{ min: 0, max: 120 }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
               {profileSuccess && (
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ color: C.secondary }}>
                   <CheckCircle sx={{ fontSize: 18 }} />
