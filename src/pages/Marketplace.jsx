@@ -679,7 +679,7 @@ Beyond5 Healthcare Platform
                       {[1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={240} sx={{ borderRadius: 2 }} />)}
                     </Stack>
                   ) : filteredResults.length > 0 ? (
-                    <Stack spacing={2} key="results-list">
+                    <Stack spacing={3} key="results-list">
                       {filteredResults.map((p) => (
                         <MotionCard
                           key={p._id}
@@ -697,50 +697,52 @@ Beyond5 Healthcare Platform
                             },
                           }}
                         >
-                          <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+                          <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
                             <Box
                               sx={{
                                 display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: '104px minmax(0, 1fr)', xl: '104px minmax(0, 1fr) 168px' },
-                                gap: { xs: 2, md: 2.5 },
+                                gridTemplateColumns: { xs: '1fr', sm: '120px minmax(0, 1fr)', xl: '120px minmax(0, 1fr) 210px' },
+                                gap: { xs: 3, md: 4 },
                                 alignItems: 'start',
                               }}
                             >
-                              <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1}>
+                              <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.5}>
                                 <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={p.verificationStatus === 'approved' && <Verified color="secondary" sx={{ bgcolor: '#fff', borderRadius: '50%', fontSize: 22 }} />}>
-                                  <Avatar src={getAvatar(p)} sx={{ width: 96, height: 96, border: '3px solid #BDE7E6', boxShadow: '0 8px 20px rgba(11,29,43,0.12)' }} />
+                                  <Avatar src={getAvatar(p)} sx={{ width: 120, height: 120, border: '3px solid #BDE7E6', boxShadow: '0 8px 20px rgba(11,29,43,0.12)' }} />
                                 </Badge>
                                 <Chip label={p.gender} size="small" sx={{ display: { xs: 'none', sm: 'inline-flex' }, fontWeight: 800 }} />
                               </Stack>
 
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 0.5 }}>
-                                  <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1.2 }}>{getFullName(p)}</Typography>
-                                  <Chip label={p.gender} size="small" sx={{ display: { xs: 'inline-flex', sm: 'none' }, fontWeight: 800 }} />
-                                  {p.verificationStatus === 'approved' && <Chip icon={<HealthAndSafety />} label="Verified" color="secondary" size="small" sx={{ fontWeight: 900 }} />}
-                                </Stack>
-                                <Typography variant="body2" color="primary" fontWeight={900}>{p.discipline}</Typography>
-                                <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
+                              <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
+                                <Box>
+                                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: 'wrap', mb: 0.5 }}>
+                                    <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1.2 }}>{getFullName(p)}</Typography>
+                                    <Chip label={p.gender} size="small" sx={{ display: { xs: 'inline-flex', sm: 'none' }, fontWeight: 800 }} />
+                                    {p.verificationStatus === 'approved' && <Chip icon={<HealthAndSafety />} label="Verified" color="secondary" size="small" sx={{ fontWeight: 900 }} />}
+                                  </Stack>
+                                  <Typography variant="body2" color="primary" fontWeight={900}>{p.discipline}</Typography>
+                                </Box>
+                                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
                                   <Chip size="small" variant="outlined" icon={<LocationOn />} label={`${getLocation(p)} ${getPostcode(p)}`} sx={{ maxWidth: '100%', fontWeight: 700 }} />
                                   <Chip size="small" variant="outlined" icon={<Star sx={{ color: '#41C6C6' }} />} label={`${p.averageRating || 'New'} (${p.totalReviews || 0})`} sx={{ fontWeight: 700 }} />
                                   <Chip size="small" variant="outlined" icon={<CalendarMonth />} label={`${p.afterHours ? 'After hours' : 'Standard hours'}${p.weekends ? ' + weekends' : ''}`} sx={{ fontWeight: 700 }} />
                                 </Stack>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.7 }}>{p.bio || 'Allied health practitioner on Beyond5.'}</Typography>
-                                <Stack direction="row" gap={1} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>{p.bio || 'Allied health practitioner on Beyond5.'}</Typography>
+                                <Stack direction="row" gap={1} sx={{ flexWrap: 'wrap' }}>
                                   <Chip label={p.distanceLabel} color={p.localMatch || p.travelsToPostcode ? 'secondary' : 'default'} size="small" sx={{ fontWeight: 800 }} />
                                   <Chip label={p.travelArea} size="small" />
                                   <Chip label={p.telehealth ? 'Telehealth: Yes' : 'Telehealth: No'} size="small" variant="outlined" />
                                   {getFunding(p).slice(0, 3).map((fund) => <Chip key={fund} label={fund} size="small" variant="outlined" />)}
                                   {getFunding(p).length > 3 && <Chip label={`+${getFunding(p).length - 3} funding`} size="small" />}
                                 </Stack>
-                              </Box>
+                              </Stack>
 
                               <Stack
-                                spacing={1}
+                                spacing={2}
                                 sx={{
                                   gridColumn: { xs: '1', sm: '1 / -1', xl: 'auto' },
                                   alignSelf: 'stretch',
-                                  p: 1.25,
+                                  p: 2,
                                   borderRadius: 2,
                                   bgcolor: '#F7FBFB',
                                   border: '1px solid',
@@ -748,11 +750,11 @@ Beyond5 Healthcare Platform
                                   minWidth: 0,
                                 }}
                               >
-                                <Box sx={{ mb: 0.25 }}>
+                                <Box>
                                   <Typography variant="caption" color="text.secondary" fontWeight={900}>NEXT AVAILABLE</Typography>
-                                  <Typography variant="body2" fontWeight={900}>{p.nextAvailable}</Typography>
+                                  <Typography variant="body2" fontWeight={900} sx={{ mt: 0.5 }}>{p.nextAvailable}</Typography>
                                 </Box>
-                                <Stack direction={{ xs: 'column', sm: 'row', xl: 'column' }} spacing={1}>
+                                <Stack direction={{ xs: 'column', sm: 'row', xl: 'column' }} spacing={1.5} sx={{ width: '100%' }}>
                                   <Button fullWidth variant="contained" onClick={() => navigate(`/practitioners/${p._id}`)} sx={{ fontWeight: 900, minHeight: 42 }}>
                                     View Profile
                                   </Button>
