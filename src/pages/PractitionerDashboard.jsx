@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Container, Typography, Grid, Paper,
@@ -124,6 +124,7 @@ const PractitionerDashboard = () => {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
+  const complianceDetailsRef = useRef(null);
 
   const [profile, setProfile] = useState({
     discipline: '',
@@ -447,10 +448,10 @@ const PractitionerDashboard = () => {
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
 
   const overview = () => (
-    <Box>
+    <Box sx={{ maxWidth: '1000px' }}>
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {summaryCards.map((card, index) => (
-          <Grid item xs={12} md={4} key={card.label}>
+          <Grid item xs={12} sm={4} key={card.label}>
             <MotionBox
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -477,7 +478,7 @@ const PractitionerDashboard = () => {
       </Grid>
 
       <Grid container spacing={4}>
-        <Grid item xs={12} lg={8}>
+        <Grid item xs={12} md={8}>
           <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Schedule color="primary" /> Upcoming Sessions
           </Typography>
@@ -489,7 +490,7 @@ const PractitionerDashboard = () => {
                     elevation={0}
                     sx={{
                       p: 2.5,
-                      borderRadius: 4,
+                      borderRadius: 6,
                       border: '1px solid',
                       borderColor: 'divider',
                       '&:hover': { borderColor: 'primary.main', bgcolor: '#f8fafc' },
@@ -634,7 +635,7 @@ const PractitionerDashboard = () => {
           </Stack>
         </Grid>
 
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} md={4}>
           <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <TrendingUp color="primary" /> Performance Insights
           </Typography>
@@ -690,12 +691,12 @@ const PractitionerDashboard = () => {
     const selectedStatusLabel = selectedDoc?.status?.toUpperCase() || 'MISSING';
 
     return (
-      <Box>
+      <Box sx={{ maxWidth: '1000px' }}>
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 2.5, md: 3 },
-            borderRadius: 3,
+            p: { xs: 3, md: 4 },
+            borderRadius: 6,
             border: '1px solid',
             borderColor: 'divider',
             bgcolor: '#fff',
@@ -704,7 +705,7 @@ const PractitionerDashboard = () => {
           }}
         >
           <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} lg>
+            <Grid item xs={12} md>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }}>
                 <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>
                   <Shield />
@@ -717,8 +718,8 @@ const PractitionerDashboard = () => {
                 </Box>
               </Stack>
             </Grid>
-            <Grid item xs={12} lg="auto">
-              <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: '#f8fafc', minWidth: { lg: 340 } }}>
+            <Grid item xs={12} md="auto">
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: '#f8fafc', minWidth: { md: 340 } }}>
                 <Stack spacing={1.5}>
                   <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
                     <Box>
@@ -755,8 +756,8 @@ const PractitionerDashboard = () => {
         </Alert>
 
         <Grid container spacing={3} alignItems="stretch">
-          <Grid item xs={12} lg={4}>
-            <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: '#fff', height: '100%' }}>
+          <Grid item xs={12} sm={4} md={3.5} lg={3}>
+            <Paper elevation={0} sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 6, border: '1px solid', borderColor: 'divider', bgcolor: '#fff', height: '100%' }}>
               <Typography variant="subtitle2" color="text.secondary" fontWeight={900} sx={{ mb: 1.5 }}>REQUIRED DOCUMENTS</Typography>
               <Stack spacing={1}>
                 {REQUIRED_COMPLIANCE_DOCS.map((item) => {
@@ -768,7 +769,14 @@ const PractitionerDashboard = () => {
                   return (
                     <Button
                       key={item.type}
-                      onClick={() => setSelectedComplianceType(item.type)}
+                      onClick={() => {
+                        setSelectedComplianceType(item.type);
+                        if (window.innerWidth < 600) {
+                          setTimeout(() => {
+                            complianceDetailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }, 100);
+                        }
+                      }}
                       variant={isSelected ? 'contained' : 'outlined'}
                       fullWidth
                       sx={{
@@ -800,8 +808,8 @@ const PractitionerDashboard = () => {
             </Paper>
           </Grid>
 
-          <Grid item xs={12} lg={8}>
-            <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: hasDraft ? 'primary.main' : 'divider', bgcolor: '#fff', height: '100%', overflow: 'hidden' }}>
+          <Grid item xs={12} sm={8} md={8.5} lg={9} ref={complianceDetailsRef}>
+            <Paper elevation={0} sx={{ borderRadius: 6, border: '1px solid', borderColor: hasDraft ? 'primary.main' : 'divider', bgcolor: '#fff', height: '100%', overflow: 'hidden' }}>
               <Box sx={{ p: { xs: 2, md: 3 }, borderBottom: '1px solid', borderColor: 'divider', bgcolor: hasDraft ? 'rgba(0, 74, 153, 0.04)' : '#fff' }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
                   <Box sx={{ minWidth: 0 }}>
@@ -925,7 +933,7 @@ const PractitionerDashboard = () => {
   };
 
   const availabilitySection = () => (
-    <Box>
+    <Box sx={{ maxWidth: '1000px' }}>
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         spacing={2}
@@ -981,13 +989,13 @@ const PractitionerDashboard = () => {
         ].map((item) => {
           const checked = Boolean(profile[item.key]);
           return (
-            <Grid item xs={12} md={4} key={item.key}>
+            <Grid item xs={12} sm={6} md={3} key={item.key}>
               <Paper
                 elevation={0}
                 sx={{
                   p: 2.5,
                   height: '100%',
-                  borderRadius: 3,
+                  borderRadius: 6,
                   border: '1px solid',
                   borderColor: checked ? 'primary.main' : 'divider',
                   bgcolor: checked ? 'rgba(0, 74, 153, 0.04)' : '#fff',
@@ -1020,8 +1028,8 @@ const PractitionerDashboard = () => {
       </Grid>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} lg={4}>
-          <Paper elevation={0} sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+        <Grid item xs={12} sm={5} md={4}>
+          <Paper elevation={0} sx={{ p: { xs: 3, md: 4 }, borderRadius: 6, border: '1px solid', borderColor: 'divider', height: '100%' }}>
             <Typography variant="h6" fontWeight={900}>Session Settings</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>
               Pricing is shown to clients before they book.
@@ -1056,8 +1064,8 @@ const PractitionerDashboard = () => {
           </Paper>
         </Grid>
 
-        <Grid item xs={12} lg={8}>
-          <Paper elevation={0} sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
+        <Grid item xs={12} sm={7} md={8}>
+          <Paper elevation={0} sx={{ p: { xs: 3, md: 4 }, borderRadius: 6, border: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 2.5 }}>
               <Box>
                 <Typography variant="h6" fontWeight={900}>Time Slot Management</Typography>
@@ -1474,9 +1482,20 @@ const PractitionerDashboard = () => {
       <Container maxWidth="xl">
         <Grid container spacing={3} alignItems="flex-start">
           {/* Navigation Sidebar */}
-          <Grid item xs={12} md={2.5} lg={2}>
-            <Paper elevation={0} sx={{ p: 2, borderRadius: 4, border: '1px solid', borderColor: 'divider', position: { md: 'sticky' }, top: 100 }}>
-              <Stack spacing={1}>
+          <Grid item xs={12} sm={3} md={2.5} lg={2}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 4, border: '1px solid', borderColor: 'divider', position: { sm: 'sticky' }, top: 100 }}>
+              <Stack
+                direction={{ xs: 'row', sm: 'column' }}
+                spacing={1}
+                sx={{
+                  overflowX: { xs: 'auto', sm: 'visible' },
+                  whiteSpace: 'nowrap',
+                  pb: { xs: 1, sm: 0 },
+                  '&::-webkit-scrollbar': { display: 'none' },
+                  msOverflowStyle: 'none',
+                  scrollbarWidth: 'none',
+                }}
+              >
                 {[
                   { label: 'Overview', icon: <DashboardIcon /> },
                   { label: 'Compliance', icon: <Assignment />, badge: complianceProgress < 100 },
@@ -1488,10 +1507,14 @@ const PractitionerDashboard = () => {
                     onClick={() => setActiveTab(i)}
                     variant={activeTab === i ? 'contained' : 'text'}
                     startIcon={nav.badge ? <Badge color="error" variant="dot">{nav.icon}</Badge> : nav.icon}
-                    fullWidth
                     sx={{
-                      justifyContent: 'flex-start', py: 1.5, px: 2, borderRadius: 3,
+                      justifyContent: { xs: 'center', sm: 'flex-start' },
+                      py: { xs: 1, sm: 1.5 },
+                      px: { xs: 1.5, sm: 2 },
+                      borderRadius: 3,
                       fontWeight: 700,
+                      minWidth: { xs: 'auto', sm: '100%' },
+                      flexShrink: 0,
                       bgcolor: activeTab === i ? 'primary.main' : 'transparent',
                       color: activeTab === i ? '#fff' : 'text.secondary',
                       '&:hover': { bgcolor: activeTab === i ? 'primary.dark' : 'rgba(0,0,0,0.05)' }
@@ -1504,10 +1527,14 @@ const PractitionerDashboard = () => {
                   onClick={() => navigate('/chat')}
                   variant="text"
                   startIcon={<Message />}
-                  fullWidth
                   sx={{
-                    justifyContent: 'flex-start', py: 1.5, px: 2, borderRadius: 3,
+                    justifyContent: { xs: 'center', sm: 'flex-start' },
+                    py: { xs: 1, sm: 1.5 },
+                    px: { xs: 1.5, sm: 2 },
+                    borderRadius: 3,
                     fontWeight: 700,
+                    minWidth: { xs: 'auto', sm: '100%' },
+                    flexShrink: 0,
                     color: 'text.secondary',
                     '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' }
                   }}
@@ -1519,7 +1546,7 @@ const PractitionerDashboard = () => {
           </Grid>
 
           {/* Main Content Area */}
-          <Grid item xs={12} md={9.5} lg={10} sx={{ minWidth: 0 }}>
+          <Grid item xs={12} sm={9} md={9.5} lg={10} sx={{ minWidth: 0 }}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
