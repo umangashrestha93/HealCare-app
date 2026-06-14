@@ -1,5 +1,3 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Avatar,
@@ -14,11 +12,13 @@ import {
   Fade,
   IconButton,
   Paper,
+  Snackbar,
   Stack,
   Tooltip,
   Typography,
 } from '@mui/material';
 import {
+  AddPhotoAlternate,
   ArrowBack,
   ArrowBackIos,
   ArrowForwardIos,
@@ -28,6 +28,7 @@ import {
   CheckCircle,
   Close,
   Collections,
+  Delete,
   HealthAndSafety,
   Language,
   LocationOn,
@@ -38,8 +39,11 @@ import {
   Wc,
   ZoomIn,
 } from '@mui/icons-material';
-import { clientService } from '../services/api';
+import { clientService, practitionerService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { MOCK_PRACTITIONERS } from '../utils/mockData';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 
 const getFullName = (p) => p.name || `${p.userId?.firstName || ''} ${p.userId?.lastName || ''}`.trim() || 'Beyond5 practitioner';
 const getAvatar = (p) => p.avatar || p.image || p.userId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p._id || p.id}`;
@@ -206,17 +210,34 @@ const PhotoLightbox = ({ photos, open, initialIndex, onClose }) => {
 };
 
 /* ─── Photo Gallery Grid ─── */
-const PhotoGallery = ({ photos }) => {
+const PhotoGallery = ({ photos, isOwner, onAddPhoto, onDeletePhoto, isSaving }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-
-  if (!photos || photos.length === 0) return null;
 
   const open = (i) => { setLightboxIndex(i); setLightboxOpen(true); };
   const close = () => setLightboxOpen(false);
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Portfolio photo exceeds 2 MB limit.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      onAddPhoto(event.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const hasPhotos = Array.isArray(photos) && photos.length > 0;
+
+  // If not owner and no photos, show nothing
+  if (!hasPhotos && !isOwner) return null;
+
   // Layout: first photo large, rest smaller
-  const [first, ...rest] = photos;
+  const [first, ...rest] = hasPhotos ? photos : [null];
 
   return (
     <>
@@ -224,92 +245,160 @@ const PhotoGallery = ({ photos }) => {
         elevation={0}
         sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: '#fff' }}
       >
-        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 2 }}>
-          <Avatar sx={{ width: 34, height: 34, bgcolor: 'secondary.light', color: 'primary.main' }}>
-            <Collections sx={{ fontSize: 18 }} />
-          </Avatar>
-          <Typography variant="subtitle1" fontWeight={900}>Photos & Portfolio</Typography>
-          <Chip label={`${photos.length} photo${photos.length > 1 ? 's' : ''}`} size="small" sx={{ fontWeight: 700, bgcolor: 'rgba(65,198,198,0.1)', color: 'secondary.main' }} />
+        <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            <Avatar sx={{ width: 34, height: 34, bgcolor: 'secondary.light', color: 'primary.main' }}>
+              <Collections sx={{ fontSize: 18 }} />
+            </Avatar>
+            <Typography variant="subtitle1" fontWeight={900}>Photos & Portfolio</Typography>
+            {hasPhotos && (
+              <Chip
+                label={`${photos.length} photo${photos.length > 1 ? 's' : ''}`}
+                size="small"
+                sx={{ fontWeight: 700, bgcolor: 'rgba(65,198,198,0.1)', color: 'secondary.main' }}
+              />
+            )}
+          </Stack>
+
+          {isOwner && (
+            <Button
+              variant="outlined"
+              component="label"
+              size="small"
+              startIcon={<AddPhotoAlternate />}
+              disabled={isSaving || (photos?.length >= 7)}
+              sx={{ fontWeight: 800, borderRadius: 1.5 }}
+            >
+              {isSaving ? 'Uploading...' : photos?.length >= 7 ? 'Max 7 Photos' : 'Add Photo'}
+              <input
+                type="file"
+                hidden
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileChange}
+              />
+            </Button>
+          )}
         </Stack>
 
-        {/* Grid Layout */}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: photos.length === 1
-              ? '1fr'
-              : photos.length <= 3
-              ? 'repeat(auto-fill, minmax(140px, 1fr))'
-              : { xs: '1fr 1fr', sm: '2fr 1fr 1fr' },
-            gridTemplateRows: photos.length >= 4 ? { sm: '200px 200px' } : 'auto',
-            gap: 1.5,
-          }}
-        >
-          {/* First photo — large hero */}
-          <Tooltip title="View photo" placement="top">
+        {!hasPhotos ? (
+          <Box
+            sx={{
+              py: 4,
+              px: 2,
+              border: '2px dashed',
+              borderColor: 'divider',
+              borderRadius: 2,
+              textAlign: 'center',
+              bgcolor: '#F7FBFB',
+            }}
+          >
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 700 }}>
+              No portfolio photos uploaded yet. Add up to 7 photos of your workspace, team, or therapy materials.
+            </Typography>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: photos.length === 1
+                ? '1fr'
+                : photos.length <= 3
+                ? 'repeat(auto-fill, minmax(140px, 1fr))'
+                : { xs: '1fr 1fr', sm: '2fr 1fr 1fr' },
+              gridTemplateRows: photos.length >= 4 ? { sm: '200px 200px' } : 'auto',
+              gap: 1.5,
+            }}
+          >
+            {/* First photo — large hero */}
             <Box
-              onClick={() => open(0)}
               sx={{
                 position: 'relative',
                 borderRadius: 2,
                 overflow: 'hidden',
-                cursor: 'pointer',
                 gridRow: photos.length >= 4 ? { sm: '1 / 3' } : 'auto',
                 aspectRatio: photos.length === 1 ? '16/9' : undefined,
                 '&:hover .zoom-overlay': { opacity: 1 },
                 '&:hover img': { transform: 'scale(1.04)' },
+                '&:hover .delete-btn': { opacity: 1 },
               }}
             >
               <Box
                 component="img"
                 src={first}
                 alt="Portfolio photo 1"
-                sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.35s ease' }}
+                onClick={() => open(0)}
+                sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.35s ease', cursor: 'pointer' }}
               />
               <Box
                 className="zoom-overlay"
+                onClick={() => open(0)}
                 sx={{
                   position: 'absolute', inset: 0,
                   bgcolor: 'rgba(0,0,0,0.28)',
                   opacity: 0, transition: 'opacity 0.25s',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
                 }}
               >
                 <ZoomIn sx={{ color: '#fff', fontSize: 36 }} />
               </Box>
-            </Box>
-          </Tooltip>
 
-          {/* Remaining photos */}
-          {rest.map((src, i) => {
-            const isLast = i === rest.length - 1 && photos.length > 7;
-            return (
-              <Tooltip key={i} title="View photo" placement="top">
+              {isOwner && (
+                <IconButton
+                  className="delete-btn"
+                  onClick={() => onDeletePhoto(0)}
+                  disabled={isSaving}
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    bgcolor: 'rgba(255, 255, 255, 0.9)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    opacity: { xs: 1, sm: 0 },
+                    transition: 'opacity 0.2s, background-color 0.2s',
+                    color: 'error.main',
+                    '&:hover': { bgcolor: 'error.main', color: '#fff' },
+                  }}
+                  size="small"
+                >
+                  <Delete sx={{ fontSize: 18 }} />
+                </IconButton>
+              )}
+            </Box>
+
+            {/* Remaining photos */}
+            {rest.map((src, i) => {
+              const actualIndex = i + 1;
+              const isLast = actualIndex === photos.length - 1 && photos.length > 7;
+              return (
                 <Box
-                  onClick={() => open(i + 1)}
+                  key={i}
                   sx={{
                     position: 'relative',
                     borderRadius: 2,
                     overflow: 'hidden',
-                    cursor: 'pointer',
                     aspectRatio: '4/3',
                     '&:hover .zoom-overlay': { opacity: 1 },
                     '&:hover img': { transform: 'scale(1.05)' },
+                    '&:hover .delete-btn': { opacity: 1 },
                   }}
                 >
                   <Box
                     component="img"
                     src={src}
-                    alt={`Portfolio photo ${i + 2}`}
-                    sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.35s ease' }}
+                    onClick={() => open(actualIndex)}
+                    alt={`Portfolio photo ${actualIndex + 1}`}
+                    sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.35s ease', cursor: 'pointer' }}
                   />
                   <Box
                     className="zoom-overlay"
+                    onClick={() => open(actualIndex)}
                     sx={{
                       position: 'absolute', inset: 0,
                       bgcolor: isLast ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.25)',
                       opacity: isLast ? 1 : 0, transition: 'opacity 0.25s',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer',
                     }}
                   >
                     {isLast
@@ -317,23 +406,49 @@ const PhotoGallery = ({ photos }) => {
                       : <ZoomIn sx={{ color: '#fff', fontSize: 28 }} />
                     }
                   </Box>
-                </Box>
-              </Tooltip>
-            );
-          })}
-        </Box>
 
-        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.5 }}>
-          Click any photo to view full size. Use arrow keys or thumbnails to navigate.
-        </Typography>
+                  {isOwner && (
+                    <IconButton
+                      className="delete-btn"
+                      onClick={() => onDeletePhoto(actualIndex)}
+                      disabled={isSaving}
+                      sx={{
+                        position: 'absolute',
+                        top: 6,
+                        right: 6,
+                        bgcolor: 'rgba(255, 255, 255, 0.9)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                        opacity: { xs: 1, sm: 0 },
+                        transition: 'opacity 0.2s, background-color 0.2s',
+                        color: 'error.main',
+                        '&:hover': { bgcolor: 'error.main', color: '#fff' },
+                      }}
+                      size="small"
+                    >
+                      <Delete sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  )}
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+
+        {hasPhotos && (
+          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.5 }}>
+            Click any photo to view full size. Use arrow keys or thumbnails to navigate.
+          </Typography>
+        )}
       </Paper>
 
-      <PhotoLightbox
-        photos={photos}
-        open={lightboxOpen}
-        initialIndex={lightboxIndex}
-        onClose={close}
-      />
+      {hasPhotos && (
+        <PhotoLightbox
+          photos={photos}
+          open={lightboxOpen}
+          initialIndex={lightboxIndex}
+          onClose={close}
+        />
+      )}
     </>
   );
 };
@@ -342,9 +457,67 @@ const PhotoGallery = ({ photos }) => {
 const PractitionerProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [practitioner, setPractitioner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [savingPhoto, setSavingPhoto] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const isOwner = useMemo(() => {
+    if (!user || !practitioner) return false;
+    const pUserId = practitioner.userId?._id || practitioner.userId;
+    return pUserId === user._id || (user.role === 'practitioner' && user.practitionerId === practitioner._id);
+  }, [user, practitioner]);
+
+  const handleAddPhoto = async (base64Photo) => {
+    try {
+      setSavingPhoto(true);
+      const currentPhotos = getPhotos(practitioner);
+      const updatedPhotos = [...currentPhotos, base64Photo];
+
+      await practitionerService.updateProfile({
+        ...practitioner,
+        photos: updatedPhotos
+      });
+
+      setPractitioner(prev => ({
+        ...prev,
+        photos: updatedPhotos
+      }));
+      setSuccessMsg('Portfolio photo uploaded successfully!');
+    } catch (err) {
+      console.error('Failed to upload portfolio photo', err);
+      alert('Failed to upload portfolio photo. Please try again.');
+    } finally {
+      setSavingPhoto(false);
+    }
+  };
+
+  const handleDeletePhoto = async (indexToDelete) => {
+    if (!window.confirm('Are you sure you want to delete this portfolio photo?')) return;
+    try {
+      setSavingPhoto(true);
+      const currentPhotos = getPhotos(practitioner);
+      const updatedPhotos = currentPhotos.filter((_, i) => i !== indexToDelete);
+
+      await practitionerService.updateProfile({
+        ...practitioner,
+        photos: updatedPhotos
+      });
+
+      setPractitioner(prev => ({
+        ...prev,
+        photos: updatedPhotos
+      }));
+      setSuccessMsg('Portfolio photo deleted successfully!');
+    } catch (err) {
+      console.error('Failed to delete portfolio photo', err);
+      alert('Failed to delete portfolio photo. Please try again.');
+    } finally {
+      setSavingPhoto(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -491,8 +664,16 @@ const PractitionerProfile = () => {
               </Stack>
             </DetailGroup>
 
-            {/* Photo Gallery — only shown if there are photos */}
-            {photos.length > 0 && <PhotoGallery photos={photos} />}
+            {/* Photo Gallery — shown if photos exist or if the logged-in practitioner is the owner */}
+            {(photos.length > 0 || isOwner) && (
+              <PhotoGallery
+                photos={photos}
+                isOwner={isOwner}
+                onAddPhoto={handleAddPhoto}
+                onDeletePhoto={handleDeletePhoto}
+                isSaving={savingPhoto}
+              />
+            )}
           </Stack>
 
           {/* RIGHT column */}
@@ -516,11 +697,19 @@ const PractitionerProfile = () => {
               </Stack>
             </DetailGroup>
 
-            <DetailGroup title="Registration and language" icon={<Language />}>
+            <DetailGroup title="Registration & practitioner details" icon={<Language />}>
               <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>{practitioner.registrationDetails}</Typography>
               <Divider sx={{ my: 1.5 }} />
-              <Typography variant="body2" fontWeight={900}>Languages spoken</Typography>
-              <Typography color="text.secondary">{practitioner.languages.join(', ')}</Typography>
+              <Typography variant="body2" fontWeight={900} sx={{ mb: 1.5 }}>Demographics & language</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+                <strong>Gender:</strong> {practitioner.gender || 'Not specified'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+                <strong>Age:</strong> {age ? `${age} years old` : 'Not specified'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Languages:</strong> {practitioner.languages.join(', ')}
+              </Typography>
             </DetailGroup>
 
             <Alert icon={<Videocam />} severity="info" sx={{ borderRadius: 2 }}>
@@ -529,6 +718,17 @@ const PractitionerProfile = () => {
           </Stack>
         </Box>
       </Container>
+
+      <Snackbar
+        open={Boolean(successMsg)}
+        autoHideDuration={4000}
+        onClose={() => setSuccessMsg('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setSuccessMsg('')} sx={{ borderRadius: 2 }}>
+          {successMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

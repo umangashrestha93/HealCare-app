@@ -100,6 +100,8 @@ const getAvatar = (p) => p.avatar || p.image || p.userId?.avatar || `https://api
 const getPostcode = (p) => p.postcode || p.locationPostcode || p.userId?.postcode || '';
 const getLocation = (p) => p.location || p.userId?.location || 'Location available on profile';
 const getFunding = (p) => Array.isArray(p.fundingOptions) && p.fundingOptions.length ? p.fundingOptions : [];
+const getAge = (p) => p.age || p.userId?.age || null;
+
 
 const postcodeDistanceKm = (searchCoords, practitionerPostcode, coordsMap) => {
   if (!searchCoords || !practitionerPostcode) return null;
@@ -717,7 +719,7 @@ Beyond5 Healthcare Platform
                             <Box
                               sx={{
                                 display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: '120px minmax(0, 1fr)', xl: '120px minmax(0, 1fr) 210px' },
+                                gridTemplateColumns: { xs: '1fr', sm: '120px minmax(0, 1fr)' },
                                 gap: { xs: 3, md: 4 },
                                 alignItems: 'start',
                               }}
@@ -726,14 +728,20 @@ Beyond5 Healthcare Platform
                                 <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={p.verificationStatus === 'approved' && <Verified color="secondary" sx={{ bgcolor: '#fff', borderRadius: '50%', fontSize: 22 }} />}>
                                   <Avatar src={getAvatar(p)} sx={{ width: 120, height: 120, border: '3px solid #BDE7E6', boxShadow: '0 8px 20px rgba(11,29,43,0.12)' }} />
                                 </Badge>
-                                <Chip label={p.gender} size="small" sx={{ display: { xs: 'none', sm: 'inline-flex' }, fontWeight: 800 }} />
+                                <Stack direction="row" spacing={0.5} sx={{ display: { xs: 'none', sm: 'flex' }, flexWrap: 'wrap', justifyContent: 'center', gap: 0.5 }}>
+                                  <Chip label={p.gender} size="small" sx={{ fontWeight: 800 }} />
+                                  {getAge(p) && <Chip label={`${getAge(p)} yrs`} size="small" sx={{ fontWeight: 800 }} />}
+                                </Stack>
                               </Stack>
 
                               <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
                                 <Box>
-                                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: 'wrap', mb: 0.5 }}>
+                                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 0.5, gap: 0.5 }}>
                                     <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1.2 }}>{getFullName(p)}</Typography>
-                                    <Chip label={p.gender} size="small" sx={{ display: { xs: 'inline-flex', sm: 'none' }, fontWeight: 800 }} />
+                                    <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 0.5, flexWrap: 'wrap' }}>
+                                      <Chip label={p.gender} size="small" sx={{ fontWeight: 800 }} />
+                                      {getAge(p) && <Chip label={`${getAge(p)} yrs`} size="small" sx={{ fontWeight: 800 }} />}
+                                    </Box>
                                     {p.verificationStatus === 'approved' && <Chip icon={<HealthAndSafety />} label="Verified" color="secondary" size="small" sx={{ fontWeight: 900 }} />}
                                   </Stack>
                                   <Typography variant="body2" color="primary" fontWeight={900}>{p.discipline}</Typography>
@@ -754,11 +762,14 @@ Beyond5 Healthcare Platform
                               </Stack>
 
                               <Stack
-                                spacing={2}
+                                direction={{ xs: 'column', md: 'row' }}
+                                justifyContent="space-between"
+                                alignItems={{ xs: 'stretch', md: 'center' }}
+                                spacing={2.5}
                                 sx={{
-                                  gridColumn: { xs: '1', sm: '1 / -1', xl: 'auto' },
+                                  gridColumn: '1 / -1',
                                   alignSelf: 'stretch',
-                                  p: 2,
+                                  p: { xs: 2, md: 2.5 },
                                   borderRadius: 2,
                                   bgcolor: '#F7FBFB',
                                   border: '1px solid',
@@ -766,21 +777,62 @@ Beyond5 Healthcare Platform
                                   minWidth: 0,
                                 }}
                               >
-                                <Box>
-                                  <Typography variant="caption" color="text.secondary" fontWeight={900}>NEXT AVAILABLE</Typography>
-                                  <Typography variant="body2" fontWeight={900} sx={{ mt: 0.5 }}>{p.nextAvailable}</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                  <Box
+                                    sx={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      width: 44,
+                                      height: 44,
+                                      borderRadius: '50%',
+                                      bgcolor: 'rgba(65, 198, 198, 0.1)',
+                                      color: 'secondary.main',
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    <CalendarMonth fontSize="medium" />
+                                  </Box>
+                                  <Box>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ display: 'block', letterSpacing: 0.8, mb: 0.25 }}>
+                                      NEXT AVAILABLE
+                                    </Typography>
+                                    <Typography variant="body2" fontWeight={900} color="text.primary">
+                                      {p.nextAvailable}
+                                    </Typography>
+                                  </Box>
                                 </Box>
-                                <Stack direction={{ xs: 'column', sm: 'row', xl: 'column' }} spacing={1.5} sx={{ width: '100%' }}>
-                                  <Button fullWidth variant="contained" onClick={() => navigate(`/practitioners/${p._id}`)} sx={{ fontWeight: 900, minHeight: 42 }}>
-                                    View Profile
-                                  </Button>
-                                  <Button fullWidth variant="contained" color="secondary" onClick={() => navigate(`/booking?practitioner=${p._id}`)} sx={{ fontWeight: 900, minHeight: 42, color: 'white' }}>
-                                    Check availability
-                                  </Button>
-                                  <Button fullWidth variant="outlined" onClick={() => openEnquiry(p)} sx={{ fontWeight: 900, minHeight: 42 }}>
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    flexDirection: { xs: 'column', sm: 'row' },
+                                    gap: 1.5,
+                                    width: { xs: '100%', md: 'auto' },
+                                  }}
+                                >
+                                  <Button
+                                    variant="outlined"
+                                    onClick={() => openEnquiry(p)}
+                                    sx={{ fontWeight: 900, minHeight: 42, px: { sm: 3 }, width: { xs: '100%', sm: 'auto' } }}
+                                  >
                                     Enquire
                                   </Button>
-                                </Stack>
+                                  <Button
+                                    variant="contained"
+                                    onClick={() => navigate(`/practitioners/${p._id}`)}
+                                    sx={{ fontWeight: 900, minHeight: 42, px: { sm: 3 }, width: { xs: '100%', sm: 'auto' } }}
+                                  >
+                                    View Profile
+                                  </Button>
+                                  <Button
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={() => navigate(`/booking?practitioner=${p._id}`)}
+                                    sx={{ fontWeight: 900, minHeight: 42, px: { sm: 3 }, color: 'white', width: { xs: '100%', sm: 'auto' } }}
+                                  >
+                                    Check availability
+                                  </Button>
+                                </Box>
                               </Stack>
                             </Box>
                           </CardContent>
