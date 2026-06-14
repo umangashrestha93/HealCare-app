@@ -151,35 +151,77 @@ const POSTCODE_COORDS = {
 export const DEFAULT_CENTER = { lat: -37.8136, lng: 144.9631 };
 export const DEFAULT_ZOOM = 12;
 
+/** Radius (km) for "near me" / local practitioner matching */
+export const NEARBY_RADIUS_KM = 12;
+
+const sessionCache = new Map();
+const pendingRequests = new Map();
+
 /**
- * Get lat/lng for a given Australian postcode.
- * Returns the known coordinates or a deterministic fallback near Melbourne.
+ * Get lat/lng for a known postcode from the local lookup table or session cache.
  */
 export const getPostcodeCoords = (postcode) => {
   if (!postcode) return null;
   const code = String(postcode).trim();
-  if (POSTCODE_COORDS[code]) return POSTCODE_COORDS[code];
+  return POSTCODE_COORDS[code] || sessionCache.get(code) || null;
+};
 
-  // Deterministic fallback: hash the postcode to generate a nearby offset
-  const num = parseInt(code, 10);
-  if (!Number.isFinite(num)) return null;
+/**
+ * Haversine distance between two lat/lng points in kilometres.
+ */
+export const haversineKm = (a, b) => {
+  if (!a?.lat || !a?.lng || !b?.lat || !b?.lng) return null;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+};
 
-  // Rough state-level fallback based on first digit
-  const stateDefaults = {
-    '2': { lat: -33.87, lng: 151.21 }, // NSW
-    '3': { lat: -37.81, lng: 144.96 }, // VIC
-    '4': { lat: -27.47, lng: 153.03 }, // QLD
-    '5': { lat: -34.93, lng: 138.60 }, // SA
-    '6': { lat: -31.95, lng: 115.86 }, // WA
-    '7': { lat: -42.88, lng: 147.33 }, // TAS
-    '0': { lat: -12.46, lng: 130.85 }, // NT
-  };
-  const firstDigit = code[0];
-  const base = stateDefaults[firstDigit] || DEFAULT_CENTER;
+/**
+ * Resolve lat/lng for any valid Australian postcode.
+ * Uses local lookup first, then the backend geocoding API (OpenStreetMap).
+ */
+export const resolvePostcodeCoords = async (postcode) => {
+  if (!postcode) return null;
+  const code = String(postcode).trim();
+  if (!/^\d{4}$/.test(code)) return null;
 
-  // Offset slightly based on the remaining digits to spread pins
-  const offset = ((num % 100) - 50) * 0.005;
-  return { lat: base.lat + offset, lng: base.lng + offset * 0.8 };
+  const known = POSTCODE_COORDS[code];
+  if (known) {
+    sessionCache.set(code, known);
+    return known;
+  }
+
+  if (sessionCache.has(code)) {
+    return sessionCache.get(code);
+  }
+
+  if (pendingRequests.has(code)) {
+    return pendingRequests.get(code);
+  }
+
+  const request = (async () => {
+    try {
+      const { geocodeService } = await import('../services/api');
+      const data = await geocodeService.lookupPostcode(code);
+      const coords = { lat: data.lat, lng: data.lng, displayName: data.displayName };
+      sessionCache.set(code, coords);
+      return coords;
+    } catch {
+      return null;
+    } finally {
+      pendingRequests.delete(code);
+    }
+  })();
+
+  pendingRequests.set(code, request);
+  return request;
 };
 
 export default POSTCODE_COORDS;

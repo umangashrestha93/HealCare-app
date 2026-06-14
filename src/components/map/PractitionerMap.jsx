@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Box, Typography, Stack, Chip, Avatar, Button } from '@mui/material';
+import { Box, Typography, Stack, Chip, Avatar, Button, CircularProgress } from '@mui/material';
 import { LocationOn, Star, Verified } from '@mui/icons-material';
-import { getPostcodeCoords, DEFAULT_CENTER, DEFAULT_ZOOM } from '../../utils/postcodeCoords';
+import { DEFAULT_CENTER, DEFAULT_ZOOM } from '../../utils/postcodeCoords';
+import usePostcodeCoords from '../../hooks/usePostcodeCoords';
 
 /* ── Fix Leaflet default marker icon paths (broken by bundlers) ── */
 delete L.Icon.Default.prototype._getIconUrl;
@@ -38,8 +39,10 @@ const pinRed    = makeIcon('#ef4444', 36); // searched postcode
 const MapRecenter = ({ center, zoom }) => {
   const map = useMap();
   useEffect(() => {
-    if (center) map.flyTo(center, zoom ?? DEFAULT_ZOOM, { duration: 1.2 });
-  }, [center, zoom, map]);
+    if (center?.[0] != null && center?.[1] != null) {
+      map.flyTo(center, zoom ?? DEFAULT_ZOOM, { duration: 1.2 });
+    }
+  }, [center?.[0], center?.[1], zoom, map]);
   return null;
 };
 
@@ -72,25 +75,26 @@ const PractitionerMap = ({
 }) => {
   const mapRef = useRef(null);
 
-  /* compute center from searched postcode */
-  const searchCoords = useMemo(
-    () => getPostcodeCoords(searchPostcode),
-    [searchPostcode],
+  const postcodesToResolve = useMemo(
+    () => [searchPostcode, ...practitioners.map(getPostcode)].filter(Boolean),
+    [searchPostcode, practitioners],
   );
+  const { coordsMap, loading: geocoding } = usePostcodeCoords(postcodesToResolve);
 
+  const searchCoords = searchPostcode ? coordsMap[searchPostcode] : null;
   const center = searchCoords || DEFAULT_CENTER;
 
-  /* compute pins — each practitioner gets coordinates from their postcode */
   const pins = useMemo(() => {
     return practitioners
       .map((p) => {
-        const coords = getPostcodeCoords(getPostcode(p));
+        const code = getPostcode(p);
+        const coords = code ? coordsMap[code] : null;
         if (!coords) return null;
         const highlighted = Boolean(p.localMatch || p.travelsToPostcode);
         return { ...p, coords, highlighted };
       })
       .filter(Boolean);
-  }, [practitioners]);
+  }, [practitioners, coordsMap]);
 
   return (
     <Box
@@ -125,6 +129,11 @@ const PractitionerMap = ({
               <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
                 📍 Searched postcode: {searchPostcode}
               </Typography>
+              {searchCoords?.displayName && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  {searchCoords.displayName}
+                </Typography>
+              )}
               <Typography variant="caption" color="text.secondary">
                 Showing practitioners near this area.
               </Typography>
@@ -225,9 +234,22 @@ const PractitionerMap = ({
           borderRadius: 2, px: 2, py: 1, boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
         }}
       >
-        <Typography variant="caption" fontWeight={800} sx={{ display: 'block' }}>
-          {searchPostcode ? `📍 ${searchPostcode}` : 'Enter a postcode'} · {pins.length} practitioner{pins.length !== 1 ? 's' : ''}
-        </Typography>
+        {geocoding && searchPostcode ? (
+          <Stack direction="row" spacing={1} alignItems="center">
+            <CircularProgress size={14} />
+            <Typography variant="caption" fontWeight={800}>Locating {searchPostcode}…</Typography>
+          </Stack>
+        ) : searchPostcode && !searchCoords ? (
+          <Typography variant="caption" fontWeight={800} color="error.main">
+            Could not locate postcode {searchPostcode}. Check it is a valid Australian postcode.
+          </Typography>
+        ) : (
+          <Typography variant="caption" fontWeight={800} sx={{ display: 'block' }}>
+            {searchPostcode
+              ? `📍 ${searchPostcode}${searchCoords?.displayName ? ` · ${searchCoords.displayName.split(',')[1]?.trim() || ''}` : ''}`
+              : 'Enter a postcode'} · {pins.length} practitioner{pins.length !== 1 ? 's' : ''}
+          </Typography>
+        )}
         <Stack direction="row" spacing={1.5} sx={{ mt: 0.5 }}>
           <Stack direction="row" spacing={0.5} alignItems="center">
             <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#0d8a72' }} />

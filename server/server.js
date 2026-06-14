@@ -86,6 +86,7 @@ const aiRoutes = require('./routes/aiRoutes');
 const medicareRoutes = require('./routes/medicareRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const enquiryRoutes = require('./routes/enquiryRoutes');
+const geocodeRoutes = require('./routes/geocodeRoutes');
 
 // Mount Routers
 app.use('/api/auth', authRoutes);
@@ -102,6 +103,7 @@ app.use('/api/medicare', medicareRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/client-enquiries', enquiryRoutes);
+app.use('/api/geocode', geocodeRoutes);
 
 
 // Root Endpoint (Lightweight / Mobile-First)

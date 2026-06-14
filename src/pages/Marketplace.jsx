@@ -55,6 +55,8 @@ import {
 } from '../utils/mockData';
 import { enquiryService } from '../services/api';
 import PractitionerMap from '../components/map/PractitionerMap';
+import usePostcodeCoords from '../hooks/usePostcodeCoords';
+import { haversineKm, NEARBY_RADIUS_KM } from '../utils/postcodeCoords';
 import emailjs from '@emailjs/browser';
 
 // ─── EmailJS config ──────────────────────────────────────────────────────────
@@ -98,11 +100,12 @@ const getAvatar = (p) => p.avatar || p.image || p.userId?.avatar || `https://api
 const getPostcode = (p) => p.postcode || p.locationPostcode || p.userId?.postcode || '';
 const getLocation = (p) => p.location || p.userId?.location || 'Location available on profile';
 const getFunding = (p) => Array.isArray(p.fundingOptions) && p.fundingOptions.length ? p.fundingOptions : [];
-const postcodeDistance = (a, b) => {
-  const first = Number.parseInt(a, 10);
-  const second = Number.parseInt(b, 10);
-  if (!Number.isFinite(first) || !Number.isFinite(second)) return null;
-  return Math.abs(first - second);
+
+const postcodeDistanceKm = (searchCoords, practitionerPostcode, coordsMap) => {
+  if (!searchCoords || !practitionerPostcode) return null;
+  const practitionerCoords = coordsMap[practitionerPostcode];
+  if (!practitionerCoords) return null;
+  return haversineKm(searchCoords, practitionerCoords);
 };
 
 const normalizePractitioner = (p) => ({
@@ -178,9 +181,16 @@ const Marketplace = () => {
   const sourceResults = practitioners.length ? practitioners : MOCK_PRACTITIONERS;
   const normalizedResults = sourceResults.map(normalizePractitioner);
 
+  const activePostcode = filters.postcode || postcode;
+  const postcodesForGeocoding = useMemo(
+    () => [activePostcode, ...normalizedResults.map(getPostcode)].filter(Boolean),
+    [activePostcode, normalizedResults],
+  );
+  const { coordsMap } = usePostcodeCoords(postcodesForGeocoding);
+  const searchCoords = activePostcode ? coordsMap[activePostcode] : null;
+
   const filteredResults = useMemo(() => {
     const term = (filters.searchTerm || '').toLowerCase().trim();
-    const activePostcode = filters.postcode || postcode;
 
     return normalizedResults
       .filter((p) => filters.discipline === 'All' || p.discipline === filters.discipline)
@@ -207,9 +217,12 @@ const Marketplace = () => {
       .filter((p) => selectedFunding.length === 0 || selectedFunding.some((fund) => getFunding(p).includes(fund)))
       .filter((p) => {
         if (!filters.access.length) return true;
-        const activePostcode = filters.postcode || postcode;
         return filters.access.every((option) => {
-          if (option === 'Practitioner near me') return Boolean(activePostcode && postcodeDistance(activePostcode, getPostcode(p)) !== null && postcodeDistance(activePostcode, getPostcode(p)) <= 8);
+          const practitionerPostcode = getPostcode(p);
+          const distanceKm = postcodeDistanceKm(searchCoords, practitionerPostcode, coordsMap);
+          if (option === 'Practitioner near me') {
+            return Boolean(activePostcode && distanceKm !== null && distanceKm <= NEARBY_RADIUS_KM);
+          }
           if (option === 'Practitioner willing to travel to my postcode') return Boolean(activePostcode && p.travelsToPostcodes?.includes(activePostcode));
           if (option === 'Telehealth available') return Boolean(p.telehealth);
           if (option === 'In-home/mobile appointments available') return Boolean(p.mobile);
@@ -220,9 +233,10 @@ const Marketplace = () => {
       .filter((p) => !filters.appointmentPreference.length || filters.appointmentPreference.some((option) => p.appointmentPreferences?.includes(option)))
       .filter((p) => !filters.clientPreference.length || filters.clientPreference.some((option) => p.clientPreferences?.includes(option)))
       .map((p) => {
-        const distance = postcodeDistance(activePostcode, getPostcode(p));
+        const practitionerPostcode = getPostcode(p);
+        const distanceKm = postcodeDistanceKm(searchCoords, practitionerPostcode, coordsMap);
         const travelsToPostcode = Boolean(activePostcode && p.travelsToPostcodes?.includes(activePostcode));
-        const localMatch = distance !== null && distance <= 8;
+        const localMatch = distanceKm !== null && distanceKm <= NEARBY_RADIUS_KM;
         return {
           ...p,
           localMatch,
@@ -231,13 +245,15 @@ const Marketplace = () => {
             ? travelsToPostcode
               ? `Travels to ${activePostcode}`
               : localMatch
-                ? `Near ${activePostcode}`
+                ? distanceKm !== null
+                  ? `${distanceKm.toFixed(1)} km from ${activePostcode}`
+                  : `Near ${activePostcode}`
                 : 'Outside immediate postcode area'
             : getLocation(p),
         };
       })
       .sort((a, b) => Number(b.localMatch || b.travelsToPostcode) - Number(a.localMatch || a.travelsToPostcode));
-  }, [filters, normalizedResults, postcode, selectedFunding]);
+  }, [filters, normalizedResults, postcode, selectedFunding, activePostcode, searchCoords, coordsMap]);
 
 
   const handleSearchChange = (e) => {

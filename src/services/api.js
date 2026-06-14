@@ -210,4 +210,9 @@ export const reviewService = {
   getPractitionerReviews: (practitionerId) => api.get(`/reviews/practitioner/${practitionerId}`),
 };
 
+// --- GEOCODE SERVICES ---
+export const geocodeService = {
+  lookupPostcode: (code) => api.get(`/geocode/postcode/${code}`),
+};
+
 export default api;
