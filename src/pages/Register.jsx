@@ -405,7 +405,7 @@ const Register = () => {
             <Box
               sx={{
                 p: { xs: 4, md: 6 },
-                bgcolor: '#0f3f3c',
+                bgcolor: '#13283B',
                 color: '#fff',
               }}
             >
@@ -427,7 +427,7 @@ const Register = () => {
                   { label: 'Verification', value: role === 'client' ? 'Secure account' : `${Object.values(uploadedDocs).filter(Boolean).length}/${DOCUMENTS.length} documents` },
                   { label: 'Funding', value: formData.fundingOptions.length ? `${formData.fundingOptions.length} pathways selected` : 'Ready to configure' },
                 ].map((item) => (
-                  <Box key={item.label} sx={{ borderLeft: '3px solid #22c55e', pl: 2 }}>
+                  <Box key={item.label} sx={{ borderLeft: '3px solid #41C6C6', pl: 2 }}>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.64)' }}>
                       {item.label}
                     </Typography>

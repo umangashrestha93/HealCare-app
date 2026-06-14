@@ -24,9 +24,9 @@ const MotionPaper = motion.create(Paper);
 
 /* ─── colour palette (consistent tokens) ─── */
 const C = {
-  primary:   '#004a99',
-  secondary: '#0d8a72',
-  amber:     '#f59e0b',
+  primary:   '#13283B',
+  secondary: '#41C6C6',
+  amber:     '#0B1D2B',
   red:       '#ef4444',
   bg:        '#f0f4f8',
   surface:   '#ffffff',
@@ -408,7 +408,7 @@ const Dashboard = () => {
       {/* ── HERO BANNER ── */}
       <Box
         sx={{
-          background: `linear-gradient(135deg, #002d5f 0%, #004a99 55%, #006b5e 100%)`,
+          background: `linear-gradient(100deg, #0B1B2B, #13283B, #41C6C6)`,
           pt: { xs: 5, md: 6 }, pb: { xs: 8, md: 10 },
           position: 'relative', overflow: 'hidden',
           '&::after': {
@@ -494,9 +494,9 @@ const Dashboard = () => {
       <Container maxWidth="lg" sx={{ mt: { xs: -4, md: -5 }, position: 'relative', zIndex: 2 }}>
         <Grid container spacing={2.5}>
           {[
-            { icon: <CalendarMonth />, value: upcoming.length,  label: 'Upcoming Sessions',  color: C.primary,   delay: 0 },
+            { icon: <CalendarMonth />, value: upcoming.length,  label: 'Upcoming Sessions',  color: C.secondary,   delay: 0 },
             { icon: <History />,       value: past.length,      label: 'Completed Sessions', color: C.secondary, delay: 0.06 },
-            { icon: <HealthAndSafety />,value: '24 / 7',        label: 'Care Access',        color: C.amber,     delay: 0.12 },
+            { icon: <HealthAndSafety />,value: '24 / 7',        label: 'Care Access',        color: C.secondary,     delay: 0.12 },
           ].map((s) => (
             <Grid item xs={12} sm={4} key={s.label}>
               <StatCard {...s} />

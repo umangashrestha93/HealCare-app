@@ -133,7 +133,7 @@ const Home = () => {
               </Typography>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <Button variant="contained" color="secondary" size="large" endIcon={<ArrowForward />} onClick={() => navigate('/marketplace')} sx={{ px: 4, py: 1.6, fontWeight: 900 }}>
+                <Button variant="contained" color="secondary" size="large" endIcon={<ArrowForward />} onClick={() => navigate('/marketplace')} sx={{ px: 4, py: 1.6, fontWeight: 900, color: 'White' }}>
                   Find a Practitioner
                 </Button>
                 {!user && (
@@ -278,10 +278,10 @@ const Home = () => {
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 3, mb: 6 }}>
             {[
-              { icon: <Psychology sx={{ fontSize: 32 }} />, stat: 'Search', label: 'by therapy type, postcode, funding and appointment preference', color: '#0B1D2B' },
-              { icon: <HealthAndSafety sx={{ fontSize: 32 }} />, stat: 'Compare', label: 'verified profiles, travel area, telehealth and next availability', color: '#13283B' },
+              { icon: <Psychology sx={{ fontSize: 32 }} />, stat: 'Search', label: 'by therapy type, postcode, funding and appointment preference', color: '#41C6C6' },
+              { icon: <HealthAndSafety sx={{ fontSize: 32 }} />, stat: 'Compare', label: 'verified profiles, travel area, telehealth and next availability', color: '#41C6C6' },
               { icon: <FavoriteBorder sx={{ fontSize: 32 }} />, stat: 'Connect', label: 'through booking, enquiry or a waitlist pathway when ready', color: '#41C6C6' },
-              { icon: <Vaccines sx={{ fontSize: 32 }} />, stat: 'Manage', label: 'saved practitioners, messages, enquiries and support preferences', color: '#23323C' },
+              { icon: <Vaccines sx={{ fontSize: 32 }} />, stat: 'Manage', label: 'saved practitioners, messages, enquiries and support preferences', color: '#41C6C6' },
             ].map((item) => (
               <Paper key={item.label} elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
                 <Box sx={{ color: item.color, mb: 1.5, display: 'flex', justifyContent: 'center' }}>{item.icon}</Box>
@@ -297,7 +297,7 @@ const Home = () => {
                 icon: <SelfImprovement />,
                 title: 'Mental Health & Wellbeing',
                 tips: ['Regular sessions with a psychologist can reduce anxiety by up to 60%', 'Mindfulness-based therapy helps manage stress and burnout', 'Early intervention leads to faster and more lasting recovery'],
-                color: '#0B1D2B',
+                color: '#41C6C6',
               },
               {
                 icon: <MedicalServices />,
@@ -309,7 +309,7 @@ const Home = () => {
                 icon: <Groups />,
                 title: 'NDIS & Aged Care Support',
                 tips: ['NDIS-registered practitioners help participants reach their goals', 'Aged care allied health services support safe independent living', 'My Aged Care funding can cover a wide range of therapy disciplines'],
-                color: '#13283B',
+                color: '#41C6C6',
               },
             ].map((card) => (
               <Paper key={card.title} elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
@@ -337,7 +337,7 @@ const Home = () => {
                 You can browse first. Create an account when you want to book, enquire, save a practitioner or join the waitlist.
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
-                <Button variant="contained" color="secondary" size="large" onClick={() => navigate('/register')} sx={{ fontWeight: 900, px: 4 }}>
+                <Button variant="contained" color="secondary" size="large" onClick={() => navigate('/register')} sx={{ fontWeight: 900, px: 4, color: 'white' }}>
                   Create free account
                 </Button>
                 <Button variant="outlined" size="large" onClick={() => navigate('/marketplace')} sx={{ fontWeight: 900, px: 4, color: '#fff', borderColor: 'rgba(255,255,255,0.5)' }}>

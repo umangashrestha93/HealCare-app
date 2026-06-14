@@ -190,7 +190,7 @@ const Login = () => {
             <Box
               sx={{
                 p: { xs: 4, md: 6 },
-                bgcolor: '#0f3f3c',
+                bgcolor: '#13283B',
                 color: '#fff',
                 display: 'flex',
                 flexDirection: 'column',
