@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { DISCIPLINES, FUNDING_PATHWAYS } from '../utils/mockData';
+import bannerImg from '../assets/banner.jpg';
 
 const MotionBox = motion.create(Box);
 
@@ -94,64 +95,54 @@ const Home = () => {
           position: 'relative',
           minHeight: { xs: 660, md: 620 },
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          width: '100%',
           color: '#fff',
           overflow: 'hidden',
           '&::before': {
             content: '""',
             position: 'absolute',
             inset: 0,
-            backgroundImage: 'linear-gradient(90deg, rgba(11, 29, 43, 0.96) 0%, rgba(19, 40, 59, 0.86) 48%, rgba(19, 40, 59, 0.28) 100%), url(https://images.unsplash.com/photo-1573497491208-6b1acb260507?auto=format&fit=crop&q=82&w=2200)',
+            backgroundImage: `linear-gradient(90deg, rgba(11, 29, 43, 0.25) 0%, rgba(19, 40, 59, 0.15) 50%, rgba(19, 40, 59, 0.0) 100%), url(${bannerImg})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           },
         }}
       >
-        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, py: { xs: 5, md: 7 } }}>
+        <Container
+          sx={{
+            position: 'relative',
+            zIndex: 1,
+            pt: { xs: 10, md: 12 },
+            pb: { xs: 2.5, md: 3.5 },
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            ml: { xs: 2, sm: 4, md: 4 },
+            mr: 'auto',
+          }}
+        >
           <MotionBox initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
-            <Stack spacing={3} sx={{ maxWidth: 820 }}>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                <Chip icon={<VerifiedUser />} label="Verified practitioner network" sx={{ bgcolor: 'rgba(189,231,230,0.18)', color: '#fff' }} />
-                <Chip icon={<AccessTime />} label="After-hours, weekends, mobile and telehealth" sx={{ bgcolor: 'rgba(65,198,198,0.2)', color: '#fff' }} />
-              </Stack>
-
-              <Typography
-                variant="h1"
-                sx={{
-                  color: '#fff',
-                  fontSize: { xs: '3.1rem', md: '5.4rem' },
-                  lineHeight: 0.98,
-                  fontWeight: 900,
-                  maxWidth: 780,
-                }}
-              >
-                Beyond5
-              </Typography>
-
-              <Typography variant="h5" sx={{ color: 'rgba(255,255,255,0.86)', fontWeight: 500, maxWidth: 760, lineHeight: 1.5 }}>
-                Therapy that fits real life. Find allied health practitioners who support flexible appointments, clear funding pathways, telehealth and mobile/in-home care.
-              </Typography>
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <Button variant="contained" color="secondary" size="large" endIcon={<ArrowForward />} onClick={() => navigate('/marketplace')} sx={{ px: 4, py: 1.6, fontWeight: 900, color: 'White' }}>
-                  Find a Practitioner
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <Button variant="contained" color="secondary" size="large" endIcon={<ArrowForward />} onClick={() => navigate('/marketplace')} sx={{ px: 4, py: 1.6, fontWeight: 900, color: 'White' }}>
+                Find a Practitioner
+              </Button>
+              {!user && (
+                <Button
+                  variant="outlined"
+                  size="large"
+                  onClick={() => navigate('/register/client')}
+                  sx={{ px: 4, py: 1.6, fontWeight: 900, color: '#fff', borderColor: 'rgba(255,255,255,0.68)' }}
+                >
+                  Join the Waitlist
                 </Button>
-                {!user && (
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    onClick={() => navigate('/register/client')}
-                    sx={{ px: 4, py: 1.6, fontWeight: 900, color: '#fff', borderColor: 'rgba(255,255,255,0.68)' }}
-                  >
-                    Join the Waitlist
-                  </Button>
-                )}
-              </Stack>
+              )}
             </Stack>
           </MotionBox>
 
           {user?.role !== 'practitioner' && (
-            <Paper elevation={0} sx={{ mt: { xs: 5, md: 7 }, p: 1, maxWidth: 1040, borderRadius: 2, border: '1px solid rgba(255,255,255,0.22)', bgcolor: 'rgba(255,255,255,0.97)' }}>
+            <Paper elevation={0} sx={{ mt: 3, p: 1, width: '100%', maxWidth: 1040, borderRadius: 2, border: '1px solid rgba(255,255,255,0.22)', bgcolor: 'rgba(255,255,255,0.97)' }}>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.3fr 1fr auto' }, gap: 1, alignItems: 'center' }}>
                 <Select fullWidth value={discipline} onChange={(e) => setDiscipline(e.target.value)} displayEmpty renderValue={(selected) => selected || 'Any allied health discipline'}>
                   <MenuItem value="">Any allied health practitioner</MenuItem>
