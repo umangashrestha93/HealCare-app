@@ -236,9 +236,6 @@ const PhotoGallery = ({ photos, isOwner, onAddPhoto, onDeletePhoto, isSaving }) 
   // If not owner and no photos, show nothing
   if (!hasPhotos && !isOwner) return null;
 
-  // Layout: first photo large, rest smaller
-  const [first, ...rest] = hasPhotos ? photos : [null];
-
   return (
     <>
       <Paper
@@ -253,106 +250,95 @@ const PhotoGallery = ({ photos, isOwner, onAddPhoto, onDeletePhoto, isSaving }) 
             <Typography variant="subtitle1" fontWeight={900}>Photos & Portfolio</Typography>
             {hasPhotos && (
               <Chip
-                label={`${photos.length} photo${photos.length > 1 ? 's' : ''}`}
+                label={`${photos.length} / 6 photos`}
                 size="small"
                 sx={{ fontWeight: 700, bgcolor: 'rgba(65,198,198,0.1)', color: 'secondary.main' }}
               />
             )}
           </Stack>
-
-          {isOwner && (
-            <Button
-              variant="outlined"
-              component="label"
-              size="small"
-              startIcon={<AddPhotoAlternate />}
-              disabled={isSaving || (photos?.length >= 7)}
-              sx={{ fontWeight: 800, borderRadius: 1.5 }}
-            >
-              {isSaving ? 'Uploading...' : photos?.length >= 7 ? 'Max 7 Photos' : 'Add Photo'}
-              <input
-                type="file"
-                hidden
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFileChange}
-              />
-            </Button>
-          )}
         </Stack>
 
-        {!hasPhotos ? (
-          <Box
-            sx={{
-              py: 4,
-              px: 2,
-              border: '2px dashed',
-              borderColor: 'divider',
-              borderRadius: 2,
-              textAlign: 'center',
-              bgcolor: '#F7FBFB',
-            }}
-          >
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 700 }}>
-              No portfolio photos uploaded yet. Add up to 7 photos of your workspace, team, or therapy materials.
-            </Typography>
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: photos.length === 1
-                ? '1fr'
-                : photos.length <= 3
-                ? 'repeat(auto-fill, minmax(140px, 1fr))'
-                : { xs: '1fr 1fr', sm: '2fr 1fr 1fr' },
-              gridTemplateRows: photos.length >= 4 ? { sm: '200px 200px' } : 'auto',
-              gap: 1.5,
-            }}
-          >
-            {/* First photo — large hero */}
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            overflowX: 'auto',
+            pb: 1.5,
+            width: '100%',
+            scrollSnapType: 'x mandatory',
+            '&::-webkit-scrollbar': {
+              height: 6,
+            },
+            '&::-webkit-scrollbar-track': {
+              bgcolor: 'rgba(0,0,0,0.03)',
+              borderRadius: 3,
+            },
+            '&::-webkit-scrollbar-thumb': {
+              bgcolor: 'secondary.light',
+              borderRadius: 3,
+              '&:hover': {
+                bgcolor: 'secondary.main',
+              },
+            },
+          }}
+        >
+          {/* Photos list */}
+          {hasPhotos && photos.slice(0, 6).map((src, idx) => (
             <Box
+              key={idx}
               sx={{
                 position: 'relative',
+                height: 200,
+                minWidth: 260,
                 borderRadius: 2,
                 overflow: 'hidden',
-                gridRow: photos.length >= 4 ? { sm: '1 / 3' } : 'auto',
-                aspectRatio: photos.length === 1 ? '16/9' : undefined,
+                scrollSnapAlign: 'start',
+                flexShrink: 0,
+                border: '1px solid',
+                borderColor: 'divider',
                 '&:hover .zoom-overlay': { opacity: 1 },
-                '&:hover img': { transform: 'scale(1.04)' },
+                '&:hover img': { transform: 'scale(1.03)' },
                 '&:hover .delete-btn': { opacity: 1 },
               }}
             >
               <Box
                 component="img"
-                src={first}
-                alt="Portfolio photo 1"
-                onClick={() => open(0)}
-                sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.35s ease', cursor: 'pointer' }}
+                src={src}
+                alt={`Portfolio photo ${idx + 1}`}
+                onClick={() => open(idx)}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                  cursor: 'pointer',
+                  transition: 'transform 0.35s ease',
+                }}
               />
               <Box
                 className="zoom-overlay"
-                onClick={() => open(0)}
+                onClick={() => open(idx)}
                 sx={{
                   position: 'absolute', inset: 0,
-                  bgcolor: 'rgba(0,0,0,0.28)',
+                  bgcolor: 'rgba(0,0,0,0.25)',
                   opacity: 0, transition: 'opacity 0.25s',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer',
                 }}
               >
-                <ZoomIn sx={{ color: '#fff', fontSize: 36 }} />
+                <ZoomIn sx={{ color: '#fff', fontSize: 32 }} />
               </Box>
 
               {isOwner && (
                 <IconButton
                   className="delete-btn"
-                  onClick={() => onDeletePhoto(0)}
+                  onClick={() => onDeletePhoto(idx)}
                   disabled={isSaving}
                   sx={{
                     position: 'absolute',
                     top: 8,
                     right: 8,
-                    bgcolor: 'rgba(255, 255, 255, 0.9)',
+                    bgcolor: 'rgba(255, 255, 255, 0.95)',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                     opacity: { xs: 1, sm: 0 },
                     transition: 'opacity 0.2s, background-color 0.2s',
@@ -361,78 +347,52 @@ const PhotoGallery = ({ photos, isOwner, onAddPhoto, onDeletePhoto, isSaving }) 
                   }}
                   size="small"
                 >
-                  <Delete sx={{ fontSize: 18 }} />
+                  <Delete sx={{ fontSize: 16 }} />
                 </IconButton>
               )}
             </Box>
+          ))}
 
-            {/* Remaining photos */}
-            {rest.map((src, i) => {
-              const actualIndex = i + 1;
-              const isLast = actualIndex === photos.length - 1 && photos.length > 7;
-              return (
-                <Box
-                  key={i}
-                  sx={{
-                    position: 'relative',
-                    borderRadius: 2,
-                    overflow: 'hidden',
-                    aspectRatio: '4/3',
-                    '&:hover .zoom-overlay': { opacity: 1 },
-                    '&:hover img': { transform: 'scale(1.05)' },
-                    '&:hover .delete-btn': { opacity: 1 },
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src={src}
-                    onClick={() => open(actualIndex)}
-                    alt={`Portfolio photo ${actualIndex + 1}`}
-                    sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.35s ease', cursor: 'pointer' }}
-                  />
-                  <Box
-                    className="zoom-overlay"
-                    onClick={() => open(actualIndex)}
-                    sx={{
-                      position: 'absolute', inset: 0,
-                      bgcolor: isLast ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.25)',
-                      opacity: isLast ? 1 : 0, transition: 'opacity 0.25s',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {isLast
-                      ? <Typography variant="h6" fontWeight={900} sx={{ color: '#fff' }}>+{photos.length - 7} more</Typography>
-                      : <ZoomIn sx={{ color: '#fff', fontSize: 28 }} />
-                    }
-                  </Box>
-
-                  {isOwner && (
-                    <IconButton
-                      className="delete-btn"
-                      onClick={() => onDeletePhoto(actualIndex)}
-                      disabled={isSaving}
-                      sx={{
-                        position: 'absolute',
-                        top: 6,
-                        right: 6,
-                        bgcolor: 'rgba(255, 255, 255, 0.9)',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                        opacity: { xs: 1, sm: 0 },
-                        transition: 'opacity 0.2s, background-color 0.2s',
-                        color: 'error.main',
-                        '&:hover': { bgcolor: 'error.main', color: '#fff' },
-                      }}
-                      size="small"
-                    >
-                      <Delete sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  )}
-                </Box>
-              );
-            })}
-          </Box>
-        )}
+          {/* Add Photo card inside the scrollable row */}
+          {isOwner && (!photos || photos.length < 6) && (
+            <Box
+              component="label"
+              sx={{
+                height: 200,
+                minWidth: 200,
+                border: '2px dashed',
+                borderColor: 'divider',
+                borderRadius: 2,
+                bgcolor: '#F7FBFB',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                flexShrink: 0,
+                gap: 1,
+                '&:hover': {
+                  bgcolor: 'rgba(65, 198, 198, 0.05)',
+                  borderColor: 'secondary.main',
+                  color: 'secondary.main',
+                },
+              }}
+            >
+              <AddPhotoAlternate sx={{ fontSize: 32, color: 'text.secondary' }} />
+              <Typography variant="body2" fontWeight={800} color="text.secondary">
+                {isSaving ? 'Uploading...' : 'Add Photo'}
+              </Typography>
+              <input
+                type="file"
+                hidden
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileChange}
+                disabled={isSaving}
+              />
+            </Box>
+          )}
+        </Box>
 
         {hasPhotos && (
           <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.5 }}>
@@ -466,14 +426,27 @@ const PractitionerProfile = () => {
 
   const isOwner = useMemo(() => {
     if (!user || !practitioner) return false;
-    const pUserId = practitioner.userId?._id || practitioner.userId;
-    return pUserId === user._id || (user.role === 'practitioner' && user.practitionerId === practitioner._id);
+    
+    const pUserId = practitioner.userId?._id || practitioner.userId?.id || practitioner.userId;
+    const currentUserId = user.id || user._id;
+    
+    const pUserEmail = practitioner.userId?.email || practitioner.email;
+    const currentUserEmail = user.email;
+
+    const idMatch = pUserId && currentUserId && pUserId.toString() === currentUserId.toString();
+    const emailMatch = pUserEmail && currentUserEmail && pUserEmail.toLowerCase() === currentUserEmail.toLowerCase();
+    
+    return Boolean(idMatch || emailMatch);
   }, [user, practitioner]);
 
   const handleAddPhoto = async (base64Photo) => {
     try {
-      setSavingPhoto(true);
       const currentPhotos = getPhotos(practitioner);
+      if (currentPhotos.length >= 6) {
+        alert('You can upload up to 6 portfolio photos.');
+        return;
+      }
+      setSavingPhoto(true);
       const updatedPhotos = [...currentPhotos, base64Photo];
 
       await practitionerService.updateProfile({

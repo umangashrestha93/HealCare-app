@@ -94,7 +94,7 @@ exports.getPractitioners = async (req, res) => {
 
     // Fetch with populate
     const practitioners = await Practitioner.find(query)
-      .populate('userId', 'firstName lastName avatar location email')
+      .populate('userId', 'firstName lastName avatar location email sex age')
       .skip(skip)
       .limit(limitNum)
       .sort('-createdAt')
@@ -270,7 +270,7 @@ exports.getPractitioner = async (req, res) => {
       _id: req.params.id,
       verificationStatus: 'approved',
       isVerified: true
-    }).populate('userId', 'firstName lastName email location phone');
+    }).populate('userId', 'firstName lastName email location phone sex age');
 
     if (!practitioner) {
       return res.status(404).json({ message: 'Practitioner not found or not yet approved' });
