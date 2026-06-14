@@ -127,7 +127,7 @@ exports.getPractitioners = async (req, res) => {
 exports.getMyProfile = async (req, res) => {
   try {
     const practitioner = await Practitioner.findOne({ userId: req.user.id })
-      .populate('userId', 'firstName lastName email location phone');
+      .populate('userId', 'firstName lastName email location phone sex');
 
     if (!practitioner) {
       return res.status(404).json({ message: 'Practitioner profile not found' });
@@ -163,7 +163,8 @@ exports.updateMyProfile = async (req, res) => {
       weekends,
       fee,
       avatar,
-      availableSlots
+      availableSlots,
+      sex
     } = req.body;
 
     const updatePayload = {
@@ -191,6 +192,10 @@ exports.updateMyProfile = async (req, res) => {
     if (fee !== undefined) updatePayload.fee = Number(fee);
     if (avatar !== undefined) updatePayload.avatar = avatar;
     if (Array.isArray(availableSlots)) updatePayload.availableSlots = availableSlots;
+
+    if (sex !== undefined) {
+      await User.findByIdAndUpdate(req.user.id, { sex });
+    }
 
     const practitioner = await Practitioner.findOneAndUpdate(
       { userId: req.user.id },

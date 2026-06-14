@@ -6,7 +6,8 @@ import {
   Divider,
   TextField, Switch,
   Snackbar, Alert, Badge, CircularProgress, Rating, FormControlLabel, Checkbox,
-  Dialog, DialogTitle, DialogContent, DialogActions
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -100,7 +101,7 @@ const writeComplianceDrafts = (userId, drafts) => {
 
 const PractitionerDashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -140,6 +141,7 @@ const PractitionerDashboard = () => {
     fee: 80,
     availableSlots: [],
     avatar: '',
+    sex: ''
   });
 
   const showToast = (message, severity = 'success') => {
@@ -175,7 +177,8 @@ const PractitionerDashboard = () => {
           weekends: profRes.data.weekends || false,
           fee: profRes.data.fee || 80,
           availableSlots: profRes.data.availableSlots || [],
-          avatar: profRes.data.avatar || ''
+          avatar: profRes.data.avatar || '',
+          sex: profRes.data.userId?.sex || user?.sex || ''
         });
 
         // Fetch reviews
@@ -1247,6 +1250,21 @@ const PractitionerDashboard = () => {
                   variant="outlined"
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
                 />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>SEX</Typography>
+                <FormControl fullWidth variant="outlined">
+                  <Select
+                    value={profile.sex || ''}
+                    onChange={(e) => setProfile({ ...profile, sex: e.target.value })}
+                    displayEmpty
+                    sx={{ borderRadius: 3, bgcolor: '#f8fafc' }}
+                  >
+                    <MenuItem value=""><em>Select sex</em></MenuItem>
+                    <MenuItem value="male">Male</MenuItem>
+                    <MenuItem value="female">Female</MenuItem>
+                  </Select>
+                </FormControl>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>SPECIALIZATIONS</Typography>

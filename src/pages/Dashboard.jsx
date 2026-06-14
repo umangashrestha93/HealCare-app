@@ -4,7 +4,7 @@ import {
   Box, Container, Typography, Grid, Avatar, Chip, Stack, Divider,
   Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   CircularProgress, TextField, Rating, IconButton, Badge, Tooltip,
-  LinearProgress,
+  LinearProgress, FormControl, InputLabel, Select, MenuItem,
 } from '@mui/material';
 import {
   CalendarMonth, History, VideoCameraFront, Cancel, Message,
@@ -267,7 +267,7 @@ const Dashboard = () => {
   const [submittingRating, setSubmittingRating] = useState(false);
 
   const [profileOpen, setProfileOpen]         = useState(false);
-  const [profileForm, setProfileForm]         = useState({ firstName: '', lastName: '', phone: '', location: '' });
+  const [profileForm, setProfileForm]         = useState({ firstName: '', lastName: '', phone: '', location: '', sex: '' });
   const [submittingProfile, setSubmittingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess]   = useState(false);
 
@@ -286,9 +286,14 @@ const Dashboard = () => {
     if (user && !urlRole) navigate(`/dashboard/${user.role}`, { replace: true });
   }, [user, urlRole, navigate]);
 
+  // Sync fresh profile data from server on mount so fields like `sex` are always current
   useEffect(() => {
+    if (!user) return;
+    authService.getMe().then((res) => {
+      if (res?.user) updateUser(res.user);
+    }).catch(() => {/* silent — fall back to cached user */});
     if (user?.role === 'client') fetchBookings();
-  }, [user]);
+  }, []);
 
   const fetchBookings = async () => {
     try {
@@ -321,7 +326,7 @@ const Dashboard = () => {
   };
 
   const handleOpenProfile = () => {
-    setProfileForm({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '', location: user?.location ?? '' });
+    setProfileForm({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '', location: user?.location ?? '', sex: user?.sex ?? '' });
     setProfileSuccess(false);
     setProfileOpen(true);
   };
@@ -606,6 +611,7 @@ const Dashboard = () => {
                 <Stack spacing={2}>
                   {[
                     { icon: <Person sx={{ fontSize: 16 }} />, label: 'Name',     value: `${user.firstName} ${user.lastName}` },
+                    { icon: <Person sx={{ fontSize: 16 }} />, label: 'Sex',      value: user.sex ? user.sex.charAt(0).toUpperCase() + user.sex.slice(1) : 'Not specified' },
                     { icon: <Email sx={{ fontSize: 16 }} />,  label: 'Email',    value: user.email },
                     { icon: <Phone sx={{ fontSize: 16 }} />,  label: 'Phone',    value: user.phone || 'Not provided' },
                     { icon: <LocationOn sx={{ fontSize: 16 }} />, label: 'Location', value: user.location || 'Not provided' },
@@ -849,6 +855,19 @@ const Dashboard = () => {
                 InputProps={{ startAdornment: <LocationOn sx={{ fontSize: 16, mr: 1, color: 'text.disabled' }} /> }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
+              <FormControl fullWidth size="small" required>
+                <InputLabel>Sex</InputLabel>
+                <Select
+                  name="sex"
+                  value={profileForm.sex}
+                  label="Sex"
+                  onChange={(e) => setProfileForm({ ...profileForm, sex: e.target.value })}
+                  sx={{ borderRadius: 2 }}
+                >
+                  <MenuItem value="Male">Male</MenuItem>
+                  <MenuItem value="Female">Female</MenuItem>
+                </Select>
+              </FormControl>
               {profileSuccess && (
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ color: C.secondary }}>
                   <CheckCircle sx={{ fontSize: 18 }} />

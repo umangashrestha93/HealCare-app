@@ -21,6 +21,7 @@ const UserSchema = new mongoose.Schema({
   deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   location: { type: String },
   phone: { type: String },
+  sex: { type: String, enum: ['Male', 'Female', ''], default: '' },
   medicareCard: {
     status: {
       type: String,

@@ -86,6 +86,7 @@ const Register = () => {
     email: '',
     phone: '',
     password: '',
+    sex: '',
     discipline: '',
     gender: '',
     yearsExp: '',
@@ -146,6 +147,9 @@ const Register = () => {
       case 'password':
         fieldError = validation.password(fieldValue);
         break;
+      case 'sex':
+        fieldError = validation.required(fieldValue, 'Sex');
+        break;
       case 'discipline':
         fieldError = validation.discipline(fieldValue);
         break;
@@ -183,7 +187,7 @@ const Register = () => {
 
     // Validate current step before proceeding
     if (activeStep === 0) {
-      const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password'];
+      const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password', 'sex'];
       const errors = {};
       let hasError = false;
 
@@ -207,6 +211,9 @@ const Register = () => {
             break;
           case 'password':
             error = validation.password(formData.password);
+            break;
+          case 'sex':
+            error = validation.required(formData.sex, 'Sex');
             break;
           default:
             break;
@@ -267,7 +274,7 @@ const Register = () => {
     setError('');
 
     // Validate all required fields for the role
-    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password'];
+    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'location', 'password', 'sex'];
     if (role === 'practitioner') {
       requiredFields.push('discipline', 'yearsExp');
     }
@@ -295,6 +302,9 @@ const Register = () => {
           break;
         case 'password':
           error = validation.password(formData.password);
+          break;
+        case 'sex':
+          error = validation.required(formData.sex, 'Sex');
           break;
         case 'discipline':
           error = validation.discipline(formData.discipline);
@@ -331,6 +341,7 @@ const Register = () => {
         phone: formData.phone,
         location: formData.location,
         password: formData.password,
+        sex: formData.sex,
         role,
         practitionerProfile: role === 'practitioner'
           ? {
@@ -549,6 +560,19 @@ const Register = () => {
                           helperText={fieldErrors.location}
                           disabled={submitting}
                         />
+                        <FormControl fullWidth required error={!!fieldErrors.sex} disabled={submitting}>
+                          <InputLabel>Sex</InputLabel>
+                          <Select
+                            name="sex"
+                            value={formData.sex}
+                            label="Sex"
+                            onChange={handleChange}
+                          >
+                            <MenuItem value="Male">Male</MenuItem>
+                            <MenuItem value="Female">Female</MenuItem>
+                          </Select>
+                          {fieldErrors.sex && <FormHelperText>{fieldErrors.sex}</FormHelperText>}
+                        </FormControl>
                         <TextField
                           fullWidth
                           label="Password"

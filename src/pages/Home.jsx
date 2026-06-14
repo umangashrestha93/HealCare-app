@@ -125,9 +125,11 @@ const Home = () => {
         >
           <MotionBox initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <Button variant="contained" color="secondary" size="large" endIcon={<ArrowForward />} onClick={() => navigate('/marketplace')} sx={{ px: 4, py: 1.6, fontWeight: 900, color: 'White' }}>
-                Find a Practitioner
-              </Button>
+              {user?.role !== 'practitioner' && (
+                <Button variant="contained" color="secondary" size="large" endIcon={<ArrowForward />} onClick={() => navigate('/marketplace')} sx={{ px: 4, py: 1.6, fontWeight: 900, color: 'White' }}>
+                  Find a Practitioner
+                </Button>
+              )}
               {!user && (
                 <Button
                   variant="outlined"
