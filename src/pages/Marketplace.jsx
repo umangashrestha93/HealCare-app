@@ -756,7 +756,7 @@ Beyond5 Healthcare Platform
                                   <Button fullWidth variant="contained" onClick={() => navigate(`/practitioners/${p._id}`)} sx={{ fontWeight: 900, minHeight: 42 }}>
                                     View Profile
                                   </Button>
-                                  <Button fullWidth variant="contained" color="secondary" onClick={() => navigate(`/booking?practitioner=${p._id}`)} sx={{ fontWeight: 900, minHeight: 42 }}>
+                                  <Button fullWidth variant="contained" color="secondary" onClick={() => navigate(`/booking?practitioner=${p._id}`)} sx={{ fontWeight: 900, minHeight: 42, color: 'white' }}>
                                     Check availability
                                   </Button>
                                   <Button fullWidth variant="outlined" onClick={() => openEnquiry(p)} sx={{ fontWeight: 900, minHeight: 42 }}>

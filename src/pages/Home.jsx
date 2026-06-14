@@ -151,7 +151,7 @@ const Home = () => {
                   ))}
                 </Select>
                 <TextField fullWidth label="Postcode" value={postcode} onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 4))} inputProps={{ inputMode: 'numeric' }} />
-                <Button variant="contained" color="secondary" size="large" onClick={handleSearch} sx={{ height: 56, px: 4, fontWeight: 900 }}>
+                <Button variant="contained" color="secondary" size="large" onClick={handleSearch} sx={{ height: 56, px: 4, fontWeight: 900, color: 'white' }}>
                   Find matches
                 </Button>
               </Box>

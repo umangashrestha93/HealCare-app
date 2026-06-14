@@ -667,7 +667,7 @@ const Dashboard = () => {
                 elevation={0}
                 sx={{
                   p: 3, borderRadius: 3, overflow: 'hidden',
-                  background: `linear-gradient(135deg, #002d5f 0%, #004a99 100%)`,
+                  background: `linear-gradient(135deg, #13283B 0%, #41C6C6 100%)`,
                   color: '#fff',
                 }}
               >
@@ -677,11 +677,11 @@ const Dashboard = () => {
                 </Typography>
                 <Stack spacing={2}>
                   {[
-                    { label: 'Sessions completed', val: past.length,    max: Math.max(past.length, 5), color: '#4ade80' },
-                    { label: 'Sessions upcoming',  val: upcoming.length, max: Math.max(upcoming.length, 5), color: '#60a5fa' },
+                    { label: 'Sessions completed', val: past.length,    max: Math.max(past.length, 5), color: '#0B1D2B' },
+                    { label: 'Sessions upcoming',  val: upcoming.length, max: Math.max(upcoming.length, 5), color: '#41C6C6' },
                   ].map(({ label, val, max, color }) => (
                     <Box key={label}>
-                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5, gap: 2 }}>
                         <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>{label}</Typography>
                         <Typography variant="caption" sx={{ color, fontWeight: 800 }}>{val}</Typography>
                       </Stack>
