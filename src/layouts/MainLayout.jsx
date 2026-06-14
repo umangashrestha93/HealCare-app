@@ -158,6 +158,7 @@ const UserAvatarMenu = ({ user, onLogout, onNavigate }) => {
           sx={{ p: 0.5 }}
         >
           <Avatar
+            src={user.avatar || undefined}
             sx={{
               bgcolor: 'primary.main',
               width: 36,
@@ -165,11 +166,12 @@ const UserAvatarMenu = ({ user, onLogout, onNavigate }) => {
               fontSize: '0.85rem',
               fontWeight: 700,
               cursor: 'pointer',
-              transition: 'box-shadow 0.2s ease',
-              '&:hover': { boxShadow: '0 0 0 3px rgba(0,128,128,0.25)' },
+              transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+              border: user.avatar ? '2px solid rgba(65,198,198,0.4)' : 'none',
+              '&:hover': { boxShadow: '0 0 0 3px rgba(0,128,128,0.25)', transform: 'scale(1.05)' },
             }}
           >
-            {initials}
+            {!user.avatar && initials}
           </Avatar>
         </IconButton>
       </Tooltip>
@@ -210,14 +212,30 @@ const UserAvatarMenu = ({ user, onLogout, onNavigate }) => {
           },
         }}
       >
-        {/* User info header */}
-        <Box sx={{ px: 2, py: 1.5, pb: 1 }}>
-          <Typography variant="body2" fontWeight={700} color="text.primary" noWrap>
-            {user.firstName} {user.lastName}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {user.email}
-          </Typography>
+        {/* User info header with avatar */}
+        <Box sx={{ px: 2, py: 1.5, pb: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar
+            src={user.avatar || undefined}
+            sx={{
+              width: 38,
+              height: 38,
+              bgcolor: 'primary.main',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              border: user.avatar ? '2px solid rgba(65,198,198,0.3)' : 'none',
+              flexShrink: 0,
+            }}
+          >
+            {!user.avatar && initials}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={700} color="text.primary" noWrap>
+              {user.firstName} {user.lastName}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {user.email}
+            </Typography>
+          </Box>
         </Box>
         <Divider sx={{ mb: 0.5 }} />
 
@@ -378,8 +396,18 @@ const MobileDrawer = ({ open, onClose, user, navLinks, activePathname, onNavigat
         {user ? (
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-              <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40, fontSize: '0.9rem', fontWeight: 700 }}>
-                {[user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join('').toUpperCase() || <Person />}
+              <Avatar
+                src={user.avatar || undefined}
+                sx={{
+                  bgcolor: 'primary.main',
+                  width: 42,
+                  height: 42,
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  border: user.avatar ? '2px solid rgba(65,198,198,0.4)' : 'none',
+                }}
+              >
+                {!user.avatar && ([user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join('').toUpperCase() || <Person />)}
               </Avatar>
               <Box>
                 <Typography variant="body2" fontWeight={700} color="text.primary" noWrap>

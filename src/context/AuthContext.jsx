@@ -53,7 +53,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateUser = (updatedUser) => {
-    localStorage.setItem('beyond5_user', JSON.stringify(updatedUser));
+    try {
+      localStorage.setItem('beyond5_user', JSON.stringify(updatedUser));
+    } catch (e) {
+      // Storage quota exceeded — update React state only so UI still reflects the change
+      console.warn('[AuthContext] localStorage quota exceeded, user data saved in memory only.', e);
+    }
     setUser(updatedUser);
   };
 

@@ -170,15 +170,22 @@ exports.getMe = async (req, res) => {
       ? await Practitioner.findOne({ userId: user._id }).lean()
       : null;
 
+    // For practitioners, prefer their practitioner profile avatar
+    const sanitized = sanitizeUser(user);
+    if (practitionerProfile?.avatar) {
+      sanitized.avatar = practitionerProfile.avatar;
+    }
+
     res.status(200).json({
       success: true,
-      user: sanitizeUser(user),
+      user: sanitized,
       practitionerProfile
     });
   } catch (err) {
     res.status(500).json({ message: 'Failed to load profile', error: err.message });
   }
 };
+
 
 // @desc    Get user by ID
 // @route   GET /api/auth/user/:id
@@ -211,7 +218,7 @@ exports.getUserById = async (req, res) => {
 // @route   PUT /api/auth/profile
 exports.updateProfile = async (req, res) => {
   try {
-    const allowedUserFields = ['firstName', 'lastName', 'phone', 'location', 'sex', 'age'];
+    const allowedUserFields = ['firstName', 'lastName', 'phone', 'location', 'sex', 'age', 'avatar'];
     const userUpdates = {};
     allowedUserFields.forEach((field) => {
       if (req.body[field] !== undefined) userUpdates[field] = req.body[field];
@@ -415,7 +422,8 @@ const sanitizeUser = (user) => ({
   location: user.location,
   sex: user.sex,
   age: user.age,
-  role: user.role
+  role: user.role,
+  avatar: user.avatar || ''
 });
 
 const upsertPractitionerProfile = async (userId, profile) => {

@@ -472,7 +472,7 @@ const Dashboard = () => {
   const [submittingRating, setSubmittingRating] = useState(false);
 
   const [profileOpen, setProfileOpen]         = useState(false);
-  const [profileForm, setProfileForm]         = useState({ firstName: '', lastName: '', phone: '', location: '', sex: '', age: '' });
+  const [profileForm, setProfileForm]         = useState({ firstName: '', lastName: '', phone: '', location: '', sex: '', age: '', avatar: '' });
   const [submittingProfile, setSubmittingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess]   = useState(false);
 
@@ -530,7 +530,7 @@ const Dashboard = () => {
   };
 
   const handleOpenProfile = () => {
-    setProfileForm({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '', location: user?.location ?? '', sex: user?.sex ?? '', age: user?.age ?? '' });
+    setProfileForm({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '', location: user?.location ?? '', sex: user?.sex ?? '', age: user?.age ?? '', avatar: user?.avatar ?? '' });
     setProfileSuccess(false);
     setProfileOpen(true);
   };
@@ -661,19 +661,20 @@ const Dashboard = () => {
             {/* Left: avatar + greeting */}
             <Stack direction="row" spacing={2.5} alignItems="center">
               <Avatar
+                src={user.avatar || undefined}
                 sx={{
                   width: { xs: 60, md: 68 },
                   height: { xs: 60, md: 68 },
                   bgcolor: 'rgba(255,255,255,0.15)',
-                  border: '2.5px solid rgba(255,255,255,0.35)',
-                  boxShadow: '0 0 0 4px rgba(255,255,255,0.08)',
+                  border: user.avatar ? '2.5px solid rgba(65,198,198,0.7)' : '2.5px solid rgba(255,255,255,0.35)',
+                  boxShadow: user.avatar ? '0 0 0 4px rgba(65,198,198,0.2)' : '0 0 0 4px rgba(255,255,255,0.08)',
                   fontSize: { xs: 22, md: 26 },
                   fontWeight: 800,
                   color: '#fff',
                   flexShrink: 0,
                 }}
               >
-                {initials}
+                {!user.avatar && initials}
               </Avatar>
 
               <Box>
@@ -959,6 +960,54 @@ const Dashboard = () => {
                       <Edit sx={{ fontSize: 16 }} />
                     </IconButton>
                   </Tooltip>
+                </Stack>
+
+                {/* Profile photo preview in sidebar */}
+                <Stack alignItems="center" sx={{ mb: 2.5 }}>
+                  <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                    <Avatar
+                      src={user.avatar || undefined}
+                      sx={{
+                        width: 72,
+                        height: 72,
+                        bgcolor: C.primary,
+                        fontSize: '1.5rem',
+                        fontWeight: 800,
+                        border: user.avatar ? `3px solid ${C.secondary}` : `3px solid ${C.border}`,
+                        boxShadow: user.avatar ? `0 0 0 4px rgba(65,198,198,0.15)` : 'none',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      {!user.avatar && initials}
+                    </Avatar>
+                    <Tooltip title="Edit profile photo">
+                      <IconButton
+                        size="small"
+                        onClick={handleOpenProfile}
+                        sx={{
+                          position: 'absolute',
+                          bottom: -2,
+                          right: -2,
+                          width: 26,
+                          height: 26,
+                          bgcolor: C.secondary,
+                          color: C.primary,
+                          '&:hover': { bgcolor: '#35b5b5' },
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                        }}
+                      >
+                        <Edit sx={{ fontSize: 13 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                  <Typography variant="body2" fontWeight={700} sx={{ mt: 1 }}>
+                    {user.firstName} {user.lastName}
+                  </Typography>
+                  <Chip
+                    label="Client"
+                    size="small"
+                    sx={{ mt: 0.5, height: 20, fontSize: 10, fontWeight: 700, bgcolor: `${C.secondary}18`, color: C.secondary }}
+                  />
                 </Stack>
 
                 <Stack spacing={0} divider={<Divider flexItem sx={{ borderColor: '#f1f5f9' }} />}>
@@ -1387,6 +1436,96 @@ const Dashboard = () => {
         <Box component="form" onSubmit={handleUpdateProfile}>
           <DialogContent sx={{ px: 3, py: 2.5 }}>
             <Stack spacing={2}>
+
+              {/* ── Profile Photo Upload ── */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, py: 1 }}>
+                <Box sx={{ position: 'relative' }}>
+                  <Avatar
+                    src={profileForm.avatar || undefined}
+                    sx={{
+                      width: 88,
+                      height: 88,
+                      bgcolor: 'primary.main',
+                      fontSize: '1.8rem',
+                      fontWeight: 700,
+                      border: '3px solid',
+                      borderColor: profileForm.avatar ? 'secondary.main' : 'divider',
+                      boxShadow: profileForm.avatar ? '0 0 0 4px rgba(65,198,198,0.15)' : 'none',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    {!profileForm.avatar && `${profileForm.firstName?.[0] ?? ''}${profileForm.lastName?.[0] ?? ''}`.toUpperCase()}
+                  </Avatar>
+                  <Box
+                    component="label"
+                    htmlFor="client-avatar-upload"
+                    sx={{
+                      position: 'absolute',
+                      bottom: -2,
+                      right: -2,
+                      width: 30,
+                      height: 30,
+                      borderRadius: '50%',
+                      bgcolor: 'secondary.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                      transition: 'transform 0.15s ease',
+                      '&:hover': { transform: 'scale(1.1)' },
+                    }}
+                  >
+                    <Edit sx={{ fontSize: 15, color: '#0B1D2B' }} />
+                  </Box>
+                  <input
+                    id="client-avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert('Photo must be under 5 MB');
+                        return;
+                      }
+                      const img = new Image();
+                      const objectUrl = URL.createObjectURL(file);
+                      img.onload = () => {
+                        const MAX = 240;
+                        const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+                        const w = Math.round(img.width * scale);
+                        const h = Math.round(img.height * scale);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const compressed = canvas.toDataURL('image/jpeg', 0.82);
+                        setProfileForm((prev) => ({ ...prev, avatar: compressed }));
+                        URL.revokeObjectURL(objectUrl);
+                      };
+                      img.src = objectUrl;
+                    }}
+                  />
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+                  Click the pencil icon to change your photo<br />(JPG/PNG, max 2 MB)
+                </Typography>
+                {profileForm.avatar && (
+                  <Button
+                    size="small"
+                    color="error"
+                    variant="text"
+                    sx={{ fontSize: 11, fontWeight: 600, py: 0 }}
+                    onClick={() => setProfileForm((prev) => ({ ...prev, avatar: '' }))}
+                  >
+                    Remove photo
+                  </Button>
+                )}
+              </Box>
+
               <Grid container spacing={2}>
                 <Grid item xs={6}>
                   <TextField

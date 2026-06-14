@@ -198,6 +198,11 @@ const PractitionerDashboard = () => {
         // Fetch reviews
         const revRes = await reviewService.getPractitionerReviews(profRes.data._id);
         setReviews(revRes.data);
+
+        // Sync practitioner avatar into auth context so AppBar shows the photo
+        if (profRes.data.avatar && profRes.data.avatar !== user?.avatar) {
+          updateUser({ ...user, avatar: profRes.data.avatar });
+        }
       }
     } catch (err) {
       console.error('Dashboard data fetch failed', err);
@@ -1193,16 +1198,28 @@ const PractitionerDashboard = () => {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        if (file.size > 2 * 1024 * 1024) {
-                          showToast('Image exceeds 2 MB limit.', 'warning');
+                        if (file.size > 5 * 1024 * 1024) {
+                          showToast('Image exceeds 5 MB limit.', 'warning');
                           return;
                         }
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          setProfile((prev) => ({ ...prev, avatar: event.target.result }));
-                          showToast('Photo selected — save your profile to persist this change.');
+                        const img = new Image();
+                        const objectUrl = URL.createObjectURL(file);
+                        img.onload = () => {
+                          const MAX = 240;
+                          const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+                          const w = Math.round(img.width * scale);
+                          const h = Math.round(img.height * scale);
+                          const canvas = document.createElement('canvas');
+                          canvas.width = w;
+                          canvas.height = h;
+                          const ctx = canvas.getContext('2d');
+                          ctx.drawImage(img, 0, 0, w, h);
+                          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+                          setProfile((prev) => ({ ...prev, avatar: compressed }));
+                          URL.revokeObjectURL(objectUrl);
+                          showToast('Photo selected — save your profile to apply this change.');
                         };
-                        reader.readAsDataURL(file);
+                        img.src = objectUrl;
                       }}
                     />
                   </Button>
@@ -1503,7 +1520,62 @@ const PractitionerDashboard = () => {
                   scrollbarWidth: 'none',
                 }}
               >
-                {[
+                {/* Practitioner photo + name header in sidebar */}
+              <Stack alignItems="center" sx={{ pb: 2, pt: 1, display: { xs: 'none', sm: 'flex' } }}>
+                <Box sx={{ position: 'relative', mb: 1 }}>
+                  <Avatar
+                    src={practitionerData?.avatar || user?.avatar || undefined}
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      bgcolor: 'primary.main',
+                      fontSize: '1.4rem',
+                      fontWeight: 800,
+                      border: (practitionerData?.avatar || user?.avatar)
+                        ? '2.5px solid'
+                        : '2.5px solid',
+                      borderColor: (practitionerData?.avatar || user?.avatar)
+                        ? 'secondary.main'
+                        : 'divider',
+                      boxShadow: (practitionerData?.avatar || user?.avatar)
+                        ? '0 0 0 4px rgba(65,198,198,0.15)'
+                        : 'none',
+                    }}
+                  >
+                    {!(practitionerData?.avatar || user?.avatar) &&
+                      `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase()}
+                  </Avatar>
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      bgcolor: practitionerData?.isVerified ? '#16a34a' : '#f59e0b',
+                      border: '2px solid #fff',
+                    }}
+                  />
+                </Box>
+                <Typography variant="body2" fontWeight={800} noWrap sx={{ maxWidth: 140, textAlign: 'center' }}>
+                  {user?.firstName} {user?.lastName}
+                </Typography>
+                <Chip
+                  label={practitionerData?.isVerified ? 'Verified' : 'Pending'}
+                  size="small"
+                  sx={{
+                    mt: 0.5,
+                    height: 18,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    bgcolor: practitionerData?.isVerified ? 'rgba(22,163,74,0.12)' : 'rgba(245,158,11,0.12)',
+                    color: practitionerData?.isVerified ? '#16a34a' : '#d97706',
+                  }}
+                />
+              </Stack>
+
+              {[
                   { label: 'Overview', icon: <DashboardIcon /> },
                   { label: 'Compliance', icon: <Assignment />, badge: complianceProgress < 100 },
                   { label: 'Availability', icon: <CalendarMonth /> },

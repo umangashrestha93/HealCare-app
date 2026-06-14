@@ -19,6 +19,7 @@ const UserSchema = new mongoose.Schema({
   },
   deletedAt: { type: Date, default: null, index: true },
   deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  avatar: { type: String, default: '' },
   location: { type: String },
   phone: { type: String },
   sex: { type: String, enum: ['Male', 'Female', ''], default: '' },
