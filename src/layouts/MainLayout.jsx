@@ -93,7 +93,7 @@ const MainLayout = () => {
                     variant="contained"
                     color="secondary"
                     onClick={() => navigate('/register')}
-                    sx={{ borderRadius: '50px', px: 3, fontWeight: 700 }}
+                    sx={{ borderRadius: '50px', px: 3, fontWeight: 700, color: 'white' }}
                   >
                     Get Started
                   </Button>
