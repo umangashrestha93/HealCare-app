@@ -312,3 +312,207 @@ exports.getPractitioner = async (req, res) => {
     res.status(500).json({ message: 'Server Error', error: err.message });
   }
 };
+
+// ─── myGigster Embedded Finance Endpoints ─────────────────────────────────
+
+exports.getMyGigsterInfo = async (req, res) => {
+  try {
+    const Booking = require('../models/Booking');
+    const practitioner = await Practitioner.findOne({ userId: req.user.id });
+    if (!practitioner) {
+      return res.status(404).json({ message: 'Practitioner profile not found' });
+    }
+
+    // Initialize myGigster block if undefined (safe fallback)
+    if (!practitioner.myGigster) {
+      practitioner.myGigster = { isSetup: false, bankDetails: {}, expenses: [], payoutHistory: [] };
+    }
+
+    // Calculate dynamic available balance from Bookings database
+    // All bookings for this practitioner where paymentStatus is paid
+    const bookings = await Booking.find({ 
+      practitionerId: practitioner._id, 
+      paymentStatus: 'paid' 
+    }).lean();
+
+    const grossEarnings = bookings.reduce((sum, b) => sum + (b.pricing?.total || 0), 0);
+    const totalPayouts = practitioner.myGigster.payoutHistory.reduce((sum, p) => sum + p.amount, 0);
+    const availableBalance = Math.max(0, grossEarnings - totalPayouts);
+
+    // Calculate total deductions
+    const totalDeductions = practitioner.myGigster.expenses.reduce((sum, e) => sum + e.amount, 0);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        myGigster: practitioner.myGigster,
+        metrics: {
+          grossEarnings,
+          totalPayouts,
+          availableBalance,
+          totalDeductions,
+          estimatedTaxSaved: Number((totalDeductions * (practitioner.myGigster.taxReservePercentage / 100)).toFixed(2))
+        }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to retrieve myGigster details', error: err.message });
+  }
+};
+
+exports.setupMyGigster = async (req, res) => {
+  try {
+    const { bankName, bsb, accountNumber, accountHolder, taxReservePercentage } = req.body;
+    const practitioner = await Practitioner.findOne({ userId: req.user.id });
+    if (!practitioner) {
+      return res.status(404).json({ message: 'Practitioner profile not found' });
+    }
+
+    practitioner.myGigster.isSetup = true;
+    practitioner.myGigster.accountId = `mg_acc_${Math.random().toString(36).substr(2, 9)}`;
+    practitioner.myGigster.taxReservePercentage = taxReservePercentage !== undefined ? Number(taxReservePercentage) : 20;
+    practitioner.myGigster.bankDetails = {
+      bankName: bankName || 'Standard Bank',
+      bsb: bsb || '',
+      accountNumber: accountNumber || '',
+      accountHolder: accountHolder || ''
+    };
+
+    await practitioner.save();
+    res.status(200).json({ success: true, message: 'myGigster account linked successfully', data: practitioner.myGigster });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to setup myGigster account', error: err.message });
+  }
+};
+
+exports.payoutMyGigster = async (req, res) => {
+  try {
+    const Booking = require('../models/Booking');
+    const practitioner = await Practitioner.findOne({ userId: req.user.id });
+    if (!practitioner) {
+      return res.status(404).json({ message: 'Practitioner profile not found' });
+    }
+
+    if (!practitioner.myGigster.isSetup) {
+      return res.status(400).json({ message: 'myGigster is not setup yet' });
+    }
+
+    // Calculate available balance to prevent over-drafting
+    const bookings = await Booking.find({ 
+      practitionerId: practitioner._id, 
+      paymentStatus: 'paid' 
+    }).lean();
+
+    const grossEarnings = bookings.reduce((sum, b) => sum + (b.pricing?.total || 0), 0);
+    const totalPayouts = practitioner.myGigster.payoutHistory.reduce((sum, p) => sum + p.amount, 0);
+    const availableBalance = Math.max(0, grossEarnings - totalPayouts);
+
+    if (availableBalance <= 0) {
+      return res.status(400).json({ message: 'No funds available for cashout' });
+    }
+
+    // Create the payout record
+    const payoutAmount = availableBalance;
+    const payoutRecord = {
+      amount: payoutAmount,
+      date: new Date(),
+      status: 'Completed',
+      reference: `mg_tx_${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+    };
+
+    practitioner.myGigster.payoutHistory.push(payoutRecord);
+    await practitioner.save();
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Instant payout completed successfully', 
+      data: payoutRecord 
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to process instant payout', error: err.message });
+  }
+};
+
+exports.addMyGigsterExpense = async (req, res) => {
+  try {
+    const { description, amount, category, mileageKm } = req.body;
+    if (!description || amount === undefined) {
+      return res.status(400).json({ message: 'Description and amount are required' });
+    }
+
+    const practitioner = await Practitioner.findOne({ userId: req.user.id });
+    if (!practitioner) {
+      return res.status(404).json({ message: 'Practitioner profile not found' });
+    }
+
+    const newExpense = {
+      description,
+      amount: Number(amount),
+      category: category || 'Other',
+      mileageKm: mileageKm ? Number(mileageKm) : 0,
+      date: new Date()
+    };
+
+    practitioner.myGigster.expenses.push(newExpense);
+    await practitioner.save();
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Expense logged successfully', 
+      data: practitioner.myGigster.expenses[practitioner.myGigster.expenses.length - 1] 
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to add expense', error: err.message });
+  }
+};
+
+exports.deleteMyGigsterExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const practitioner = await Practitioner.findOne({ userId: req.user.id });
+    if (!practitioner) {
+      return res.status(404).json({ message: 'Practitioner profile not found' });
+    }
+
+    practitioner.myGigster.expenses = practitioner.myGigster.expenses.filter(
+      (expense) => expense._id.toString() !== id
+    );
+
+    await practitioner.save();
+    res.status(200).json({ success: true, message: 'Expense deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete expense', error: err.message });
+  }
+};
+
+exports.updateMyGigsterSettings = async (req, res) => {
+  try {
+    const { bankName, bsb, accountNumber, accountHolder, taxReservePercentage } = req.body;
+    const practitioner = await Practitioner.findOne({ userId: req.user.id });
+    if (!practitioner) {
+      return res.status(404).json({ message: 'Practitioner profile not found' });
+    }
+
+    if (taxReservePercentage !== undefined) {
+      practitioner.myGigster.taxReservePercentage = Number(taxReservePercentage);
+    }
+
+    if (bankName || bsb || accountNumber || accountHolder) {
+      practitioner.myGigster.bankDetails = {
+        bankName: bankName || practitioner.myGigster.bankDetails.bankName,
+        bsb: bsb || practitioner.myGigster.bankDetails.bsb,
+        accountNumber: accountNumber || practitioner.myGigster.bankDetails.accountNumber,
+        accountHolder: accountHolder || practitioner.myGigster.bankDetails.accountHolder
+      };
+    }
+
+    await practitioner.save();
+    res.status(200).json({ 
+      success: true, 
+      message: 'myGigster settings updated successfully', 
+      data: practitioner.myGigster 
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to update myGigster settings', error: err.message });
+  }
+};

@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import Home from '../pages/Home';
+import About from '../pages/About';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Dashboard from '../pages/Dashboard';
@@ -30,6 +31,7 @@ const AppRoutes = () => {
       {/* Public Layout Routes */}
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Home />} />
+        <Route path="about-us" element={<About />} />
         
         {/* Auth Routes with dynamic roles */}
         <Route path="login" element={<Login />} />

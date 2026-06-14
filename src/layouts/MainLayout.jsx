@@ -27,6 +27,7 @@ import {
   Menu as MenuIcon,
   Close,
   HomeOutlined,
+  InfoOutlined,
   Search,
   Dashboard as DashboardIcon,
   Person,
@@ -46,6 +47,7 @@ const BORDER_COLOR = '#E2E8F0';
 
 const NAV_LINKS = (user) => [
   { label: 'Home',               path: '/',           icon: <HomeOutlined /> },
+  { label: 'About Us',           path: '/about-us',   icon: <InfoOutlined /> },
   { label: 'Find a Practitioner', path: '/marketplace', icon: <Search />,       roles: ['client', null] },
   { label: 'Dashboard',           path: user ? `/dashboard/${user.role}` : '/dashboard', icon: <DashboardIcon /> },
 ];
@@ -465,6 +467,7 @@ const MobileDrawer = ({ open, onClose, user, navLinks, activePathname, onNavigat
 const Footer = ({ onNavigate }) => {
   const quickLinks = [
     { label: 'Home',        path: '/' },
+    { label: 'About Us',    path: '/about-us' },
     { label: 'Marketplace', path: '/marketplace' },
     { label: 'Dashboard',   path: '/dashboard' },
     { label: 'Login',       path: '/login' },
@@ -506,7 +509,7 @@ const Footer = ({ onNavigate }) => {
               color="text.secondary"
               sx={{ maxWidth: 340, lineHeight: 1.7 }}
             >
-              Connecting allied health practitioners with the people who need them most.
+              Connecting people with allied health practitioners who offer therapy that fits real life.
             </Typography>
           </Box>
 

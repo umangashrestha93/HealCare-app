@@ -127,6 +127,12 @@ export const practitionerService = {
     headers: { 'Content-Type': 'multipart/form-data' } // Secure multipart handling
   }),
   updateProfile: (profileData) => api.put('/practitioners/profile', profileData),
+  getMyGigsterInfo: () => api.get('/practitioners/mygigster'),
+  setupMyGigster: (data) => api.post('/practitioners/mygigster/setup', data),
+  payoutMyGigster: (data) => api.post('/practitioners/mygigster/payout', data),
+  addMyGigsterExpense: (data) => api.post('/practitioners/mygigster/expenses', data),
+  deleteMyGigsterExpense: (id) => api.delete(`/practitioners/mygigster/expenses/${id}`),
+  updateMyGigsterSettings: (data) => api.put('/practitioners/mygigster/settings', data),
 };
 
 // --- ENQUIRY SERVICES ---

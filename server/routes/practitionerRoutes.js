@@ -7,7 +7,13 @@ const {
   getPractitioner,
   getMyProfile,
   updateMyProfile,
-  uploadDocument
+  uploadDocument,
+  getMyGigsterInfo,
+  setupMyGigster,
+  payoutMyGigster,
+  addMyGigsterExpense,
+  deleteMyGigsterExpense,
+  updateMyGigsterSettings
 } = require('../controllers/practitionerController');
 const { protect, authorize } = require('../middleware/auth');
 const router = express.Router();
@@ -44,6 +50,27 @@ router
 router
   .route('/upload')
   .post(protect, authorize('practitioner'), upload.single('document'), uploadDocument);
+
+// myGigster Embedded Finance routes
+router
+  .route('/mygigster')
+  .get(protect, authorize('practitioner'), getMyGigsterInfo);
+router
+  .route('/mygigster/setup')
+  .post(protect, authorize('practitioner'), setupMyGigster);
+router
+  .route('/mygigster/payout')
+  .post(protect, authorize('practitioner'), payoutMyGigster);
+router
+  .route('/mygigster/expenses')
+  .post(protect, authorize('practitioner'), addMyGigsterExpense);
+router
+  .route('/mygigster/expenses/:id')
+  .delete(protect, authorize('practitioner'), deleteMyGigsterExpense);
+router
+  .route('/mygigster/settings')
+  .put(protect, authorize('practitioner'), updateMyGigsterSettings);
+
 router.route('/:id').get(getPractitioner);
 
 module.exports = router;

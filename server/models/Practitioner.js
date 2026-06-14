@@ -78,6 +78,32 @@ const PractitionerSchema = new mongoose.Schema({
   totalReviews: { type: Number, default: 0 },
   utilizationRate: { type: Number, default: 0 }, // Utilization Data
   
+  // myGigster Integration
+  myGigster: {
+    isSetup: { type: Boolean, default: false },
+    accountId: { type: String, default: '' },
+    taxReservePercentage: { type: Number, default: 20, min: 0, max: 100 },
+    bankDetails: {
+      bankName: { type: String, default: '' },
+      bsb: { type: String, default: '' },
+      accountNumber: { type: String, default: '' },
+      accountHolder: { type: String, default: '' }
+    },
+    expenses: [{
+      description: { type: String, required: true },
+      amount: { type: Number, required: true },
+      date: { type: Date, default: Date.now },
+      category: { type: String, default: 'Other' }, // e.g. 'Mileage', 'Equipment', 'Software', 'Travel', 'Other'
+      mileageKm: { type: Number, default: 0 }
+    }],
+    payoutHistory: [{
+      amount: { type: Number, required: true },
+      date: { type: Date, default: Date.now },
+      status: { type: String, default: 'Completed' },
+      reference: { type: String }
+    }]
+  },
+  
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -85,9 +111,8 @@ const PractitionerSchema = new mongoose.Schema({
 PractitionerSchema.index({ verificationStatus: 1, createdAt: -1 });
 PractitionerSchema.index({ isVerified: 1, createdAt: -1 });
 
-PractitionerSchema.pre('save', function(next) {
+PractitionerSchema.pre('save', function() {
   this.updatedAt = Date.now();
-  next();
 });
 
 // Virtual for Trust Signal

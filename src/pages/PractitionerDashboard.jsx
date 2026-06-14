@@ -8,7 +8,8 @@ import {
   Snackbar, Alert, Badge, CircularProgress, Rating, FormControlLabel, Checkbox,
   Dialog, DialogTitle, DialogContent, DialogActions,
   FormControl, InputLabel, Select, MenuItem,
-  IconButton
+  IconButton,
+  Slider
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -32,6 +33,13 @@ import {
   DeleteOutlined,
   Cancel,
   AddPhotoAlternate,
+  AccountBalanceWallet,
+  Payments,
+  ReceiptLong,
+  AccountBalance,
+  LocalTaxi,
+  AddCircleOutlined,
+  AttachMoney,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -110,6 +118,28 @@ const PractitionerDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
+  // myGigster State
+  const [myGigsterData, setMyGigsterData] = useState(null);
+  const [myGigsterMetrics, setMyGigsterMetrics] = useState(null);
+  const [myGigsterLoading, setMyGigsterLoading] = useState(false);
+  const [setupWizardOpen, setSetupWizardOpen] = useState(false);
+  const [setupForm, setSetupForm] = useState({
+    bankName: '',
+    bsb: '',
+    accountNumber: '',
+    accountHolder: '',
+    taxReservePercentage: 20
+  });
+  const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
+  const [expenseForm, setExpenseForm] = useState({
+    description: '',
+    amount: '',
+    category: 'Other',
+    mileageKm: ''
+  });
+  const [expenseSubmitting, setExpenseSubmitting] = useState(false);
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+
   useEffect(() => {
     if (routerLocation.state?.activeTab !== undefined) {
       setActiveTab(routerLocation.state.activeTab);
@@ -160,6 +190,132 @@ const PractitionerDashboard = () => {
     setToast({ open: true, message, severity });
   };
 
+  const fetchMyGigsterData = async () => {
+    try {
+      setMyGigsterLoading(true);
+      const res = await practitionerService.getMyGigsterInfo();
+      if (res.success && res.data) {
+        setMyGigsterData(res.data.myGigster);
+        setMyGigsterMetrics(res.data.metrics);
+        if (res.data.myGigster && res.data.myGigster.isSetup) {
+          setSetupForm({
+            bankName: res.data.myGigster.bankDetails?.bankName || '',
+            bsb: res.data.myGigster.bankDetails?.bsb || '',
+            accountNumber: res.data.myGigster.bankDetails?.accountNumber || '',
+            accountHolder: res.data.myGigster.bankDetails?.accountHolder || '',
+            taxReservePercentage: res.data.myGigster.taxReservePercentage || 20
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch myGigster data:', err);
+    } finally {
+      setMyGigsterLoading(false);
+    }
+  };
+
+  const handleSetupMyGigster = async (e) => {
+    e.preventDefault();
+    if (!setupForm.bankName || !setupForm.bsb || !setupForm.accountNumber || !setupForm.accountHolder) {
+      showToast('Please fill out all bank account fields', 'warning');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const res = await practitionerService.setupMyGigster(setupForm);
+      if (res.success) {
+        showToast('myGigster account linked successfully!', 'success');
+        setSetupWizardOpen(false);
+        await fetchMyGigsterData();
+      }
+    } catch (err) {
+      console.error('Failed to link myGigster:', err);
+      showToast(err.response?.data?.message || 'Setup failed', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePayout = async () => {
+    try {
+      setPayoutSubmitting(true);
+      const res = await practitionerService.payoutMyGigster();
+      if (res.success) {
+        showToast('Instant cashout transfer completed!', 'success');
+        setPayoutDialogOpen(false);
+        await fetchMyGigsterData();
+      }
+    } catch (err) {
+      console.error('Payout failed:', err);
+      showToast(err.response?.data?.message || 'Payout failed', 'error');
+    } finally {
+      setPayoutSubmitting(false);
+    }
+  };
+
+  const handleAddExpense = async (e) => {
+    e.preventDefault();
+    if (!expenseForm.description || !expenseForm.amount) {
+      showToast('Description and amount are required', 'warning');
+      return;
+    }
+    try {
+      setExpenseSubmitting(true);
+      const res = await practitionerService.addMyGigsterExpense({
+        description: expenseForm.description,
+        amount: Number(expenseForm.amount),
+        category: expenseForm.category,
+        mileageKm: expenseForm.category === 'Mileage' ? Number(expenseForm.mileageKm) : 0
+      });
+      if (res.success) {
+        showToast('Expense logged successfully!', 'success');
+        setExpenseForm({ description: '', amount: '', category: 'Other', mileageKm: '' });
+        await fetchMyGigsterData();
+      }
+    } catch (err) {
+      console.error('Failed to add expense:', err);
+      showToast('Failed to log expense', 'error');
+    } finally {
+      setExpenseSubmitting(false);
+    }
+  };
+
+  const handleDeleteExpense = async (id) => {
+    try {
+      const res = await practitionerService.deleteMyGigsterExpense(id);
+      if (res.success) {
+        showToast('Expense deleted successfully', 'success');
+        await fetchMyGigsterData();
+      }
+    } catch (err) {
+      console.error('Failed to delete expense:', err);
+      showToast('Failed to delete expense', 'error');
+    }
+  };
+
+  const handleUpdateSettings = async (field, value) => {
+    try {
+      const updatedForm = { ...setupForm, [field]: value };
+      setSetupForm(updatedForm);
+      const res = await practitionerService.updateMyGigsterSettings(updatedForm);
+      if (res.success) {
+        if (field !== 'taxReservePercentage') {
+          showToast('Settings saved successfully', 'success');
+        }
+        await fetchMyGigsterData();
+      }
+    } catch (err) {
+      console.error('Failed to update settings:', err);
+      showToast('Failed to save settings', 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 4 && user) {
+      fetchMyGigsterData();
+    }
+  }, [activeTab, user]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -204,6 +360,9 @@ const PractitionerDashboard = () => {
           updateUser({ ...user, avatar: profRes.data.avatar });
         }
       }
+      
+      // Load myGigster details on background
+      fetchMyGigsterData();
     } catch (err) {
       console.error('Dashboard data fetch failed', err);
       showToast('Failed to load dashboard data', 'error');
@@ -1499,6 +1658,632 @@ const PractitionerDashboard = () => {
     </Box>
   );
 
+  const myGigsterSection = () => {
+    const isSetup = myGigsterData?.isSetup;
+    const balance = myGigsterMetrics?.availableBalance ?? 0;
+    const taxRate = myGigsterData?.taxReservePercentage ?? 20;
+    const gross = myGigsterMetrics?.grossEarnings ?? 0;
+    const payouts = myGigsterMetrics?.totalPayouts ?? 0;
+    const deductions = myGigsterMetrics?.totalDeductions ?? 0;
+    const taxSaved = myGigsterMetrics?.estimatedTaxSaved ?? 0;
+
+    const formattedBalance = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(balance);
+    const formattedGross = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(gross);
+    const formattedPayouts = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(payouts);
+    const formattedDeductions = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(deductions);
+    const formattedTaxSaved = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(taxSaved);
+
+    if (myGigsterLoading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress color="primary" />
+        </Box>
+      );
+    }
+
+    return (
+      <>
+        {!isSetup ? (
+          <Box sx={{ maxWidth: '800px', mx: 'auto', mt: 2 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 5,
+                borderRadius: 6,
+                border: '1px solid',
+                borderColor: 'divider',
+                textAlign: 'center',
+                background: 'linear-gradient(135deg, #0B1D2B 0%, #172554 100%)',
+                color: '#fff',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: -30,
+                  right: -30,
+                  width: 150,
+                  height: 150,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(65,198,198,0.2) 0%, rgba(65,198,198,0) 70%)',
+                }}
+              />
+              
+              <AccountBalanceWallet sx={{ fontSize: 72, color: 'secondary.main', mb: 3 }} />
+              
+              <Typography variant="h4" fontWeight={900} gutterBottom sx={{ letterSpacing: -0.8 }}>
+                Link your myGigster Wallet
+              </Typography>
+              
+              <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.7)', maxWidth: '600px', mx: 'auto', mb: 4, lineHeight: 1.7 }}>
+                Beyond5 partners with myGigster to offer embedded financial services tailored for independent healthcare practitioners. Automate your tax withholding, track business travel deductions, and cash out your session earnings instantly.
+              </Typography>
+
+              <Grid container spacing={3} sx={{ mb: 5, textAlign: 'left' }}>
+                <Grid item xs={12} sm={4}>
+                  <Paper sx={{ p: 3, height: '100%', bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <Payments sx={{ color: 'secondary.main', mb: 1 }} />
+                    <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#fff' }}>Instant Payouts</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', mt: 0.5, display: 'block' }}>
+                      Cash out your earnings directly to your bank account immediately after session approval.
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Paper sx={{ p: 3, height: '100%', bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <ReceiptLong sx={{ color: 'secondary.main', mb: 1 }} />
+                    <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#fff' }}>Tax Reserve Control</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', mt: 0.5, display: 'block' }}>
+                      Auto-withhold a customized percentage of your fee income in a secure tax reserve account.
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Paper sx={{ p: 3, height: '100%', bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <LocalTaxi sx={{ color: 'secondary.main', mb: 1 }} />
+                    <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#fff' }}>Expense Tracking</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', mt: 0.5, display: 'block' }}>
+                      Log travel mileage and general equipment/software expenses to maximize your tax deductions.
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              <Button
+                variant="contained"
+                color="secondary"
+                size="large"
+                onClick={() => setSetupWizardOpen(true)}
+                sx={{
+                  px: 5,
+                  py: 2,
+                  borderRadius: '50px',
+                  fontWeight: 900,
+                  boxShadow: '0 8px 25px rgba(65,198,198,0.35)',
+                }}
+              >
+                Get Started with myGigster
+              </Button>
+            </Paper>
+          </Box>
+        ) : (
+          <Box sx={{ maxWidth: '1100px', mx: 'auto' }}>
+            {/* myGigster Header Banner */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 4,
+                mb: 4,
+                borderRadius: 6,
+                background: 'linear-gradient(135deg, #0B1D2B 0%, #1e293b 50%, #0d9488 100%)',
+                color: '#fff',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
+                  <AccountBalanceWallet sx={{ color: 'secondary.main' }} />
+                  <Typography variant="caption" fontWeight={900} sx={{ letterSpacing: 1.5, textTransform: 'uppercase', color: 'secondary.main' }}>
+                    myGigster Embedded Partner
+                  </Typography>
+                </Stack>
+                <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: -0.8 }}>
+                  Financial Control Panel
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5 }}>
+                  Account Linked: <Typography component="span" variant="body2" fontFamily="monospace" color="secondary.main">{myGigsterData?.accountId}</Typography>
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: -40,
+                  right: -40,
+                  width: 180,
+                  height: 180,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(13,148,136,0.3) 0%, rgba(13,148,136,0) 70%)',
+                }}
+              />
+            </Paper>
+
+            {/* Metrics Grid */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              {/* Available for Cashout */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>
+                    Available to Cashout
+                  </Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ mt: 1, mb: 2 }}>
+                    {formattedBalance}
+                  </Typography>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    color="secondary"
+                    disabled={balance <= 0 || actionLoading}
+                    onClick={() => setPayoutDialogOpen(true)}
+                    startIcon={<Payments />}
+                    sx={{ borderRadius: 2.5, fontWeight: 800, color: 'white' }}
+                  >
+                    Instant Cashout
+                  </Button>
+                </Paper>
+              </Grid>
+
+              {/* Tax Reserve Account */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>
+                    Total Tax Reserve
+                  </Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ mt: 1, mb: 0.5 }}>
+                    {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(gross * (taxRate / 100))}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                    Auto-withholding at <strong>{taxRate}%</strong>
+                  </Typography>
+                  <Chip label="Auto-withholding active" size="small" color="success" variant="outlined" sx={{ fontWeight: 800 }} />
+                </Paper>
+              </Grid>
+
+              {/* Business Deductions */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>
+                    Tracked Deductions
+                  </Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ mt: 1, mb: 0.5 }}>
+                    {formattedDeductions}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                    Total business expenses logged
+                  </Typography>
+                  <Chip label="Deduction Log Active" size="small" variant="outlined" sx={{ fontWeight: 800 }} />
+                </Paper>
+              </Grid>
+
+              {/* Estimated Tax Saved */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', height: '100%', bgcolor: 'rgba(65,198,198,0.04)' }}>
+                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>
+                    Estimated Tax Saved
+                  </Typography>
+                  <Typography variant="h4" fontWeight={900} color="teal" sx={{ mt: 1, mb: 0.5 }}>
+                    {formattedTaxSaved}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                    Based on current tax reserve rate
+                  </Typography>
+                  <Chip label="Estimated Savings" size="small" color="primary" sx={{ fontWeight: 800 }} />
+                </Paper>
+              </Grid>
+            </Grid>
+
+            {/* Action and Log Columns */}
+            <Grid container spacing={4}>
+              {/* Expense Logger and Payout History */}
+              <Grid item xs={12} md={7}>
+                {/* Expense Logging Form */}
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', mb: 4 }}>
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocalTaxi color="primary" /> Track New Expense / Mileage
+                  </Typography>
+                  <form onSubmit={handleAddExpense}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Expense Description"
+                          placeholder="e.g. Speech Pathology Blocks"
+                          value={expenseForm.description}
+                          onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                          required
+                          variant="outlined"
+                          size="small"
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <TextField
+                          fullWidth
+                          label="Amount ($)"
+                          type="number"
+                          placeholder="45.00"
+                          value={expenseForm.amount}
+                          onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                          required
+                          variant="outlined"
+                          size="small"
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Category</InputLabel>
+                          <Select
+                            value={expenseForm.category}
+                            label="Category"
+                            onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value, mileageKm: e.target.value === 'Mileage' ? expenseForm.mileageKm : '' })}
+                            sx={{ borderRadius: 2.5 }}
+                          >
+                            <MenuItem value="Mileage">Mileage</MenuItem>
+                            <MenuItem value="Equipment">Equipment</MenuItem>
+                            <MenuItem value="Software">Software</MenuItem>
+                            <MenuItem value="Travel">Travel</MenuItem>
+                            <MenuItem value="Other">Other</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      {expenseForm.category === 'Mileage' && (
+                        <Grid item xs={12}>
+                          <TextField
+                            fullWidth
+                            label="Mileage Travelled (km)"
+                            type="number"
+                            placeholder="25"
+                            value={expenseForm.mileageKm}
+                            onChange={(e) => {
+                              const km = e.target.value;
+                              const calculatedAmount = (Number(km) * 0.85).toFixed(2);
+                              setExpenseForm({ ...expenseForm, mileageKm: km, amount: calculatedAmount });
+                            }}
+                            required
+                            variant="outlined"
+                            size="small"
+                            helperText="Calculated deduction based on ATO standard rate (85¢/km)"
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+                          />
+                        </Grid>
+                      )}
+                      <Grid item xs={12}>
+                        <Button
+                          type="submit"
+                          variant="contained"
+                          color="primary"
+                          disabled={expenseSubmitting}
+                          startIcon={<AddCircleOutlined />}
+                          sx={{ borderRadius: 2.5, fontWeight: 800, px: 3 }}
+                        >
+                          {expenseSubmitting ? 'Logging...' : 'Log Expense'}
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </form>
+
+                  {/* Logged Expenses List */}
+                  <Divider sx={{ my: 3 }} />
+                  <Typography variant="subtitle2" fontWeight={800} color="text.secondary" sx={{ mb: 2 }}>
+                    Logged Deductions ({myGigsterData?.expenses?.length || 0})
+                  </Typography>
+                  {myGigsterData?.expenses && myGigsterData.expenses.length > 0 ? (
+                    <Stack spacing={1.5} sx={{ maxHeight: 250, overflowY: 'auto' }}>
+                      {myGigsterData.expenses.map((exp) => (
+                        <Paper
+                          key={exp._id}
+                          variant="outlined"
+                          sx={{ p: 2, borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+                            <Avatar sx={{ bgcolor: exp.category === 'Mileage' ? 'rgba(65,198,198,0.1)' : 'rgba(11,29,43,0.06)', color: exp.category === 'Mileage' ? 'secondary.main' : 'primary.main' }}>
+                              {exp.category === 'Mileage' ? <LocalTaxi /> : <ReceiptLong />}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight={800}>{exp.description}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {exp.category} {exp.category === 'Mileage' && `(${exp.mileageKm} km)`} • {new Date(exp.date).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Typography variant="body2" fontWeight={900} color="error.main">
+                              -{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(exp.amount)}
+                            </Typography>
+                            <IconButton size="small" onClick={() => handleDeleteExpense(exp._id)} color="error">
+                              <DeleteOutlined fontSize="small" />
+                            </IconButton>
+                          </Stack>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                      No logged expenses. Log mileage or equipment above to track your deductions.
+                    </Typography>
+                  )}
+                </Paper>
+
+                {/* Payout & Earnings Transaction History */}
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ReceiptLong color="primary" /> Transaction History
+                  </Typography>
+                  {myGigsterData?.payoutHistory && myGigsterData.payoutHistory.length > 0 ? (
+                    <Stack spacing={1.5} sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                      {myGigsterData.payoutHistory.map((tx) => (
+                        <Paper
+                          key={tx._id}
+                          variant="outlined"
+                          sx={{ p: 2, borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+                            <Avatar sx={{ bgcolor: 'rgba(22,163,74,0.1)', color: '#41C6C6' }}>
+                              <AccountBalance />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight={800}>Instant Payout (myGigster Settlement)</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Ref: {tx.reference} • {new Date(tx.date).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="body2" fontWeight={900} color="success.main">
+                              {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(tx.amount)}
+                            </Typography>
+                            <Chip
+                              label={tx.status}
+                              size="small"
+                              color="success"
+                              sx={{ height: 18, fontSize: 10, fontWeight: 800, mt: 0.5 }}
+                            />
+                          </Box>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 3 }}>
+                      No payout history found. Cash out your available earnings to see transactions here.
+                    </Typography>
+                  )}
+                </Paper>
+              </Grid>
+
+              {/* Right Panel: Settings and Payout Details */}
+              <Grid item xs={12} md={5}>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', mb: 4 }}>
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AccountBalance color="primary" /> Linked Payout Account
+                  </Typography>
+                  <Stack spacing={2.5}>
+                    <Box>
+                      <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>Account Holder</Typography>
+                      <Typography variant="body1" fontWeight={700} sx={{ mt: 0.5 }}>{myGigsterData?.bankDetails?.accountHolder || 'Not Set'}</Typography>
+                    </Box>
+                    <Grid container spacing={2}>
+                      <Grid item xs={5}>
+                        <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>BSB</Typography>
+                        <Typography variant="body1" fontWeight={700} sx={{ mt: 0.5 }}>{myGigsterData?.bankDetails?.bsb || 'Not Set'}</Typography>
+                      </Grid>
+                      <Grid item xs={7}>
+                        <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>Account Number</Typography>
+                        <Typography variant="body1" fontWeight={700} sx={{ mt: 0.5 }}>
+                          {myGigsterData?.bankDetails?.accountNumber
+                            ? `******${myGigsterData.bankDetails.accountNumber.slice(-4)}`
+                            : 'Not Set'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                    <Box>
+                      <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>Financial Institution</Typography>
+                      <Typography variant="body1" fontWeight={700} sx={{ mt: 0.5 }}>{myGigsterData?.bankDetails?.bankName || 'Not Set'}</Typography>
+                    </Box>
+                    <Divider />
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => setSetupWizardOpen(true)}
+                      sx={{ borderRadius: 2.5, fontWeight: 800 }}
+                    >
+                      Update Bank Account
+                    </Button>
+                  </Stack>
+                </Paper>
+
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ReceiptLong color="primary" /> Automated Tax Reserves
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3, lineHeight: 1.6 }}>
+                    Adjust how much of your session earnings is automatically reserved in your secure myGigster tax account. This helps prevent large tax liability bills at the end of the financial year.
+                  </Typography>
+                  <Box sx={{ px: 2 }}>
+                    <Slider
+                      value={taxRate}
+                      onChange={(e, val) => handleUpdateSettings('taxReservePercentage', val)}
+                      valueLabelDisplay="auto"
+                      step={5}
+                      marks={[
+                        { value: 0, label: '0%' },
+                        { value: 15, label: '15%' },
+                        { value: 20, label: '20%' },
+                        { value: 30, label: '30%' },
+                        { value: 40, label: '40%' }
+                      ]}
+                      min={0}
+                      max={40}
+                      sx={{ color: 'secondary.main', mb: 3 }}
+                    />
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, bgcolor: '#f8fafc', borderStyle: 'dashed' }}>
+                      <Typography variant="body2" fontWeight={800} align="center">
+                        Current Rate: {taxRate}% auto-reserve
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, textAlign: 'center' }}>
+                        For a $150 session, ${((150 * taxRate) / 100).toFixed(2)} will be set aside.
+                      </Typography>
+                    </Paper>
+                  </Box>
+                </Paper>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+
+        {/* Dialogs rendered at the root of myGigsterSection return, so they are always mounted */}
+        <Dialog open={setupWizardOpen} onClose={() => setSetupWizardOpen(false)} maxWidth="sm" fullWidth sx={{ '& .MuiDialog-paper': { borderRadius: 5 } }}>
+          <DialogTitle sx={{ fontWeight: 900, pb: 1 }}>
+            Link myGigster Payout Account
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Enter your banking details. Funds cashed out instantly will be settled directly to this account via myGigster's Real-Time Payouts network.
+            </Typography>
+            <form id="mygigster-setup-form" onSubmit={handleSetupMyGigster}>
+              <Stack spacing={2.5}>
+                <TextField
+                  fullWidth
+                  label="Account Holder Name"
+                  required
+                  value={setupForm.accountHolder}
+                  onChange={(e) => setSetupForm({ ...setupForm, accountHolder: e.target.value })}
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                />
+                <TextField
+                  fullWidth
+                  label="Financial Institution Name"
+                  placeholder="e.g. Commonwealth Bank"
+                  required
+                  value={setupForm.bankName}
+                  onChange={(e) => setSetupForm({ ...setupForm, bankName: e.target.value })}
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                />
+                <Grid container spacing={2}>
+                  <Grid item xs={5}>
+                    <TextField
+                      fullWidth
+                      label="BSB Number"
+                      placeholder="062-900"
+                      required
+                      value={setupForm.bsb}
+                      onChange={(e) => setSetupForm({ ...setupForm, bsb: e.target.value })}
+                      variant="outlined"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                    />
+                  </Grid>
+                  <Grid item xs={7}>
+                    <TextField
+                      fullWidth
+                      label="Account Number"
+                      placeholder="12345678"
+                      required
+                      value={setupForm.accountNumber}
+                      onChange={(e) => setSetupForm({ ...setupForm, accountNumber: e.target.value })}
+                      variant="outlined"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                    />
+                  </Grid>
+                </Grid>
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                    Default Tax Withholding Reserve Percentage
+                  </Typography>
+                  <Slider
+                    value={setupForm.taxReservePercentage}
+                    onChange={(e, val) => setSetupForm({ ...setupForm, taxReservePercentage: val })}
+                    valueLabelDisplay="auto"
+                    step={5}
+                    min={0}
+                    max={40}
+                    sx={{ color: 'secondary.main', px: 1 }}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    Recommended: 20% to cover income tax obligation.
+                  </Typography>
+                </Box>
+              </Stack>
+            </form>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={() => setSetupWizardOpen(false)} sx={{ fontWeight: 800 }}>Cancel</Button>
+            <Button
+              type="submit"
+              form="mygigster-setup-form"
+              variant="contained"
+              color="secondary"
+              disabled={actionLoading}
+              sx={{ borderRadius: 3, fontWeight: 900, px: 3 }}
+            >
+              {actionLoading ? 'Linking...' : 'Link Account'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={payoutDialogOpen} onClose={() => setPayoutDialogOpen(false)} sx={{ '& .MuiDialog-paper': { borderRadius: 5 } }}>
+          <DialogTitle sx={{ fontWeight: 900, pb: 1 }}>
+            Confirm Instant Cashout
+          </DialogTitle>
+          <DialogContent sx={{ minWidth: 320 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              You are cashing out your total available earnings through the myGigster Real-Time Settlement network.
+            </Typography>
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: '#f8fafc', mb: 3 }}>
+              <Stack spacing={1.5}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="text.secondary">Gross Earnings:</Typography>
+                  <Typography variant="body2" fontWeight={800}>{formattedBalance}</Typography>
+                </Stack>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="text.secondary">myGigster Payout Fee (1.5%):</Typography>
+                  <Typography variant="body2" fontWeight={800} color="error.main">
+                    -{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(balance * 0.015)}
+                  </Typography>
+                </Stack>
+                <Divider />
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body1" fontWeight={800}>Net Cashout Transfer:</Typography>
+                  <Typography variant="body1" fontWeight={900} color="success.main">
+                    {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(balance * 0.985)}
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Paper>
+            <Typography variant="caption" color="text.secondary">
+              Transfer destination: BSB <strong>{myGigsterData?.bankDetails?.bsb}</strong> / Account <strong>******{myGigsterData?.bankDetails?.accountNumber?.slice(-4)}</strong>. Settles in 60 seconds.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={() => setPayoutDialogOpen(false)} sx={{ fontWeight: 800 }}>Cancel</Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handlePayout}
+              disabled={payoutSubmitting}
+              sx={{ borderRadius: 3, fontWeight: 900, px: 3 }}
+            >
+              {payoutSubmitting ? 'Transferring...' : 'Confirm Transfer'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </>
+    );
+  };
+
   // ─── MAIN RENDER ─────────────────────────────────────────────────────
 
   return (
@@ -1580,6 +2365,7 @@ const PractitionerDashboard = () => {
                   { label: 'Compliance', icon: <Assignment />, badge: complianceProgress < 100 },
                   { label: 'Availability', icon: <CalendarMonth /> },
                   { label: 'Settings', icon: <Settings /> },
+                  { label: 'myGigster Finance', icon: <AccountBalanceWallet /> },
                 ].map((nav, i) => (
                   <Button
                     key={i}
@@ -1639,6 +2425,7 @@ const PractitionerDashboard = () => {
                 {activeTab === 1 && compliance()}
                 {activeTab === 2 && availabilitySection()}
                 {activeTab === 3 && settingsSection()}
+                {activeTab === 4 && myGigsterSection()}
               </motion.div>
             </AnimatePresence>
 
