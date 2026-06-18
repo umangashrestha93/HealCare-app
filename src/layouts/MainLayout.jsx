@@ -28,6 +28,7 @@ import {
   Close,
   HomeOutlined,
   InfoOutlined,
+  EmailOutlined,
   Search,
   Dashboard as DashboardIcon,
   Person,
@@ -48,6 +49,7 @@ const BORDER_COLOR = '#E2E8F0';
 const NAV_LINKS = (user) => [
   { label: 'Home',               path: '/',           icon: <HomeOutlined /> },
   { label: 'About Us',           path: '/about-us',   icon: <InfoOutlined /> },
+  { label: 'Contact Us',         path: '/contact-us', icon: <EmailOutlined /> },
   { label: 'Find a Practitioner', path: '/marketplace', icon: <Search />,       roles: ['client', null] },
   { label: 'Dashboard',           path: user ? `/dashboard/${user.role}` : '/dashboard', icon: <DashboardIcon /> },
 ];
@@ -468,6 +470,7 @@ const Footer = ({ onNavigate }) => {
   const quickLinks = [
     { label: 'Home',        path: '/' },
     { label: 'About Us',    path: '/about-us' },
+    { label: 'Contact Us',  path: '/contact-us' },
     { label: 'Marketplace', path: '/marketplace' },
     { label: 'Dashboard',   path: '/dashboard' },
     { label: 'Login',       path: '/login' },
