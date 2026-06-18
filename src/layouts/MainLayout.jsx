@@ -35,6 +35,12 @@ import {
   Logout,
   Message,
   Settings,
+  Language,
+  LinkedIn,
+  WhatsApp,
+  Facebook,
+  Instagram,
+  YouTube,
 } from '@mui/icons-material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -468,65 +474,98 @@ const MobileDrawer = ({ open, onClose, user, navLinks, activePathname, onNavigat
 ───────────────────────────────────────────── */
 const Footer = ({ onNavigate }) => {
   const quickLinks = [
-    { label: 'Home',        path: '/' },
-    { label: 'About Us',    path: '/about-us' },
-    { label: 'Contact Us',  path: '/contact-us' },
-    { label: 'Marketplace', path: '/marketplace' },
-    { label: 'Dashboard',   path: '/dashboard' },
-    { label: 'Login',       path: '/login' },
+    { label: 'Home',         path: '/' },
+    { label: 'Services',     path: '/marketplace' },
+    { label: 'How It Works', path: '/about-us' },
+    { label: 'About Us',     path: '/about-us' },
+    { label: 'FAQs',         path: '#' },
+    { label: 'Contact Us',   path: '/contact-us' },
   ];
 
-  const currentYear = new Date().getFullYear();
+  const socialLinks = [
+    { icon: <LinkedIn fontSize="small" />,  href: 'https://linkedin.com',     label: 'LinkedIn' },
+    { icon: <WhatsApp fontSize="small" />,  href: 'https://wa.me/something',  label: 'WhatsApp' },
+    { icon: <Facebook fontSize="small" />,  href: 'https://facebook.com',     label: 'Facebook' },
+    { icon: <EmailOutlined fontSize="small" />, href: 'mailto:admin@beyond5ah.com.au', label: 'Email' },
+    { icon: <Instagram fontSize="small" />, href: 'https://instagram.com',    label: 'Instagram' },
+    { icon: <YouTube fontSize="small" />,   href: 'https://youtube.com',      label: 'YouTube' },
+  ];
 
   return (
     <Box
       component="footer"
       sx={{
-        bgcolor: '#ffffff',
-        borderTop: `1px solid ${BORDER_COLOR}`,
-        py: 6,
+        bgcolor: '#0B1D2B', // Dark navy background
+        color: '#ffffff',
+        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+        py: { xs: 6, md: 8 },
         mt: 'auto',
       }}
     >
       <Container maxWidth="lg">
-        {/* Main footer grid */}
+        {/* Main 3-column Grid */}
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+            gridTemplateColumns: { xs: '1fr', md: '1.2fr 0.8fr 1fr' },
             gap: { xs: 4, md: 6 },
             mb: 4,
           }}
         >
-          {/* Brand column */}
-          <Box>
+          {/* Column 1: Logo + Tagline */}
+          <Stack spacing={2.5}>
             <Box
               component="img"
               src="/logo.png"
               alt="Beyond5 Logo"
-              sx={{ height: 36, width: 'auto', mb: 2, cursor: 'pointer' }}
+              sx={{
+                height: 38,
+                width: 'auto',
+                cursor: 'pointer',
+                alignSelf: 'flex-start',
+              }}
               onClick={() => onNavigate('/')}
             />
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ maxWidth: 340, lineHeight: 1.7 }}
-            >
-              Connecting people with allied health practitioners who offer therapy that fits real life.
-            </Typography>
-          </Box>
+            <Box>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 800,
+                  color: '#41C6C6', // Teal Highlight
+                  letterSpacing: '0.02em',
+                  mb: 0.5,
+                }}
+              >
+                Therapy That Fits Real Life
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'rgba(255,255,255,0.7)',
+                  lineHeight: 1.7,
+                  fontSize: '0.9rem',
+                }}
+              >
+                A new national Allied Health access model, designed to shift access beyond 9–5 into the hours people actually live their lives.
+              </Typography>
+            </Box>
+          </Stack>
 
-          {/* Quick links column */}
+          {/* Column 2: Navigation Links */}
           <Box>
             <Typography
               variant="overline"
-              fontWeight={700}
-              color="text.primary"
-              sx={{ letterSpacing: '0.08em', display: 'block', mb: 1.5 }}
+              sx={{
+                fontWeight: 800,
+                color: '#ffffff',
+                letterSpacing: '0.08em',
+                display: 'block',
+                mb: 2.5,
+              }}
             >
-              Quick Links
+              Navigation
             </Typography>
-            <Stack spacing={1}>
+            <Stack spacing={1.5}>
               {quickLinks.map(({ label, path }) => (
                 <Box
                   key={label}
@@ -536,15 +575,18 @@ const Footer = ({ onNavigate }) => {
                   onKeyDown={(e) => e.key === 'Enter' && onNavigate(path)}
                   aria-label={`Go to ${label}`}
                   sx={{
-                    color: 'text.secondary',
-                    fontSize: '0.875rem',
+                    color: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.9rem',
+                    fontWeight: 500,
                     cursor: 'pointer',
                     width: 'fit-content',
-                    transition: 'color 0.18s ease',
-                    '&:hover': { color: 'primary.main' },
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      color: '#41C6C6', // Teal hover color
+                      transform: 'translateX(4px)',
+                    },
                     '&:focus-visible': {
-                      outline: '2px solid',
-                      outlineColor: 'primary.main',
+                      outline: '2px solid #41C6C6',
                       outlineOffset: 2,
                       borderRadius: '2px',
                     },
@@ -555,21 +597,108 @@ const Footer = ({ onNavigate }) => {
               ))}
             </Stack>
           </Box>
+
+          {/* Column 3: Contact Details + Social Icons */}
+          <Box>
+            <Typography
+              variant="overline"
+              sx={{
+                fontWeight: 800,
+                color: '#ffffff',
+                letterSpacing: '0.08em',
+                display: 'block',
+                mb: 2.5,
+              }}
+            >
+              Contact Us
+            </Typography>
+            
+            {/* Contact details */}
+            <Stack spacing={2} sx={{ mb: 4 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <EmailOutlined sx={{ color: '#41C6C6', fontSize: 20 }} />
+                <Typography
+                  component="a"
+                  href="mailto:admin@beyond5ah.com.au"
+                  sx={{
+                    color: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.9rem',
+                    textDecoration: 'none',
+                    fontWeight: 500,
+                    transition: 'color 0.2s ease',
+                    '&:hover': { color: '#41C6C6' },
+                  }}
+                >
+                  admin@beyond5ah.com.au
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Language sx={{ color: '#41C6C6', fontSize: 20 }} />
+                <Typography
+                  component="a"
+                  href="https://www.beyond5ah.com.au"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    color: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.9rem',
+                    textDecoration: 'none',
+                    fontWeight: 500,
+                    transition: 'color 0.2s ease',
+                    '&:hover': { color: '#41C6C6' },
+                  }}
+                >
+                  www.beyond5ah.com.au
+                </Typography>
+              </Stack>
+            </Stack>
+
+            {/* Social media icons */}
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {socialLinks.map(({ icon, href, label }) => (
+                <IconButton
+                  key={label}
+                  component="a"
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  size="small"
+                  sx={{
+                    color: '#ffffff',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    bgcolor: 'transparent',
+                    width: 36,
+                    height: 36,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      color: '#41C6C6',
+                      borderColor: '#41C6C6',
+                      bgcolor: 'rgba(65, 198, 198, 0.08)',
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  {icon}
+                </IconButton>
+              ))}
+            </Stack>
+          </Box>
         </Box>
 
-        {/* Bottom bar */}
-        <Divider sx={{ mb: 3 }} />
+        {/* Bottom Bar */}
+        <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.08)', mb: 3 }} />
         <Box
           sx={{
             display: 'flex',
             flexDirection: { xs: 'column', sm: 'row' },
             justifyContent: 'space-between',
             alignItems: { xs: 'flex-start', sm: 'center' },
-            gap: 1,
+            gap: 2,
           }}
         >
-          <Typography variant="caption" color="text.secondary">
-            © {currentYear} Beyond5. All rights reserved.
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+            ©️ 2026 Beyond5. All rights reserved.
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             <Box
@@ -581,15 +710,15 @@ const Footer = ({ onNavigate }) => {
                 gap: 0.5,
                 px: 1,
                 py: 0.25,
-                bgcolor: 'rgba(0,128,128,0.08)',
+                bgcolor: 'rgba(65, 198, 198, 0.08)',
                 borderRadius: '4px',
-                border: '1px solid rgba(0,128,128,0.2)',
+                border: '1px solid rgba(65, 198, 198, 0.2)',
               }}
             >
-              <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ fontSize: '0.7rem' }}>
+              <Typography variant="caption" fontWeight={700} color="#41C6C6" sx={{ fontSize: '0.7rem' }}>
                 WCAG AA
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem' }}>
                 accessible
               </Typography>
             </Box>
